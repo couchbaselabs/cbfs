@@ -105,7 +105,7 @@ func doPut(w http.ResponseWriter, req *http.Request) {
 		length,
 	}
 
-	err = storeMeta(req.URL.Path, fm)
+	err = storeMeta(req.URL.Path[1:], fm)
 	if err != nil {
 		log.Printf("Error storing file meta: %v", err)
 		w.WriteHeader(500)
@@ -125,7 +125,7 @@ func isResponseHeader(s string) bool {
 
 func doGet(w http.ResponseWriter, req *http.Request) {
 	got := fileMeta{}
-	err := couchbase.Get(req.URL.Path, &got)
+	err := couchbase.Get(req.URL.Path[1:], &got)
 	if err != nil {
 		log.Printf("Error getting file %v: %v", req.URL.Path, err)
 		w.WriteHeader(404)
