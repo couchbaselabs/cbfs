@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,7 +11,45 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/dustin/gomemcached/client"
 )
+
+type BlobOwnership struct {
+	OID   string               `json:"oid"`
+	Nodes map[string]time.Time `json:"nodes"`
+	Type  string               `json:"type"`
+}
+
+func recordBlobOwnership(h string) error {
+	sid := serverIdentifier()
+
+	k := "/" + h
+	return couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
+		_, err := mc.CAS(vb, k, func(in []byte) []byte {
+			ownership := BlobOwnership{}
+			err := json.Unmarshal(in, &ownership)
+			if err == nil {
+				ownership.Nodes[sid] = time.Now().UTC()
+			} else {
+				ownership.Nodes = map[string]time.Time{
+					sid: time.Now().UTC(),
+				}
+				ownership.OID = h
+			}
+			ownership.Type = "blobowner"
+
+			rv, err := json.Marshal(&ownership)
+			if err != nil {
+				log.Fatalf("Error marshaling blob ownership: %v", err)
+			}
+			return rv
+		}, 0)
+		return err
+	})
+}
 
 func putUserFile(w http.ResponseWriter, req *http.Request) {
 	sh := getHash()
@@ -56,6 +95,15 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Printf("Error storing file meta: %v", err)
 		w.WriteHeader(500)
+		fmt.Fprintf(w, "Error recording blob ownership: %v", err)
+		return
+	}
+
+	err = recordBlobOwnership(h)
+	if err != nil {
+		log.Printf("Error storing blob ownership: %v", err)
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Error recording blob ownership: %v", err)
 		return
 	}
 
@@ -114,6 +162,14 @@ func putRawHash(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	err = recordBlobOwnership(h)
+	if err != nil {
+		log.Printf("Error recording blob ownership: %v", err)
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Error recording blob ownership: %v", err)
+		return
+	}
+
 	w.WriteHeader(204)
 }
 
@@ -165,20 +221,33 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func doGetRawHash(w http.ResponseWriter, req *http.Request) {
-	oid := req.FormValue("oid")
-	if oid == "" {
-		w.WriteHeader(400)
-		fmt.Fprintf(w, "No oid specified")
-		return
-	}
-	http.ServeFile(w, req, hashFilename(oid))
+func doList(w http.ResponseWriter, req *http.Request) {
+	w.WriteHeader(200)
+	explen := getHash().Size() * 2
+	filepath.Walk(*root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && !strings.HasPrefix(info.Name(), "tmp") &&
+			len(info.Name()) == explen {
+			_, e := w.Write([]byte(info.Name() + "\n"))
+			return e
+		}
+		return nil
+	})
 }
 
 func doGet(w http.ResponseWriter, req *http.Request) {
-	if req.URL.Path == "/" {
-		doGetRawHash(w, req)
-	} else {
+	switch {
+	case req.URL.Path == "/" && req.FormValue("oid") != "":
+		http.ServeFile(w, req, hashFilename(req.FormValue("oid")))
+	case req.URL.Path == "/" && req.FormValue("list") != "":
+		doList(w, req)
+	case req.URL.Path == "/":
+		w.WriteHeader(400)
+		fmt.Fprintf(w, "No oid or list request specified\n")
+		return
+	default:
 		doGetUserDoc(w, req)
 	}
 }
