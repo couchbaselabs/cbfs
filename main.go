@@ -19,6 +19,7 @@ var root = flag.String("root", "storage", "Storage location")
 var hashType = flag.String("hash", "sha1", "Hash to use")
 var couchbaseServer = flag.String("couchbase", "", "Couchbase URL")
 var couchbaseBucket = flag.String("bucket", "default", "Couchbase bucket")
+var guidFile = flag.String("guidfile", ".serverguid", "Path to server identifier")
 
 type fileMeta struct {
 	Headers http.Header
@@ -207,6 +208,6 @@ func main() {
 		Addr:    *addr,
 		Handler: http.HandlerFunc(handler),
 	}
-	log.Printf("Listening to web requests on %s", *addr)
+	log.Printf("Listening to web requests on %s as server %s", *addr, serverIdentifier())
 	log.Fatal(s.ListenAndServe())
 }
