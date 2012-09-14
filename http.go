@@ -51,6 +51,18 @@ func recordBlobOwnership(h string) error {
 	})
 }
 
+func recordBlobAccess(h string) {
+	_, err := couchbase.Incr("/"+h+"/r", 1, 1, 0)
+	if err != nil {
+		log.Printf("Error incrementing counter for %v: %v", h, err)
+	}
+
+	_, err = couchbase.Incr("/"+serverIdentifier()+"/r", 1, 1, 0)
+	if err != nil {
+		log.Printf("Error incrementing node identifier: %v", h, err)
+	}
+}
+
 func putUserFile(w http.ResponseWriter, req *http.Request) {
 	sh := getHash()
 
@@ -219,6 +231,7 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Printf("Failed to write file: %v", err)
 	}
+	go recordBlobAccess(got.OID)
 }
 
 func doList(w http.ResponseWriter, req *http.Request) {
