@@ -202,10 +202,19 @@ func isResponseHeader(s string) bool {
 }
 
 func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
+	path := req.URL.Path
+	if path == "/" {
+		path = *defaultPath
+	}
+
+	if len(path) > 0 && path[0] == '/' {
+		path = path[1:]
+	}
+
 	got := fileMeta{}
-	err := couchbase.Get(req.URL.Path[1:], &got)
+	err := couchbase.Get(path, &got)
 	if err != nil {
-		log.Printf("Error getting file %v: %v", req.URL.Path, err)
+		log.Printf("Error getting file %#v: %v", path, err)
 		w.WriteHeader(404)
 		return
 	}
@@ -256,10 +265,6 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 		http.ServeFile(w, req, hashFilename(req.FormValue("oid")))
 	case req.URL.Path == "/" && req.FormValue("list") != "":
 		doList(w, req)
-	case req.URL.Path == "/":
-		w.WriteHeader(400)
-		fmt.Fprintf(w, "No oid or list request specified\n")
-		return
 	default:
 		doGetUserDoc(w, req)
 	}
