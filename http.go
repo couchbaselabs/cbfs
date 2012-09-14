@@ -152,13 +152,12 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 	}
 	defer f.Close()
 
-	w.WriteHeader(200)
-
 	for k, v := range got.Headers {
 		if isResponseHeader(k) {
 			w.Header()[k] = v
 		}
 	}
+	w.WriteHeader(200)
 
 	_, err = io.Copy(w, f)
 	if err != nil {
