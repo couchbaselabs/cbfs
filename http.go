@@ -2,16 +2,17 @@ package main
 
 import (
 	"encoding/hex"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 )
 
-func doPut(w http.ResponseWriter, req *http.Request) {
-
+func putUserFile(w http.ResponseWriter, req *http.Request) {
 	sh := getHash()
 
 	tmpf, err := ioutil.TempFile(*root, "tmp")
@@ -59,6 +60,69 @@ func doPut(w http.ResponseWriter, req *http.Request) {
 	}
 
 	w.WriteHeader(204)
+}
+
+func putRawHash(w http.ResponseWriter, req *http.Request) {
+	inputhash := ""
+	form, err := url.ParseQuery(req.URL.RawQuery)
+	if err == nil {
+		inputhash = form.Get("oid")
+	}
+
+	if inputhash == "" {
+		w.WriteHeader(400)
+		w.Write([]byte("No oid specified"))
+		return
+	}
+
+	tmpf, err := ioutil.TempFile(*root, "tmp")
+	if err != nil {
+		log.Printf("Error writing tmp file: %v", err)
+		w.WriteHeader(500)
+		os.Remove(tmpf.Name())
+		return
+	}
+
+	sh := getHash()
+	_, err = io.Copy(io.MultiWriter(tmpf, sh), req.Body)
+	if err != nil {
+		log.Printf("Error writing data from client: %v", err)
+		w.WriteHeader(500)
+		os.Remove(tmpf.Name())
+		return
+	}
+
+	h := hex.EncodeToString(sh.Sum([]byte{}))
+	if h != inputhash {
+		w.WriteHeader(400)
+		fmt.Fprintf(w, "Content hashed to %v, expected %v", h, inputhash)
+		os.Remove(tmpf.Name())
+		return
+
+	}
+	fn := hashFilename(h)
+
+	err = os.Rename(tmpf.Name(), fn)
+	if err != nil {
+		os.MkdirAll(filepath.Dir(fn), 0777)
+		err = os.Rename(tmpf.Name(), fn)
+		if err != nil {
+			log.Printf("Error renaming %v to %v: %v", tmpf.Name(), fn, err)
+			w.WriteHeader(500)
+			os.Remove(tmpf.Name())
+			return
+		}
+	}
+
+	w.WriteHeader(204)
+}
+
+func doPut(w http.ResponseWriter, req *http.Request) {
+	if req.URL.Path == "/" {
+		putRawHash(w, req)
+	} else {
+		putUserFile(w, req)
+	}
 }
 
 func isResponseHeader(s string) bool {
