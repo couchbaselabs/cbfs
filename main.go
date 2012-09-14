@@ -11,8 +11,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-
-	"github.com/couchbaselabs/go-couchbase"
 )
 
 var root = flag.String("root", "storage", "Storage location")
@@ -58,23 +56,8 @@ func (fm *fileMeta) UnmarshalJSON(d []byte) error {
 	return nil
 }
 
-func dbConnect() (*couchbase.Bucket, error) {
-	rv, err := couchbase.GetBucket(*couchbaseServer,
-		"default", *couchbaseBucket)
-	if err != nil {
-		return nil, err
-	}
-	return rv, nil
-}
-
 func storeMeta(name string, fm fileMeta) error {
-	db, err := dbConnect()
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	return db.Set(name, fm)
+	return couchbase.Set(name, fm)
 }
 
 func hashFilename(hstr string) string {
@@ -141,16 +124,8 @@ func isResponseHeader(s string) bool {
 }
 
 func doGet(w http.ResponseWriter, req *http.Request) {
-	db, err := dbConnect()
-	if err != nil {
-		log.Printf("Error writing data from client: %v", err)
-		w.WriteHeader(500)
-		return
-	}
-	defer db.Close()
-
 	got := fileMeta{}
-	err = db.Get(req.URL.Path, &got)
+	err := couchbase.Get(req.URL.Path, &got)
 	if err != nil {
 		log.Printf("Error getting file %v: %v", req.URL.Path, err)
 		w.WriteHeader(404)
@@ -202,6 +177,12 @@ func main() {
 			fmt.Fprintf(os.Stderr, " * %v\n", h)
 		}
 		os.Exit(1)
+	}
+
+	var err error
+	couchbase, err = dbConnect()
+	if err != nil {
+		log.Fatalf("Can't connect to couchbase: %v", err)
 	}
 
 	s := &http.Server{
