@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -10,10 +11,51 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+
+	"github.com/couchbaselabs/go-couchbase"
 )
 
 var root = flag.String("root", "storage", "Storage location")
 var hashType = flag.String("hash", "sha1", "Hash to use")
+var couchbaseServer = flag.String("couchbase", "", "Couchbase URL")
+var couchbaseBucket = flag.String("bucket", "default", "Couchbase bucket")
+
+type fileMeta struct {
+	Name    string
+	Headers http.Header
+	OID     string
+	Length  int64
+}
+
+func (fm fileMeta) MarshalJSON() ([]byte, error) {
+	m := map[string]interface{}{
+		"oid":     fm.OID,
+		"headers": map[string][]string(fm.Headers),
+		"type":    "file",
+		"ctype":   fm.Headers.Get("Content-Type"),
+		"length":  fm.Length,
+	}
+	return json.Marshal(m)
+}
+
+func dbConnect() (*couchbase.Bucket, error) {
+	rv, err := couchbase.GetBucket(*couchbaseServer,
+		"default", *couchbaseBucket)
+	if err != nil {
+		return nil, err
+	}
+	return rv, nil
+}
+
+func storeMeta(fm fileMeta) error {
+	db, err := dbConnect()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	return db.Set(fm.Name, fm)
+}
 
 func hashFilename(hstr string) string {
 	return *root + "/" + hstr[:2] + "/" + hstr
@@ -30,7 +72,7 @@ func doPut(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	_, err = io.Copy(io.MultiWriter(tmpf, sh), req.Body)
+	length, err := io.Copy(io.MultiWriter(tmpf, sh), req.Body)
 	if err != nil {
 		log.Printf("Error writing data from client: %v", err)
 		w.WriteHeader(500)
@@ -53,6 +95,20 @@ func doPut(w http.ResponseWriter, req *http.Request) {
 	}
 
 	log.Printf("Wrote %v -> %v (%#v)", req.URL.Path, h, req.Header)
+
+	fm := fileMeta{
+		req.URL.Path,
+		req.Header,
+		h,
+		length,
+	}
+
+	err = storeMeta(fm)
+	if err != nil {
+		log.Printf("Error storing file meta: %v", err)
+		w.WriteHeader(500)
+		return
+	}
 
 	w.WriteHeader(204)
 }
