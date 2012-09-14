@@ -9,10 +9,15 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 )
 
 var root = flag.String("root", "storage", "Storage location")
 var hashType = flag.String("hash", "sha1", "Hash to use")
+
+func hashFilename(hstr string) string {
+	return *root + "/" + hstr[:2] + "/" + hstr
+}
 
 func doPut(w http.ResponseWriter, req *http.Request) {
 
@@ -33,13 +38,18 @@ func doPut(w http.ResponseWriter, req *http.Request) {
 	}
 
 	h := hex.EncodeToString(sh.Sum([]byte{}))
-	fn := *root + "/" + h
+	fn := hashFilename(h)
+
 	err = os.Rename(tmpf.Name(), fn)
 	if err != nil {
-		log.Printf("Error renaming %v to %v: %v", tmpf.Name(), fn, err)
-		w.WriteHeader(500)
-		os.Remove(tmpf.Name())
-		return
+		os.MkdirAll(filepath.Dir(fn), 0777)
+		err = os.Rename(tmpf.Name(), fn)
+		if err != nil {
+			log.Printf("Error renaming %v to %v: %v", tmpf.Name(), fn, err)
+			w.WriteHeader(500)
+			os.Remove(tmpf.Name())
+			return
+		}
 	}
 
 	log.Printf("Wrote %v -> %v (%#v)", req.URL.Path, h, req.Header)
