@@ -24,6 +24,7 @@ func heartbeat() {
 			"type":     "storage",
 			"time":     time.Now().UTC(),
 			"bindaddr": *bindAddr,
+			"hash":     *hashType,
 		}
 		intfs, err := net.InterfaceAddrs()
 		if err == nil {
