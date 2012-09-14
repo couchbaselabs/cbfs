@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 )
 
+var bindAddr = flag.String("bind", ":8484", "Address to bind web thing to")
 var root = flag.String("root", "storage", "Storage location")
 var hashType = flag.String("hash", "sha1", "Hash to use")
 var couchbaseServer = flag.String("couchbase", "", "Couchbase URL")
@@ -166,7 +167,6 @@ func handler(w http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	addr := flag.String("bind", ":8484", "Address to bind web thing to")
 	flag.Parse()
 
 	if getHash() == nil {
@@ -185,10 +185,13 @@ func main() {
 		log.Fatalf("Can't connect to couchbase: %v", err)
 	}
 
+	go heartbeat()
+
 	s := &http.Server{
-		Addr:    *addr,
+		Addr:    *bindAddr,
 		Handler: http.HandlerFunc(handler),
 	}
-	log.Printf("Listening to web requests on %s as server %s", *addr, serverIdentifier())
+	log.Printf("Listening to web requests on %s as server %s",
+		*bindAddr, serverIdentifier())
 	log.Fatal(s.ListenAndServe())
 }
