@@ -21,7 +21,6 @@ var couchbaseServer = flag.String("couchbase", "", "Couchbase URL")
 var couchbaseBucket = flag.String("bucket", "default", "Couchbase bucket")
 
 type fileMeta struct {
-	Name    string
 	Headers http.Header
 	OID     string
 	Length  int64
@@ -38,6 +37,26 @@ func (fm fileMeta) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m)
 }
 
+func (fm *fileMeta) UnmarshalJSON(d []byte) error {
+	m := map[string]interface{}{}
+	err := json.Unmarshal(d, &m)
+	if err != nil {
+		return err
+	}
+
+	fm.OID = m["oid"].(string)
+	fm.Length = int64(m["length"].(float64))
+
+	fm.Headers = http.Header{}
+	for k, vs := range m["headers"].(map[string]interface{}) {
+		for _, v := range vs.([]interface{}) {
+			fm.Headers.Add(k, v.(string))
+		}
+	}
+
+	return nil
+}
+
 func dbConnect() (*couchbase.Bucket, error) {
 	rv, err := couchbase.GetBucket(*couchbaseServer,
 		"default", *couchbaseBucket)
@@ -47,14 +66,14 @@ func dbConnect() (*couchbase.Bucket, error) {
 	return rv, nil
 }
 
-func storeMeta(fm fileMeta) error {
+func storeMeta(name string, fm fileMeta) error {
 	db, err := dbConnect()
 	if err != nil {
 		return err
 	}
 	defer db.Close()
 
-	return db.Set(fm.Name, fm)
+	return db.Set(name, fm)
 }
 
 func hashFilename(hstr string) string {
@@ -97,13 +116,12 @@ func doPut(w http.ResponseWriter, req *http.Request) {
 	log.Printf("Wrote %v -> %v (%#v)", req.URL.Path, h, req.Header)
 
 	fm := fileMeta{
-		req.URL.Path,
 		req.Header,
 		h,
 		length,
 	}
 
-	err = storeMeta(fm)
+	err = storeMeta(req.URL.Path, fm)
 	if err != nil {
 		log.Printf("Error storing file meta: %v", err)
 		w.WriteHeader(500)
@@ -113,11 +131,59 @@ func doPut(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(204)
 }
 
+func isResponseHeader(s string) bool {
+	switch s {
+	case "Content-Type", "Content-Length":
+		return true
+	}
+	return false
+}
+
+func doGet(w http.ResponseWriter, req *http.Request) {
+	db, err := dbConnect()
+	if err != nil {
+		log.Printf("Error writing data from client: %v", err)
+		w.WriteHeader(500)
+		return
+	}
+	defer db.Close()
+
+	got := fileMeta{}
+	err = db.Get(req.URL.Path, &got)
+	if err != nil {
+		log.Printf("Error getting file %v: %v", req.URL.Path, err)
+		w.WriteHeader(404)
+		return
+	}
+
+	for k, v := range got.Headers {
+		if isResponseHeader(k) {
+			w.Header()[k] = v
+		}
+	}
+
+	log.Printf("Need to find blob %v", got.OID)
+
+	f, err := os.Open(hashFilename(got.OID))
+	if err != nil {
+		log.Printf("Don't have hash file: %v: %v", got.OID, err)
+		w.WriteHeader(500)
+		return
+	}
+	defer f.Close()
+	_, err = io.Copy(w, f)
+	if err != nil {
+		log.Printf("Failed to write file: %v", err)
+	}
+}
+
 func handler(w http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 	switch req.Method {
 	case "PUT":
 		doPut(w, req)
+	case "GET":
+		doGet(w, req)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
