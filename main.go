@@ -1,9 +1,9 @@
 package main
 
 import (
-	"crypto/sha1"
 	"encoding/hex"
 	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -12,10 +12,11 @@ import (
 )
 
 var root = flag.String("root", "storage", "Storage location")
+var hashType = flag.String("hash", "sha1", "Hash to use")
 
 func doPut(w http.ResponseWriter, req *http.Request) {
 
-	sh := sha1.New()
+	sh := getHash()
 
 	tmpf, err := ioutil.TempFile(*root, "tmp")
 	if err != nil {
@@ -31,8 +32,8 @@ func doPut(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	hash := hex.EncodeToString(sh.Sum([]byte{}))
-	fn := *root + "/" + hash
+	h := hex.EncodeToString(sh.Sum([]byte{}))
+	fn := *root + "/" + h
 	err = os.Rename(tmpf.Name(), fn)
 	if err != nil {
 		log.Printf("Error renaming %v to %v: %v", tmpf.Name(), fn, err)
@@ -41,7 +42,7 @@ func doPut(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	log.Printf("Wrote %v -> %v (%#v)", req.URL.Path, hash, req.Header)
+	log.Printf("Wrote %v -> %v (%#v)", req.URL.Path, h, req.Header)
 
 	w.WriteHeader(204)
 }
@@ -59,6 +60,16 @@ func handler(w http.ResponseWriter, req *http.Request) {
 func main() {
 	addr := flag.String("bind", ":8484", "Address to bind web thing to")
 	flag.Parse()
+
+	if getHash() == nil {
+		fmt.Fprintf(os.Stderr,
+			"Unsupported hash specified: %v.  Supported hashes:\n",
+			*hashType)
+		for h := range hashBuilders {
+			fmt.Fprintf(os.Stderr, " * %v\n", h)
+		}
+		os.Exit(1)
+	}
 
 	s := &http.Server{
 		Addr:    *addr,
