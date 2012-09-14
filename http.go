@@ -133,19 +133,13 @@ func isResponseHeader(s string) bool {
 	return false
 }
 
-func doGet(w http.ResponseWriter, req *http.Request) {
+func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 	got := fileMeta{}
 	err := couchbase.Get(req.URL.Path[1:], &got)
 	if err != nil {
 		log.Printf("Error getting file %v: %v", req.URL.Path, err)
 		w.WriteHeader(404)
 		return
-	}
-
-	for k, v := range got.Headers {
-		if isResponseHeader(k) {
-			w.Header()[k] = v
-		}
 	}
 
 	log.Printf("Need to find blob %v", got.OID)
@@ -157,9 +151,36 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	defer f.Close()
+
+	w.WriteHeader(200)
+
+	for k, v := range got.Headers {
+		if isResponseHeader(k) {
+			w.Header()[k] = v
+		}
+	}
+
 	_, err = io.Copy(w, f)
 	if err != nil {
 		log.Printf("Failed to write file: %v", err)
+	}
+}
+
+func doGetRawHash(w http.ResponseWriter, req *http.Request) {
+	oid := req.FormValue("oid")
+	if oid == "" {
+		w.WriteHeader(400)
+		fmt.Fprintf(w, "No oid specified")
+		return
+	}
+	http.ServeFile(w, req, hashFilename(oid))
+}
+
+func doGet(w http.ResponseWriter, req *http.Request) {
+	if req.URL.Path == "/" {
+		doGetRawHash(w, req)
+	} else {
+		doGetUserDoc(w, req)
 	}
 }
 
