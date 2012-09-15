@@ -1,12 +1,26 @@
 package main
 
 import (
+	"errors"
 	"io/ioutil"
 	"strings"
 	"time"
 )
 
 var serverId string
+
+func validateServerId(s string) error {
+	invalid := errors.New("Invalid server id: " + s)
+	switch {
+	case len(s) == 0:
+		return invalid
+	case s == "master":
+		return invalid
+	case s[0] == '/':
+		return invalid
+	}
+	return nil
+}
 
 func initServerId() error {
 	bytes, err := ioutil.ReadFile(*guidFile)
