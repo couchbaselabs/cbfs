@@ -75,7 +75,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	var err error
+	err := initServerId()
+	if err != nil {
+		log.Fatalf("Error initializing server ID: %v", err)
+	}
+
 	couchbase, err = dbConnect()
 	if err != nil {
 		log.Fatalf("Can't connect to couchbase: %v", err)
@@ -89,6 +93,6 @@ func main() {
 		Handler: http.HandlerFunc(httpHandler),
 	}
 	log.Printf("Listening to web requests on %s as server %s",
-		*bindAddr, serverIdentifier())
+		*bindAddr, serverId)
 	log.Fatal(s.ListenAndServe())
 }

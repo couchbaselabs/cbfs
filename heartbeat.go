@@ -55,7 +55,7 @@ func heartbeat() {
 			Hash:     *hashType,
 		}
 
-		err = couchbase.Set("/"+serverIdentifier(), aboutMe)
+		err = couchbase.Set("/"+serverId, aboutMe)
 		if err != nil {
 			log.Printf("Failed to record a heartbeat: %v", err)
 		}

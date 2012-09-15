@@ -23,18 +23,16 @@ type BlobOwnership struct {
 }
 
 func recordBlobOwnership(h string, l int64) error {
-	sid := serverIdentifier()
-
 	k := "/" + h
 	return couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
 		_, err := mc.CAS(vb, k, func(in []byte) []byte {
 			ownership := BlobOwnership{}
 			err := json.Unmarshal(in, &ownership)
 			if err == nil {
-				ownership.Nodes[sid] = time.Now().UTC()
+				ownership.Nodes[serverId] = time.Now().UTC()
 			} else {
 				ownership.Nodes = map[string]time.Time{
-					sid: time.Now().UTC(),
+					serverId: time.Now().UTC(),
 				}
 			}
 			ownership.OID = h
@@ -57,7 +55,7 @@ func recordBlobAccess(h string) {
 		log.Printf("Error incrementing counter for %v: %v", h, err)
 	}
 
-	_, err = couchbase.Incr("/"+serverIdentifier()+"/r", 1, 1, 0)
+	_, err = couchbase.Incr("/"+serverId+"/r", 1, 1, 0)
 	if err != nil {
 		log.Printf("Error incrementing node identifier: %v", h, err)
 	}
@@ -222,7 +220,7 @@ func getBlobFromRemote(w http.ResponseWriter, meta fileMeta) {
 	// If we encounter any errors along the way, try the next node
 	for sid := range ownership.Nodes {
 		// Skip myself
-		if sid == serverIdentifier() {
+		if sid == serverId {
 			continue
 		}
 
