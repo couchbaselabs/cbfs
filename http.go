@@ -1,11 +1,9 @@
 package main
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -66,35 +64,17 @@ func recordBlobAccess(h string) {
 }
 
 func putUserFile(w http.ResponseWriter, req *http.Request) {
-	sh := getHash()
-
-	tmpf, err := ioutil.TempFile(*root, "tmp")
+	f, err := NewHashRecord(*root, "")
 	if err != nil {
 		log.Printf("Error writing tmp file: %v", err)
 		w.WriteHeader(500)
 		return
 	}
+	defer f.Close()
 
-	length, err := io.Copy(io.MultiWriter(tmpf, sh), req.Body)
+	h, length, err := f.Process(req.Body)
 	if err != nil {
-		log.Printf("Error writing data from client: %v", err)
-		w.WriteHeader(500)
-		return
-	}
-
-	h := hex.EncodeToString(sh.Sum([]byte{}))
-	fn := hashFilename(h)
-
-	err = os.Rename(tmpf.Name(), fn)
-	if err != nil {
-		os.MkdirAll(filepath.Dir(fn), 0777)
-		err = os.Rename(tmpf.Name(), fn)
-		if err != nil {
-			log.Printf("Error renaming %v to %v: %v", tmpf.Name(), fn, err)
-			w.WriteHeader(500)
-			os.Remove(tmpf.Name())
-			return
-		}
+		log.Printf("Error completing blob write: %v", err)
 	}
 
 	log.Printf("Wrote %v -> %v (%#v)", req.URL.Path, h, req.Header)
@@ -137,46 +117,23 @@ func putRawHash(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	tmpf, err := ioutil.TempFile(*root, "tmp")
+	f, err := NewHashRecord(*root, inputhash)
 	if err != nil {
 		log.Printf("Error writing tmp file: %v", err)
 		w.WriteHeader(500)
-		os.Remove(tmpf.Name())
 		return
 	}
+	defer f.Close()
 
-	sh := getHash()
-	length, err := io.Copy(io.MultiWriter(tmpf, sh), req.Body)
+	_, length, err := f.Process(req.Body)
 	if err != nil {
-		log.Printf("Error writing data from client: %v", err)
+		log.Printf("Error linking in raw hash: %v", err)
 		w.WriteHeader(500)
-		os.Remove(tmpf.Name())
+		w.Write([]byte(err.Error()))
 		return
 	}
 
-	h := hex.EncodeToString(sh.Sum([]byte{}))
-	if h != inputhash {
-		w.WriteHeader(400)
-		fmt.Fprintf(w, "Content hashed to %v, expected %v", h, inputhash)
-		os.Remove(tmpf.Name())
-		return
-
-	}
-	fn := hashFilename(h)
-
-	err = os.Rename(tmpf.Name(), fn)
-	if err != nil {
-		os.MkdirAll(filepath.Dir(fn), 0777)
-		err = os.Rename(tmpf.Name(), fn)
-		if err != nil {
-			log.Printf("Error renaming %v to %v: %v", tmpf.Name(), fn, err)
-			w.WriteHeader(500)
-			os.Remove(tmpf.Name())
-			return
-		}
-	}
-
-	err = recordBlobOwnership(h, length)
+	err = recordBlobOwnership(inputhash, length)
 	if err != nil {
 		log.Printf("Error recording blob ownership: %v", err)
 		w.WriteHeader(500)
@@ -259,7 +216,7 @@ func getBlobFromRemote(w http.ResponseWriter, oid string) {
 
 	// Loop through the nodes that claim to own this blob
 	// If we encounter any errors along the way, try the next node
-	for sid, _ := range ownership.Nodes {
+	for sid := range ownership.Nodes {
 		log.Printf("Trying to get %s from %s", oid, sid)
 		sidaddr, err := getNodeAddress(sid)
 		if err != nil {
@@ -279,9 +236,9 @@ func getBlobFromRemote(w http.ResponseWriter, oid string) {
 			continue
 		}
 
-		_, err2 := io.Copy(w, resp.Body)
-		if err2 != nil {
-			log.Printf("Failed to write from remote stream %v", err2)
+		_, err = io.Copy(w, resp.Body)
+		if err != nil {
+			log.Printf("Failed to write from remote stream %v", err)
 		}
 		return
 	}
