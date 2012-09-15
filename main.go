@@ -58,8 +58,8 @@ func storeMeta(name string, fm fileMeta) error {
 	return couchbase.Set(name, fm)
 }
 
-func hashFilename(hstr string) string {
-	return *root + "/" + hstr[:2] + "/" + hstr
+func hashFilename(base, hstr string) string {
+	return base + "/" + hstr[:2] + "/" + hstr
 }
 
 func main() {

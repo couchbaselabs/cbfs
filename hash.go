@@ -35,9 +35,10 @@ type hashRecord struct {
 	sh     hash.Hash
 	w      io.Writer
 	hashin string
+	base   string
 }
 
-func NewHashRecord(tmpdir string, hashin string) (*hashRecord, error) {
+func NewHashRecord(tmpdir, hashin string) (*hashRecord, error) {
 	tmpf, err := ioutil.TempFile(tmpdir, "tmp")
 	if err != nil {
 		return nil, err
@@ -50,6 +51,7 @@ func NewHashRecord(tmpdir string, hashin string) (*hashRecord, error) {
 		sh:     sh,
 		w:      io.MultiWriter(tmpf, sh),
 		hashin: hashin,
+		base:   *root,
 	}, nil
 }
 
@@ -64,7 +66,7 @@ func (h *hashRecord) Finish() (string, error) {
 	}
 
 	hs := hex.EncodeToString(h.sh.Sum([]byte{}))
-	fn := hashFilename(hs)
+	fn := hashFilename(h.base, hs)
 
 	if h.hashin != "" && h.hashin != hs {
 		return "", fmt.Errorf("Invalid hash %v != %v",

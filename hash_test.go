@@ -3,9 +3,11 @@ package main
 import (
 	"bytes"
 	"encoding/hex"
+	"errors"
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -79,6 +81,7 @@ func BenchmarkHashMD5(b *testing.B) {
 }
 
 func testWithTempDir(t *testing.T, f func(string)) {
+	t.Parallel()
 	tmpdir, err := ioutil.TempDir("", "hashtest")
 	if err != nil {
 		t.Fatalf("Error getting temp dir: %v", err)
@@ -86,6 +89,21 @@ func testWithTempDir(t *testing.T, f func(string)) {
 	defer os.RemoveAll(tmpdir)
 
 	f(tmpdir)
+}
+
+func validateHashFile(fn string) error {
+	f, err := os.Open(fn)
+	if err != nil {
+		return err
+	}
+	b, err := ioutil.ReadAll(f)
+	if err != nil {
+		return err
+	}
+	if !reflect.DeepEqual(randomData, b) {
+		return errors.New("Didn't read the same data")
+	}
+	return nil
 }
 
 func TestHashWriterClose(t *testing.T) {
@@ -130,6 +148,7 @@ func TestHashWriterNoHash(t *testing.T) {
 			t.Fatalf("Error establishing hash record: %v", err)
 		}
 		defer hr.Close()
+		hr.base = tmpdir
 		h, l, err := hr.Process(bytes.NewReader(randomData))
 		if err != nil {
 			t.Fatalf("Error processing: %v", err)
@@ -141,6 +160,10 @@ func TestHashWriterNoHash(t *testing.T) {
 		if h != hashOfRandomData {
 			t.Fatalf("Expected hash %v, got %v",
 				hashOfRandomData, h)
+		}
+		err = validateHashFile(hashFilename(tmpdir, hashOfRandomData))
+		if err != nil {
+			t.Fatalf("Didn't find valid hash: %v", err)
 		}
 	})
 }
@@ -152,6 +175,7 @@ func TestHashWriterGoodHash(t *testing.T) {
 			t.Fatalf("Error establishing hash record: %v", err)
 		}
 		defer hr.Close()
+		hr.base = tmpdir
 		h, l, err := hr.Process(bytes.NewReader(randomData))
 		if err != nil {
 			t.Fatalf("Error processing: %v", err)
@@ -164,6 +188,10 @@ func TestHashWriterGoodHash(t *testing.T) {
 			t.Fatalf("Expected hash %v, got %v",
 				hashOfRandomData, h)
 		}
+		err = validateHashFile(hashFilename(tmpdir, hashOfRandomData))
+		if err != nil {
+			t.Fatalf("Didn't find valid hash: %v", err)
+		}
 	})
 }
 
@@ -174,6 +202,7 @@ func TestHashWriterWithBadHash(t *testing.T) {
 			t.Fatalf("Error establishing hash record: %v", err)
 		}
 		defer hr.Close()
+		hr.base = tmpdir
 		_, l, err := hr.Process(bytes.NewReader(randomData))
 		if err == nil {
 			t.Fatalf("Expected error processing")
@@ -185,6 +214,10 @@ func TestHashWriterWithBadHash(t *testing.T) {
 		if int(l) != len(randomData) {
 			t.Fatalf("Processing was short: %v != %v",
 				l, len(randomData))
+		}
+		err = validateHashFile(hashFilename(tmpdir, hashOfRandomData))
+		if err == nil {
+			t.Fatalf("Unexpectedly found valid hash.")
 		}
 	})
 }

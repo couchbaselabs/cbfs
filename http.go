@@ -182,7 +182,7 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	f, err := os.Open(hashFilename(got.OID))
+	f, err := os.Open(hashFilename(*root, got.OID))
 	if err != nil {
 		getBlobFromRemote(w, got)
 		return
@@ -307,7 +307,7 @@ func doList(w http.ResponseWriter, req *http.Request) {
 func doGet(w http.ResponseWriter, req *http.Request) {
 	switch {
 	case req.URL.Path == "/" && req.FormValue("oid") != "":
-		http.ServeFile(w, req, hashFilename(req.FormValue("oid")))
+		http.ServeFile(w, req, hashFilename(*root, req.FormValue("oid")))
 	case req.URL.Path == "/" && req.FormValue("list") != "":
 		doList(w, req)
 	default:
@@ -317,7 +317,7 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 
 func doDeleteOID(w http.ResponseWriter, req *http.Request) {
 	oid := req.FormValue("oid")
-	err := os.Remove(hashFilename(oid))
+	err := os.Remove(hashFilename(*root, oid))
 	if err == nil {
 		w.WriteHeader(201)
 	} else {
