@@ -18,12 +18,13 @@ import (
 )
 
 type BlobOwnership struct {
-	OID   string               `json:"oid"`
-	Nodes map[string]time.Time `json:"nodes"`
-	Type  string               `json:"type"`
+	OID    string               `json:"oid"`
+	Length int64                `json:"length"`
+	Nodes  map[string]time.Time `json:"nodes"`
+	Type   string               `json:"type"`
 }
 
-func recordBlobOwnership(h string) error {
+func recordBlobOwnership(h string, l int64) error {
 	sid := serverIdentifier()
 
 	k := "/" + h
@@ -37,8 +38,9 @@ func recordBlobOwnership(h string) error {
 				ownership.Nodes = map[string]time.Time{
 					sid: time.Now().UTC(),
 				}
-				ownership.OID = h
 			}
+			ownership.OID = h
+			ownership.Length = l
 			ownership.Type = "blobowner"
 
 			rv, err := json.Marshal(&ownership)
@@ -111,7 +113,7 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = recordBlobOwnership(h)
+	err = recordBlobOwnership(h, length)
 	if err != nil {
 		log.Printf("Error storing blob ownership: %v", err)
 		w.WriteHeader(500)
@@ -144,7 +146,7 @@ func putRawHash(w http.ResponseWriter, req *http.Request) {
 	}
 
 	sh := getHash()
-	_, err = io.Copy(io.MultiWriter(tmpf, sh), req.Body)
+	length, err := io.Copy(io.MultiWriter(tmpf, sh), req.Body)
 	if err != nil {
 		log.Printf("Error writing data from client: %v", err)
 		w.WriteHeader(500)
@@ -174,7 +176,7 @@ func putRawHash(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	err = recordBlobOwnership(h)
+	err = recordBlobOwnership(h, length)
 	if err != nil {
 		log.Printf("Error recording blob ownership: %v", err)
 		w.WriteHeader(500)
