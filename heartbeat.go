@@ -5,12 +5,16 @@ import (
 	"log"
 	"net"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
 
 var heartFreq = flag.Duration("heartbeat", 10*time.Second,
 	"Heartbeat frequency")
+var reconcileFreq = flag.Duration("reconcile", 24*time.Hour,
+	"Reconciliation frequency")
 
 type AboutNode struct {
 	Addr     string `json:"addr"`
@@ -56,5 +60,34 @@ func heartbeat() {
 			log.Printf("Failed to record a heartbeat: %v", err)
 		}
 		time.Sleep(*heartFreq)
+	}
+}
+
+func reconcile() error {
+	explen := getHash().Size() * 2
+	return filepath.Walk(*root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && !strings.HasPrefix(info.Name(), "tmp") &&
+			len(info.Name()) == explen {
+			// I can do way more efficient stuff than this.
+			recordBlobOwnership(info.Name(), info.Size())
+			return err
+		}
+		return nil
+	})
+}
+
+func reconcileLoop() {
+	if *reconcileFreq == 0 {
+		return
+	}
+	for {
+		err := reconcile()
+		if err != nil {
+			log.Printf("Error in reconciliation loop: %v", err)
+		}
+		time.Sleep(*reconcileFreq)
 	}
 }

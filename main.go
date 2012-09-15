@@ -82,6 +82,7 @@ func main() {
 	}
 
 	go heartbeat()
+	go reconcileLoop()
 
 	s := &http.Server{
 		Addr:    *bindAddr,
