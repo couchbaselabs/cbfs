@@ -310,6 +310,36 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func doDeleteOID(w http.ResponseWriter, req *http.Request) {
+	oid := req.FormValue("oid")
+	err := os.Remove(hashFilename(oid))
+	if err == nil {
+		w.WriteHeader(201)
+	} else {
+		w.WriteHeader(404)
+		w.Write([]byte(err.Error()))
+	}
+}
+
+func doDeleteUserDoc(w http.ResponseWriter, req *http.Request) {
+	err := couchbase.Delete(req.URL.Path[1:])
+	if err == nil {
+		w.WriteHeader(201)
+	} else {
+		w.WriteHeader(404)
+		w.Write([]byte(err.Error()))
+	}
+}
+
+func doDelete(w http.ResponseWriter, req *http.Request) {
+	switch {
+	case req.URL.Path == "/" && req.FormValue("oid") != "":
+		doDeleteOID(w, req)
+	default:
+		doDeleteUserDoc(w, req)
+	}
+}
+
 func httpHandler(w http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 	switch req.Method {
@@ -317,6 +347,8 @@ func httpHandler(w http.ResponseWriter, req *http.Request) {
 		doPut(w, req)
 	case "GET":
 		doGet(w, req)
+	case "DELETE":
+		doDelete(w, req)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
