@@ -17,11 +17,11 @@ var reconcileFreq = flag.Duration("reconcile", 24*time.Hour,
 	"Reconciliation frequency")
 
 type AboutNode struct {
-	Addr     string `json:"addr"`
-	Type     string `json:"type"`
-	Time     string `json:"time"`
-	BindAddr string `json:"bindaddr"`
-	Hash     string `json:"hash"`
+	Addr     string    `json:"addr"`
+	Type     string    `json:"type"`
+	Time     time.Time `json:"time"`
+	BindAddr string    `json:"bindaddr"`
+	Hash     string    `json:"hash"`
 }
 
 func getNodeAddress(sid string) (string, error) {
@@ -39,7 +39,6 @@ func getNodeAddress(sid string) (string, error) {
 
 func heartbeat() {
 	for {
-
 		u, err := url.Parse(*couchbaseServer)
 		c, err := net.Dial("tcp", u.Host)
 		localAddr := ""
@@ -48,12 +47,13 @@ func heartbeat() {
 			c.Close()
 		}
 
-		aboutMe := AboutNode{}
-		aboutMe.Addr = localAddr
-		aboutMe.Type = "storage"
-		aboutMe.Time = time.Now().UTC().String()
-		aboutMe.BindAddr = *bindAddr
-		aboutMe.Hash = *hashType
+		aboutMe := AboutNode{
+			Addr:     localAddr,
+			Type:     "storage",
+			Time:     time.Now().UTC(),
+			BindAddr: *bindAddr,
+			Hash:     *hashType,
+		}
 
 		err = couchbase.Set("/"+serverIdentifier(), aboutMe)
 		if err != nil {
