@@ -85,7 +85,7 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		length,
 	}
 
-	err = storeMeta(req.URL.Path[1:], fm)
+	err = storeMeta(resolvePath(req), fm)
 	if err != nil {
 		log.Printf("Error storing file meta: %v", err)
 		w.WriteHeader(500)
@@ -160,7 +160,7 @@ func isResponseHeader(s string) bool {
 	return false
 }
 
-func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
+func resolvePath(req *http.Request) string {
 	path := req.URL.Path
 	if path == "/" {
 		path = *defaultPath
@@ -169,7 +169,11 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 	if len(path) > 0 && path[0] == '/' {
 		path = path[1:]
 	}
+	return path
+}
 
+func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
+	path := resolvePath(req)
 	got := fileMeta{}
 	err := couchbase.Get(path, &got)
 	if err != nil {
@@ -322,7 +326,7 @@ func doDeleteOID(w http.ResponseWriter, req *http.Request) {
 }
 
 func doDeleteUserDoc(w http.ResponseWriter, req *http.Request) {
-	err := couchbase.Delete(req.URL.Path[1:])
+	err := couchbase.Delete(resolvePath(req))
 	if err == nil {
 		w.WriteHeader(201)
 	} else {
