@@ -121,6 +121,7 @@ func putRawHash(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Printf("Error writing tmp file: %v", err)
 		w.WriteHeader(500)
+		w.Write([]byte(err.Error()))
 		return
 	}
 	defer f.Close()
@@ -179,6 +180,7 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Printf("Error getting file %#v: %v", path, err)
 		w.WriteHeader(404)
+		w.Write([]byte(err.Error()))
 		return
 	}
 
@@ -284,6 +286,7 @@ func getBlobFromRemote(w http.ResponseWriter, meta fileMeta) {
 	log.Printf("Don't have hash file: %v and no remote nodes could help",
 		meta.OID)
 	w.WriteHeader(500)
+	fmt.Fprintf(w, "Cannot locate blob %v", meta.OID)
 	return
 }
 
