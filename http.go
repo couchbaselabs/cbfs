@@ -180,7 +180,7 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 
 	f, err := os.Open(hashFilename(got.OID))
 	if err != nil {
-		getBlobFromRemote(w, got.OID)
+		getBlobFromRemote(w, got)
 		return
 	}
 	defer f.Close()
@@ -199,14 +199,14 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 	go recordBlobAccess(got.OID)
 }
 
-func getBlobFromRemote(w http.ResponseWriter, oid string) {
+func getBlobFromRemote(w http.ResponseWriter, meta fileMeta) {
 
 	// Find the owners of this blob
 	ownership := BlobOwnership{}
-	oidkey := "/" + oid
+	oidkey := "/" + meta.OID
 	err := couchbase.Get(oidkey, &ownership)
 	if err != nil {
-		log.Printf("Missing ownership record for OID: %v", oid)
+		log.Printf("Missing ownership record for OID: %v", meta.OID)
 		// Not sure 404 is the right response here
 		w.WriteHeader(404)
 		return
@@ -220,17 +220,17 @@ func getBlobFromRemote(w http.ResponseWriter, oid string) {
 			continue
 		}
 
-		log.Printf("Trying to get %s from %s", oid, sid)
+		log.Printf("Trying to get %s from %s", meta.OID, sid)
 		sidaddr, err := getNodeAddress(sid)
 		if err != nil {
 			log.Printf("Missing node record for %s", sid)
 			continue
 		}
 
-		remoteOidURL := fmt.Sprintf("http://%s/?oid=%s", sidaddr, oid)
+		remoteOidURL := fmt.Sprintf("http://%s/?oid=%s", sidaddr, meta.OID)
 		resp, err := http.Get(remoteOidURL)
 		if err != nil {
-			log.Printf("Error reading oid %s from node %s", oid, sid)
+			log.Printf("Error reading oid %s from node %s", meta.OID, sid)
 			continue
 		}
 
@@ -239,8 +239,18 @@ func getBlobFromRemote(w http.ResponseWriter, oid string) {
 			continue
 		}
 
+		// Found one, set the headers and send it.  Keep a
+		// local copy for good luck.
+
+		for k, v := range meta.Headers {
+			if isResponseHeader(k) {
+				w.Header()[k] = v
+			}
+		}
+		w.WriteHeader(200)
+
 		writeTo := io.Writer(w)
-		hw, err := NewHashRecord(*root, oid)
+		hw, err := NewHashRecord(*root, meta.OID)
 		if err == nil {
 			writeTo = io.MultiWriter(hw, w)
 		} else {
@@ -258,7 +268,7 @@ func getBlobFromRemote(w http.ResponseWriter, oid string) {
 			if hw != nil {
 				_, err = hw.Finish()
 				if err == nil {
-					go recordBlobOwnership(oid, length)
+					go recordBlobOwnership(meta.OID, length)
 				}
 			}
 		}
@@ -267,7 +277,8 @@ func getBlobFromRemote(w http.ResponseWriter, oid string) {
 	}
 
 	//if we got to this point, no node in the list actually had it
-	log.Printf("Don't have hash file: %v and no remote nodes could help", oid)
+	log.Printf("Don't have hash file: %v and no remote nodes could help",
+		meta.OID)
 	w.WriteHeader(500)
 	return
 }
