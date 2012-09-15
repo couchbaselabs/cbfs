@@ -8,6 +8,27 @@ import (
 	"time"
 )
 
+type AboutNode struct {
+	Addr     string `json:"addr"`
+	Type     string `json:"type"`
+	Time     string `json:"time"`
+	BindAddr string `json:"bindaddr"`
+	Hash     string `json:"hash"`
+}
+
+func getNodeAddress(sid string) (string, error) {
+	sidkey := "/" + sid
+	aboutSid := AboutNode{}
+	err := couchbase.Get(sidkey, &aboutSid)
+	if err != nil {
+        return "", err
+	}
+	if strings.HasPrefix(aboutSid.BindAddr, ":") {
+		return aboutSid.Addr + aboutSid.BindAddr, nil
+	}
+	return aboutSid.BindAddr, nil
+}
+
 func heartbeat() {
 	for {
 
@@ -19,21 +40,13 @@ func heartbeat() {
 			c.Close()
 		}
 
-		aboutMe := map[string]interface{}{
-			"addr":     localAddr,
-			"type":     "storage",
-			"time":     time.Now().UTC(),
-			"bindaddr": *bindAddr,
-			"hash":     *hashType,
-		}
-		intfs, err := net.InterfaceAddrs()
-		if err == nil {
-			addrs := []string{}
-			for _, intf := range intfs {
-				addrs = append(addrs, intf.String())
-			}
-			aboutMe["interfaces"] = addrs
-		}
+		aboutMe := AboutNode{}
+		aboutMe.Addr = localAddr
+		aboutMe.Type = "storage"
+		aboutMe.Time = time.Now().UTC().String()
+		aboutMe.BindAddr = *bindAddr
+		aboutMe.Hash = *hashType
+
 		err = couchbase.Set("/"+serverIdentifier(), aboutMe)
 		if err != nil {
 			log.Printf("Failed to record a heartbeat: %v", err)

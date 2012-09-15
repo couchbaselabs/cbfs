@@ -223,9 +223,8 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 
 	f, err := os.Open(hashFilename(got.OID))
 	if err != nil {
-		log.Printf("Don't have hash file: %v: %v", got.OID, err)
-		w.WriteHeader(500)
-		return
+		getBlobFromRemote(w, got.OID)
+		return;
 	}
 	defer f.Close()
 
@@ -241,6 +240,54 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 		log.Printf("Failed to write file: %v", err)
 	}
 	go recordBlobAccess(got.OID)
+}
+
+func getBlobFromRemote(w http.ResponseWriter, oid string) {
+
+	// Find the owners of this blob
+	ownership := BlobOwnership{}
+	oidkey := "/" + oid
+	err := couchbase.Get(oidkey, &ownership)
+	if err != nil {
+		log.Printf("Missing ownership record for OID: %v", oid)
+		// Not sure 404 is the right response here
+		w.WriteHeader(404)
+		return
+	}
+
+	// Loop through the nodes that claim to own this blob
+	// If we encounter any errors along the way, try the next node
+	for sid, _ := range ownership.Nodes {
+	   log.Printf("Trying to get %s from %s", oid, sid)
+		sidaddr, err := getNodeAddress(sid)
+		if err != nil {
+			log.Printf("Missing node record for %s", sid)
+			continue
+		}
+
+		remoteOidURL := fmt.Sprintf("http://%s/?oid=%s", sidaddr, oid)
+		resp, err := http.Get(remoteOidURL)
+		if err != nil {
+			log.Printf("Error reading oid %s from node %s", oid, sid)
+			continue
+		}
+
+		if resp.StatusCode != 200 {
+			log.Printf("Error response code %d from node %s", resp.StatusCode, sid)
+			continue
+		}
+
+		_, err2 := io.Copy(w, resp.Body)
+		if err2 != nil {
+			log.Printf("Failed to write from remote stream %v", err2)
+		}
+		return
+	}
+
+	//if we got to this point, no node in the list actually had it
+	log.Printf("Don't have hash file: %v and no remote nodes could help", oid)
+	w.WriteHeader(500)
+	return
 }
 
 func doList(w http.ResponseWriter, req *http.Request) {
