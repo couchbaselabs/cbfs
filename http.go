@@ -41,7 +41,7 @@ func recordBlobOwnership(h string, l int64) error {
 			}
 			ownership.OID = h
 			ownership.Length = l
-			ownership.Type = "blobowner"
+			ownership.Type = "blob"
 
 			rv, err := json.Marshal(&ownership)
 			if err != nil {
