@@ -99,7 +99,7 @@ func (h *hashRecord) Process(r io.Reader) (string, int64, error) {
 }
 
 func (h *hashRecord) Close() error {
-	if h.tmpf != nil {
+	if h != nil && h.tmpf != nil {
 		os.Remove(h.tmpf.Name())
 		return h.tmpf.Close()
 	}

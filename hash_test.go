@@ -1,7 +1,12 @@
 package main
 
 import (
+	"bytes"
+	"encoding/hex"
+	"io/ioutil"
 	"math/rand"
+	"os"
+	"strings"
 	"testing"
 )
 
@@ -18,6 +23,8 @@ func (r *randomDataMaker) Read(p []byte) (n int, err error) {
 
 var randomData = make([]byte, 1024*1024)
 
+var hashOfRandomData string
+
 func init() {
 	randomSrc := randomDataMaker{rand.NewSource(1028890720402726901)}
 	n, err := randomSrc.Read(randomData)
@@ -27,6 +34,16 @@ func init() {
 	if n != len(randomData) {
 		panic("Didn't initialize random data properly")
 	}
+
+	sh := getHash()
+	written, err := sh.Write(randomData)
+	if err != nil {
+		panic(err)
+	}
+	if written != len(randomData) {
+		panic("short write")
+	}
+	hashOfRandomData = hex.EncodeToString(sh.Sum([]byte{}))
 }
 
 func benchHash(h string, b *testing.B) {
@@ -59,4 +76,115 @@ func BenchmarkHashSHA512(b *testing.B) {
 
 func BenchmarkHashMD5(b *testing.B) {
 	benchHash("md5", b)
+}
+
+func testWithTempDir(t *testing.T, f func(string)) {
+	tmpdir, err := ioutil.TempDir("", "hashtest")
+	if err != nil {
+		t.Fatalf("Error getting temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	f(tmpdir)
+}
+
+func TestHashWriterClose(t *testing.T) {
+	testWithTempDir(t, func(tmpdir string) {
+		hr, err := NewHashRecord(tmpdir, "")
+		if err != nil {
+			t.Fatalf("Error establishing hash record: %v", err)
+		}
+		hr.Close()
+	})
+}
+
+func TestHashWriterDoubleClose(t *testing.T) {
+	testWithTempDir(t, func(tmpdir string) {
+		hr, err := NewHashRecord(tmpdir, "")
+		if err != nil {
+			t.Fatalf("Error establishing hash record: %v", err)
+		}
+		hr.Close()
+		hr.Close()
+	})
+}
+
+func TestHashWriterUninitClose(t *testing.T) {
+	testWithTempDir(t, func(tmpdir string) {
+		hr := hashRecord{}
+		hr.Close()
+	})
+}
+
+func TestHashWriterNilClose(t *testing.T) {
+	testWithTempDir(t, func(tmpdir string) {
+		hr := (*hashRecord)(nil)
+		hr.Close()
+	})
+}
+
+func TestHashWriterNoHash(t *testing.T) {
+	testWithTempDir(t, func(tmpdir string) {
+		hr, err := NewHashRecord(tmpdir, "")
+		if err != nil {
+			t.Fatalf("Error establishing hash record: %v", err)
+		}
+		defer hr.Close()
+		h, l, err := hr.Process(bytes.NewReader(randomData))
+		if err != nil {
+			t.Fatalf("Error processing: %v", err)
+		}
+		if int(l) != len(randomData) {
+			t.Fatalf("Processing was short: %v != %v",
+				l, len(randomData))
+		}
+		if h != hashOfRandomData {
+			t.Fatalf("Expected hash %v, got %v",
+				hashOfRandomData, h)
+		}
+	})
+}
+
+func TestHashWriterGoodHash(t *testing.T) {
+	testWithTempDir(t, func(tmpdir string) {
+		hr, err := NewHashRecord(tmpdir, hashOfRandomData)
+		if err != nil {
+			t.Fatalf("Error establishing hash record: %v", err)
+		}
+		defer hr.Close()
+		h, l, err := hr.Process(bytes.NewReader(randomData))
+		if err != nil {
+			t.Fatalf("Error processing: %v", err)
+		}
+		if int(l) != len(randomData) {
+			t.Fatalf("Processing was short: %v != %v",
+				l, len(randomData))
+		}
+		if h != hashOfRandomData {
+			t.Fatalf("Expected hash %v, got %v",
+				hashOfRandomData, h)
+		}
+	})
+}
+
+func TestHashWriterWithBadHash(t *testing.T) {
+	testWithTempDir(t, func(tmpdir string) {
+		hr, err := NewHashRecord(tmpdir, "fde65ea0f4a6d1b0eb20c3b6b7e054512d2c45dc")
+		if err != nil {
+			t.Fatalf("Error establishing hash record: %v", err)
+		}
+		defer hr.Close()
+		_, l, err := hr.Process(bytes.NewReader(randomData))
+		if err == nil {
+			t.Fatalf("Expected error processing")
+		} else {
+			if !strings.Contains(err.Error(), "Invalid hash") {
+				t.Fatalf("Expected invalid hash error, got %v", err)
+			}
+		}
+		if int(l) != len(randomData) {
+			t.Fatalf("Processing was short: %v != %v",
+				l, len(randomData))
+		}
+	})
 }
