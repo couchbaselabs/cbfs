@@ -241,10 +241,30 @@ func getBlobFromRemote(w http.ResponseWriter, oid string) {
 			continue
 		}
 
-		_, err = io.Copy(w, resp.Body)
+		writeTo := io.Writer(w)
+		hw, err := NewHashRecord(*root, oid)
+		if err == nil {
+			writeTo = io.MultiWriter(hw, w)
+		} else {
+			hw = nil
+		}
+
+		length, err := io.Copy(writeTo, resp.Body)
+
 		if err != nil {
 			log.Printf("Failed to write from remote stream %v", err)
+		} else {
+			// A successful copy with a working hash
+			// record means we should link in and record
+			// our copy of this file.
+			if hw != nil {
+				_, err = hw.Finish()
+				if err == nil {
+					go recordBlobOwnership(oid, length)
+				}
+			}
 		}
+
 		return
 	}
 
