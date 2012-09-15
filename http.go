@@ -178,8 +178,6 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	log.Printf("Need to find blob %v", got.OID)
-
 	f, err := os.Open(hashFilename(got.OID))
 	if err != nil {
 		getBlobFromRemote(w, got.OID)
