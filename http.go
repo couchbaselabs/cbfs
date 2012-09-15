@@ -217,6 +217,11 @@ func getBlobFromRemote(w http.ResponseWriter, oid string) {
 	// Loop through the nodes that claim to own this blob
 	// If we encounter any errors along the way, try the next node
 	for sid := range ownership.Nodes {
+		// Skip myself
+		if sid == serverIdentifier() {
+			continue
+		}
+
 		log.Printf("Trying to get %s from %s", oid, sid)
 		sidaddr, err := getNodeAddress(sid)
 		if err != nil {
