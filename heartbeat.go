@@ -1,12 +1,16 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net"
 	"net/url"
 	"strings"
 	"time"
 )
+
+var heartFreq = flag.Duration("heartbeat", 10*time.Second,
+	"Heartbeat frequency")
 
 type AboutNode struct {
 	Addr     string `json:"addr"`
@@ -21,7 +25,7 @@ func getNodeAddress(sid string) (string, error) {
 	aboutSid := AboutNode{}
 	err := couchbase.Get(sidkey, &aboutSid)
 	if err != nil {
-        return "", err
+		return "", err
 	}
 	if strings.HasPrefix(aboutSid.BindAddr, ":") {
 		return aboutSid.Addr + aboutSid.BindAddr, nil
@@ -51,6 +55,6 @@ func heartbeat() {
 		if err != nil {
 			log.Printf("Failed to record a heartbeat: %v", err)
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(*heartFreq)
 	}
 }
