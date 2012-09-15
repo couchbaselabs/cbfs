@@ -226,7 +226,7 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 	f, err := os.Open(hashFilename(got.OID))
 	if err != nil {
 		getBlobFromRemote(w, got.OID)
-		return;
+		return
 	}
 	defer f.Close()
 
@@ -260,7 +260,7 @@ func getBlobFromRemote(w http.ResponseWriter, oid string) {
 	// Loop through the nodes that claim to own this blob
 	// If we encounter any errors along the way, try the next node
 	for sid, _ := range ownership.Nodes {
-	   log.Printf("Trying to get %s from %s", oid, sid)
+		log.Printf("Trying to get %s from %s", oid, sid)
 		sidaddr, err := getNodeAddress(sid)
 		if err != nil {
 			log.Printf("Missing node record for %s", sid)
