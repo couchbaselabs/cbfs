@@ -9,6 +9,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -23,11 +24,18 @@ func (r *randomDataMaker) Read(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-var randomData = make([]byte, 1024*1024)
+var once = &sync.Once{}
 
+var randomData []byte
 var hashOfRandomData string
 
-func init() {
+func initData() {
+	if testing.Short() {
+		randomData = make([]byte, 64*1024)
+	} else {
+		randomData = make([]byte, 1024*1024)
+	}
+
 	randomSrc := randomDataMaker{rand.NewSource(1028890720402726901)}
 	n, err := randomSrc.Read(randomData)
 	if err != nil {
@@ -49,6 +57,7 @@ func init() {
 }
 
 func benchHash(h string, b *testing.B) {
+	once.Do(initData)
 	*hashType = h
 	b.SetBytes(int64(len(randomData)))
 	for i := 0; i < b.N; i++ {
@@ -81,6 +90,7 @@ func BenchmarkHashMD5(b *testing.B) {
 }
 
 func testWithTempDir(t *testing.T, f func(string)) {
+	once.Do(initData)
 	t.Parallel()
 	tmpdir, err := ioutil.TempDir("", "hashtest")
 	if err != nil {
