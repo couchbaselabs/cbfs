@@ -29,6 +29,18 @@ type AboutNode struct {
 	Hash     string    `json:"hash"`
 }
 
+type PeriodicJob struct {
+	period time.Duration
+	f      func() error
+}
+
+var periodicJobs = map[string]PeriodicJob{
+	"checkStaleNodes": PeriodicJob{
+		time.Minute * 5,
+		checkStaleNodes,
+	},
+}
+
 func getNodeAddress(sid string) (string, error) {
 	sidkey := "/" + sid
 	aboutSid := AboutNode{}
@@ -164,5 +176,28 @@ func reconcileLoop() {
 			log.Printf("Error in reconciliation loop: %v", err)
 		}
 		time.Sleep(*reconcileFreq)
+	}
+}
+
+func checkStaleNodes() error {
+	// TODO:  Make this not lie.
+	log.Printf("Checking stale nodes")
+	return nil
+}
+
+func runPeriodicJob(name string, job PeriodicJob) {
+	for {
+		if runNamedGlobalTask(name, job.period, job.f) {
+			log.Printf("Ran job %v", name)
+		} else {
+			log.Printf("Didn't run job %v", name)
+		}
+		time.Sleep(job.period)
+	}
+}
+
+func runPeriodicJobs() {
+	for n, j := range periodicJobs {
+		go runPeriodicJob(n, j)
 	}
 }
