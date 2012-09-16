@@ -57,7 +57,6 @@ func getNodeAddress(sid string) (string, error) {
 type JobMarker struct {
 	Node    string    `json:"node"`
 	Started time.Time `json:"started"`
-	Ended   time.Time `json:"ended"`
 	Type    string    `json:"type"`
 }
 
@@ -66,43 +65,17 @@ func runNamedGlobalTask(name string, t time.Duration, f func() error) bool {
 	key := "/@" + name
 
 	jm := JobMarker{
-		Type: "job",
-	}
-	cas := uint64(0)
-	err := couchbase.Gets(key, &jm, &cas)
-	reserve := &gomemcached.MCRequest{
-		Key: []byte(key),
-	}
-	switch i := err.(type) {
-	case nil:
-		if jm.Started.Add(t).After(time.Now()) {
-			return false
-		}
-		reserve.Opcode = gomemcached.SET
-		reserve.Cas = cas
-	case *gomemcached.MCResponse:
-		if i.Status == gomemcached.KEY_ENOENT {
-			reserve.Opcode = gomemcached.ADD
-		} else {
-			log.Printf("memcached error: %v", err)
-			return false
-		}
-	default:
-		log.Printf("Unhandled error: %v", err)
-		return false
+		Node:    serverId,
+		Started: time.Now(),
+		Type:    "job",
 	}
 
-	jm.Started = time.Now()
-	reserve.Extras = make([]byte, 8) // flags and extrasa
-	reserve.Body, err = json.Marshal(&jm)
-	if err != nil {
-		log.Printf("Error marshaling job marker: %v", err)
-		return false
-	}
-
-	err = couchbase.Do(key, func(mc *memcached.Client, vb uint16) error {
-		reserve.VBucket = vb
-		resp, err := mc.Send(reserve)
+	err := couchbase.Do(key, func(mc *memcached.Client, vb uint16) error {
+		data, err := json.Marshal(&jm)
+		if err != nil {
+			log.Fatalf("Can't jsonify a JobMarker: %v", err)
+		}
+		resp, err := mc.Add(vb, key, 0, int(t.Seconds()), data)
 		if err != nil {
 			return err
 		}
@@ -114,11 +87,9 @@ func runNamedGlobalTask(name string, t time.Duration, f func() error) bool {
 
 	if err == nil {
 		err = f()
-		// TODO:  CAS in the end date.
-	}
-
-	if err != nil {
-		log.Printf("Error running periodic task: %v", err)
+		if err != nil {
+			log.Printf("Error running periodic task %#v: %v", name, err)
+		}
 	}
 
 	return true
@@ -188,11 +159,11 @@ func checkStaleNodes() error {
 func runPeriodicJob(name string, job PeriodicJob) {
 	for {
 		if runNamedGlobalTask(name, job.period, job.f) {
-			log.Printf("Ran job %v", name)
+			log.Printf("Attempted job %v", name)
 		} else {
 			log.Printf("Didn't run job %v", name)
 		}
-		time.Sleep(job.period)
+		time.Sleep(job.period + time.Second)
 	}
 }
 
