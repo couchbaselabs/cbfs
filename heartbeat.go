@@ -22,6 +22,8 @@ var reconcileFreq = flag.Duration("reconcile", 24*time.Hour,
 	"Reconciliation frequency")
 var staleNodeFreq = flag.Duration("staleNodeCheck", 5*time.Minute,
 	"How frequently to check for stale nodes.")
+var staleNodeLimit = flag.Duration("staleNodeLimit", 15*time.Minute,
+	"How long until we clean up nodes for being too stale")
 
 type AboutNode struct {
 	Addr     string    `json:"addr"`
@@ -230,9 +232,9 @@ func checkStaleNodes() error {
 			continue
 		}
 		d := time.Since(t)
+		node := r.ID[1:]
 
-		if d > *heartFreq*10 {
-			node := r.ID[1:]
+		if d > *staleNodeLimit {
 			if node == serverId {
 				log.Printf("Would've cleaned up myself after %v",
 					d)
@@ -240,6 +242,8 @@ func checkStaleNodes() error {
 			}
 			log.Printf("  Node %v missed heartbeat schedule: %v", node, d)
 			go cleanupNode(node)
+		} else {
+			log.Printf("%v is ok at %v", node, d)
 		}
 	}
 	return nil
