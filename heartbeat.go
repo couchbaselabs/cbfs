@@ -224,6 +224,10 @@ func cleanupNode(node string) {
 		if err != nil {
 			log.Printf("Error deleting %v node record: %v", node, err)
 		}
+		err = couchbase.Delete("/" + node + "/r")
+		if err != nil {
+			log.Printf("Error deleting %v node counter: %v", node, err)
+		}
 	}
 }
 
