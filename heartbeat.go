@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"net/url"
@@ -9,6 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/dustin/gomemcached"
+	"github.com/dustin/gomemcached/client"
 )
 
 var heartFreq = flag.Duration("heartbeat", 10*time.Second,
@@ -35,6 +40,76 @@ func getNodeAddress(sid string) (string, error) {
 		return aboutSid.Addr + aboutSid.BindAddr, nil
 	}
 	return aboutSid.BindAddr, nil
+}
+
+type JobMarker struct {
+	Node    string    `json:"node"`
+	Started time.Time `json:"started"`
+	Ended   time.Time `json:"ended"`
+	Type    string    `json:"type"`
+}
+
+// Run a named task if we know one hasn't in the last t seconds.
+func runNamedGlobalTask(name string, t time.Duration, f func() error) bool {
+	key := "/@" + name
+
+	jm := JobMarker{
+		Type: "job",
+	}
+	cas := uint64(0)
+	err := couchbase.Gets(key, &jm, &cas)
+	reserve := &gomemcached.MCRequest{
+		Key: []byte(key),
+	}
+	switch i := err.(type) {
+	case nil:
+		if jm.Started.Add(t).After(time.Now()) {
+			return false
+		}
+		reserve.Opcode = gomemcached.SET
+		reserve.Cas = cas
+	case *gomemcached.MCResponse:
+		if i.Status == gomemcached.KEY_ENOENT {
+			reserve.Opcode = gomemcached.ADD
+		} else {
+			log.Printf("memcached error: %v", err)
+			return false
+		}
+	default:
+		log.Printf("Unhandled error: %v", err)
+		return false
+	}
+
+	jm.Started = time.Now()
+	reserve.Extras = make([]byte, 8) // flags and extrasa
+	reserve.Body, err = json.Marshal(&jm)
+	if err != nil {
+		log.Printf("Error marshaling job marker: %v", err)
+		return false
+	}
+
+	err = couchbase.Do(key, func(mc *memcached.Client, vb uint16) error {
+		reserve.VBucket = vb
+		resp, err := mc.Send(reserve)
+		if err != nil {
+			return err
+		}
+		if resp.Status != gomemcached.SUCCESS {
+			return fmt.Errorf("Wanted success, got %v", resp.Status)
+		}
+		return nil
+	})
+
+	if err == nil {
+		err = f()
+		// TODO:  CAS in the end date.
+	}
+
+	if err != nil {
+		log.Printf("Error running periodic task: %v", err)
+	}
+
+	return true
 }
 
 func heartbeat() {
