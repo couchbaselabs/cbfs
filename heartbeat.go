@@ -118,7 +118,7 @@ func heartbeat() {
 
 		aboutMe := AboutNode{
 			Addr:     localAddr,
-			Type:     "storage",
+			Type:     "node",
 			Time:     time.Now().UTC(),
 			BindAddr: *bindAddr,
 			Hash:     *hashType,
