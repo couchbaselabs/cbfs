@@ -24,6 +24,8 @@ var staleNodeFreq = flag.Duration("staleNodeCheck", 5*time.Minute,
 	"How frequently to check for stale nodes.")
 var staleNodeLimit = flag.Duration("staleNodeLimit", 15*time.Minute,
 	"How long until we clean up nodes for being too stale")
+var nodeCleanCount = flag.Int("nodeCleanCount", 1000,
+	"How many blobs to clean up from a dead node per period")
 
 type AboutNode struct {
 	Addr     string    `json:"addr"`
@@ -191,7 +193,7 @@ func cleanupNode(node string) {
 	vres, err := couchbase.View("cbfs", "node_blobs",
 		map[string]interface{}{
 			"key":    `"` + node + `"`,
-			"limit":  1000,
+			"limit":  *nodeCleanCount,
 			"reduce": false,
 			"stale":  false,
 		})
