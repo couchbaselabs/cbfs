@@ -38,6 +38,13 @@ type AboutNode struct {
 	Hash     string    `json:"hash"`
 }
 
+func (a AboutNode) Address() string {
+	if strings.HasPrefix(a.BindAddr, ":") {
+		return a.Addr + a.BindAddr
+	}
+	return a.BindAddr
+}
+
 type PeriodicJob struct {
 	period time.Duration
 	f      func() error
@@ -67,10 +74,7 @@ func getNodeAddress(sid string) (string, error) {
 		return "", nodeTooOld
 	}
 
-	if strings.HasPrefix(aboutSid.BindAddr, ":") {
-		return aboutSid.Addr + aboutSid.BindAddr, nil
-	}
-	return aboutSid.BindAddr, nil
+	return aboutSid.Address(), nil
 }
 
 type JobMarker struct {
