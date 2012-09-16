@@ -205,7 +205,6 @@ func cleanupNode(node string) {
 }
 
 func checkStaleNodes() error {
-	// TODO:  Make this not lie.
 	log.Printf("Checking stale nodes")
 	vres, err := couchbase.View("cbfs", "nodes", map[string]interface{}{
 		"stale": false})
