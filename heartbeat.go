@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -26,6 +27,8 @@ var staleNodeLimit = flag.Duration("staleNodeLimit", 15*time.Minute,
 	"How long until we clean up nodes for being too stale")
 var nodeCleanCount = flag.Int("nodeCleanCount", 1000,
 	"How many blobs to clean up from a dead node per period")
+
+var nodeTooOld = errors.New("Node information is too stale")
 
 type AboutNode struct {
 	Addr     string    `json:"addr"`
@@ -59,6 +62,11 @@ func getNodeAddress(sid string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	if time.Since(aboutSid.Time) > *staleNodeLimit {
+		return "", nodeTooOld
+	}
+
 	if strings.HasPrefix(aboutSid.BindAddr, ":") {
 		return aboutSid.Addr + aboutSid.BindAddr, nil
 	}
