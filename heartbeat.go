@@ -20,6 +20,8 @@ var heartFreq = flag.Duration("heartbeat", 10*time.Second,
 	"Heartbeat frequency")
 var reconcileFreq = flag.Duration("reconcile", 24*time.Hour,
 	"Reconciliation frequency")
+var staleNodeFreq = flag.Duration("staleNodeCheck", 5*time.Minute,
+	"How frequently to check for stale nodes.")
 
 type AboutNode struct {
 	Addr     string    `json:"addr"`
@@ -34,11 +36,16 @@ type PeriodicJob struct {
 	f      func() error
 }
 
-var periodicJobs = map[string]PeriodicJob{
-	"checkStaleNodes": PeriodicJob{
+var periodicJobs = map[string]*PeriodicJob{
+	"checkStaleNodes": &PeriodicJob{
 		time.Minute * 5,
 		checkStaleNodes,
 	},
+}
+
+func adjustPeriodicJobs() error {
+	periodicJobs["checkStaleNodes"].period = *staleNodeFreq
+	return nil
 }
 
 func getNodeAddress(sid string) (string, error) {
@@ -238,7 +245,7 @@ func checkStaleNodes() error {
 	return nil
 }
 
-func runPeriodicJob(name string, job PeriodicJob) {
+func runPeriodicJob(name string, job *PeriodicJob) {
 	for {
 		if runNamedGlobalTask(name, job.period, job.f) {
 			log.Printf("Attempted job %v", name)

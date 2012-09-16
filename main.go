@@ -79,7 +79,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	err := initServerId()
+	err := adjustPeriodicJobs()
+	if err != nil {
+		log.Fatalf("Error adjusting periodic jobs from flags: %v", err)
+	}
+
+	err = initServerId()
 	if err != nil {
 		log.Fatalf("Error initializing server ID: %v", err)
 	}
