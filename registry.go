@@ -14,9 +14,7 @@ func validateServerId(s string) error {
 	switch {
 	case len(s) == 0:
 		return invalid
-	case s == "master":
-		return invalid
-	case s[0] == '/':
+	case s[0] == '/' || s[0] == '@':
 		return invalid
 	}
 	return nil

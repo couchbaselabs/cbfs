@@ -8,9 +8,11 @@ func TestServerIDValidation(t *testing.T) {
 	tests := map[string]bool{
 		"":           false,
 		"/":          false,
+		"/@thing":    false,
+		"@thing":     false,
 		"/something": false,
+		"master":     true,
 		"something":  true,
-		"master":     false,
 	}
 
 	for testId, shouldBeOK := range tests {
