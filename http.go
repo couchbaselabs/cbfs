@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -252,13 +253,17 @@ func getBlobFromRemote(w http.ResponseWriter, meta fileMeta) {
 			}
 		}
 		w.WriteHeader(200)
-
 		writeTo := io.Writer(w)
-		hw, err := NewHashRecord(*root, meta.OID)
-		if err == nil {
-			writeTo = io.MultiWriter(hw, w)
-		} else {
-			hw = nil
+		var hw *hashRecord
+
+		if *cachePercentage > rand.Intn(100) {
+			log.Printf("Storing remotely proxied request")
+			hw, err = NewHashRecord(*root, meta.OID)
+			if err == nil {
+				writeTo = io.MultiWriter(hw, w)
+			} else {
+				hw = nil
+			}
 		}
 
 		length, err := io.Copy(writeTo, resp.Body)
