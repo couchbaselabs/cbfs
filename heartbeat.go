@@ -45,6 +45,20 @@ func (a AboutNode) Address() string {
 	return a.BindAddr
 }
 
+type NodeList []AboutNode
+
+func (a NodeList) Len() int {
+	return len(a)
+}
+
+func (a NodeList) Less(i, j int) bool {
+	return a[i].Time.Before(a[j].Time)
+}
+
+func (a NodeList) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
 type PeriodicJob struct {
 	period time.Duration
 	f      func() error
@@ -60,21 +74,6 @@ var periodicJobs = map[string]*PeriodicJob{
 func adjustPeriodicJobs() error {
 	periodicJobs["checkStaleNodes"].period = *staleNodeFreq
 	return nil
-}
-
-func getNodeAddress(sid string) (string, error) {
-	sidkey := "/" + sid
-	aboutSid := AboutNode{}
-	err := couchbase.Get(sidkey, &aboutSid)
-	if err != nil {
-		return "", err
-	}
-
-	if time.Since(aboutSid.Time) > *staleNodeLimit {
-		return "", nodeTooOld
-	}
-
-	return aboutSid.Address(), nil
 }
 
 type JobMarker struct {

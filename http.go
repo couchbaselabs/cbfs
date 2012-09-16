@@ -10,9 +10,11 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/dustin/gomemcached"
 	"github.com/dustin/gomemcached/client"
 )
 
@@ -21,6 +23,32 @@ type BlobOwnership struct {
 	Length int64                `json:"length"`
 	Nodes  map[string]time.Time `json:"nodes"`
 	Type   string               `json:"type"`
+}
+
+func (b BlobOwnership) ResolveRemoteNodes() NodeList {
+	keys := make([]string, 0, len(b.Nodes))
+	for k := range b.Nodes {
+		if k != serverId {
+			keys = append(keys, "/"+k)
+		}
+	}
+	resps := couchbase.GetBulk(keys)
+
+	rv := make(NodeList, 0, len(resps))
+
+	for _, v := range resps {
+		if v.Status == gomemcached.SUCCESS {
+			a := AboutNode{}
+			err := json.Unmarshal(v.Body, &a)
+			if err == nil {
+				rv = append(rv, a)
+			}
+		}
+	}
+
+	sort.Sort(rv)
+
+	return rv
 }
 
 func recordBlobOwnership(h string, l int64) error {
@@ -217,22 +245,15 @@ func getBlobFromRemote(w http.ResponseWriter, meta fileMeta) {
 		return
 	}
 
+	nl := ownership.ResolveRemoteNodes()
+
 	// Loop through the nodes that claim to own this blob
 	// If we encounter any errors along the way, try the next node
-	for sid := range ownership.Nodes {
-		// Skip myself
-		if sid == serverId {
-			continue
-		}
-
+	for _, sid := range nl {
 		log.Printf("Trying to get %s from %s", meta.OID, sid)
-		sidaddr, err := getNodeAddress(sid)
-		if err != nil {
-			log.Printf("Missing node record for %s", sid)
-			continue
-		}
 
-		remoteOidURL := fmt.Sprintf("http://%s/?oid=%s", sidaddr, meta.OID)
+		remoteOidURL := fmt.Sprintf("http://%s/?oid=%s",
+			sid.Address(), meta.OID)
 		resp, err := http.Get(remoteOidURL)
 		if err != nil {
 			log.Printf("Error reading oid %s from node %s", meta.OID, sid)
