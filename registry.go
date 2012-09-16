@@ -35,7 +35,9 @@ func initServerId() error {
 	if len(bytes) > 0 && err == nil {
 		serverId = strings.TrimSpace(string(bytes))
 	} else {
-		serverId = time.Now().UTC().Format(time.RFC3339Nano)
+		if serverId == "" {
+			serverId = time.Now().UTC().Format(time.RFC3339Nano)
+		}
 		err = ioutil.WriteFile(*guidFile,
 			[]byte(serverId), 0666)
 	}
