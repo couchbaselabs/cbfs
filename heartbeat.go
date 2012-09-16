@@ -101,9 +101,10 @@ func runNamedGlobalTask(name string, t time.Duration, f func() error) bool {
 		if err != nil {
 			log.Printf("Error running periodic task %#v: %v", name, err)
 		}
+		return true
 	}
 
-	return true
+	return false
 }
 
 func heartbeat() {
