@@ -14,8 +14,10 @@ var root = flag.String("root", "storage", "Storage location")
 var hashType = flag.String("hash", "sha1", "Hash to use")
 var couchbaseServer = flag.String("couchbase", "", "Couchbase URL")
 var couchbaseBucket = flag.String("bucket", "default", "Couchbase bucket")
-var guidFile = flag.String("guidfile", ".serverguid", "Path to server identifier")
-var defaultPath = flag.String("defaultPath", "/index.html", "Default path to fetch for / reqs")
+var guidFile = flag.String("guidfile", ".serverguid",
+	"Path to server identifier")
+var defaultPath = flag.String("defaultPath", "/index.html",
+	"Default path to fetch for / reqs")
 
 type fileMeta struct {
 	Headers http.Header
