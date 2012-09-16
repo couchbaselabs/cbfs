@@ -150,9 +150,92 @@ func reconcileLoop() {
 	}
 }
 
+func removeBlobOwnershipRecord(h, node string) {
+	log.Printf("Cleaning up %v from %v", h, node)
+
+	k := "/" + h
+	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
+		_, err := mc.CAS(vb, k, func(in []byte) []byte {
+			ownership := BlobOwnership{}
+			err := json.Unmarshal(in, &ownership)
+			if err == nil {
+				delete(ownership.Nodes, node)
+			} else {
+				return nil
+			}
+
+			rv, err := json.Marshal(&ownership)
+			if err != nil {
+				log.Fatalf("Error marshaling blob ownership: %v", err)
+			}
+			return rv
+		}, 0)
+		return err
+	})
+	if err != nil {
+		log.Printf("Error cleaning %v from %v", node, h)
+	}
+}
+
+func cleanupNode(node string) {
+	log.Printf("Cleaning up node %v", node)
+	vres, err := couchbase.View("cbfs", "node_blobs",
+		map[string]interface{}{
+			"key":    `"` + node + `"`,
+			"limit":  1000,
+			"reduce": false,
+			"stale":  false,
+		})
+	if err != nil {
+		log.Printf("Error executing node_blobs view: %v", err)
+		return
+	}
+	foundRows := 0
+	for _, r := range vres.Rows {
+		removeBlobOwnershipRecord(r.ID[1:], node)
+		foundRows++
+	}
+	if foundRows == 0 {
+		log.Printf("Removing node record: %v", node)
+		err = couchbase.Delete("/" + node)
+		if err != nil {
+			log.Printf("Error deleting %v node record: %v", node, err)
+		}
+	}
+}
+
 func checkStaleNodes() error {
 	// TODO:  Make this not lie.
 	log.Printf("Checking stale nodes")
+	vres, err := couchbase.View("cbfs", "nodes", map[string]interface{}{
+		"stale": false})
+	if err != nil {
+		return err
+	}
+	for _, r := range vres.Rows {
+		ks, ok := r.Key.(string)
+		if !ok {
+			log.Printf("Wrong key type returned from view: %#v", r)
+			continue
+		}
+		t, err := time.Parse(time.RFC3339Nano, ks)
+		if err != nil {
+			log.Printf("Error parsing time from %v", r)
+			continue
+		}
+		d := time.Since(t)
+
+		if d > *heartFreq*10 {
+			node := r.ID[1:]
+			if node == serverId {
+				log.Printf("Would've cleaned up myself after %v",
+					d)
+				continue
+			}
+			log.Printf("  Node %v missed heartbeat schedule: %v", node, d)
+			go cleanupNode(node)
+		}
+	}
 	return nil
 }
 
