@@ -195,7 +195,7 @@ func cleanupNode(node string) {
 		removeBlobOwnershipRecord(r.ID[1:], node)
 		foundRows++
 	}
-	if foundRows == 0 {
+	if foundRows == 0 && len(vres.Errors) == 0 {
 		log.Printf("Removing node record: %v", node)
 		err = couchbase.Delete("/" + node)
 		if err != nil {
