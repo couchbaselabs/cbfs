@@ -107,9 +107,10 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 	log.Printf("Wrote %v -> %v (%#v)", req.URL.Path, h, req.Header)
 
 	fm := fileMeta{
-		Headers: req.Header,
-		OID:     h,
-		Length:  length,
+		Headers:  req.Header,
+		OID:      h,
+		Length:   length,
+		Modified: time.Now(),
 	}
 
 	err = recordBlobOwnership(h, length)
@@ -223,13 +224,9 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 			w.Header()[k] = v
 		}
 	}
-	w.WriteHeader(200)
 
-	_, err = io.Copy(w, f)
-	if err != nil {
-		log.Printf("Failed to write file: %v", err)
-	}
 	go recordBlobAccess(got.OID)
+	http.ServeContent(w, req, path, got.Modified, f)
 }
 
 func getBlobFromRemote(w http.ResponseWriter, meta fileMeta) {

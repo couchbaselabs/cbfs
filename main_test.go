@@ -5,16 +5,19 @@ import (
 	"net/http"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestFileMetaRoundTrip(t *testing.T) {
 	jsonguy := json.RawMessage([]byte(`{"test":"I am a bucket!"}`))
+	now := time.Now()
 
 	fmin := fileMeta{
 		http.Header{"X-Awesome": []string{"a", "b"}},
 		"someoidhere",
 		837582,
 		&jsonguy,
+		now,
 	}
 
 	d, err := json.Marshal(fmin)
@@ -35,10 +38,13 @@ func TestFileMetaRoundTrip(t *testing.T) {
 }
 
 func TestFileMetaRoundNoJSON(t *testing.T) {
+	now := time.Now()
+
 	fmin := fileMeta{
-		Headers: http.Header{"X-Awesome": []string{"a", "b"}},
-		OID:     "someoidhere",
-		Length:  837582,
+		Headers:  http.Header{"X-Awesome": []string{"a", "b"}},
+		OID:      "someoidhere",
+		Length:   837582,
+		Modified: now,
 	}
 
 	d, err := json.Marshal(fmin)

@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
 var bindAddr = flag.String("bind", ":8484", "Address to bind web thing to")
@@ -26,15 +27,17 @@ type fileMeta struct {
 	OID      string           `json:"oid"`
 	Length   int64            `json:"length"`
 	Userdata *json.RawMessage `json:"userdata,omitempty"`
+	Modified time.Time        `json:"modified"`
 }
 
 func (fm fileMeta) MarshalJSON() ([]byte, error) {
 	m := map[string]interface{}{
-		"oid":     fm.OID,
-		"headers": map[string][]string(fm.Headers),
-		"type":    "file",
-		"ctype":   fm.Headers.Get("Content-Type"),
-		"length":  fm.Length,
+		"oid":      fm.OID,
+		"headers":  map[string][]string(fm.Headers),
+		"type":     "file",
+		"ctype":    fm.Headers.Get("Content-Type"),
+		"length":   fm.Length,
+		"modified": fm.Modified,
 	}
 
 	if fm.Userdata != nil {
