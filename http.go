@@ -38,7 +38,7 @@ func (b BlobOwnership) ResolveRemoteNodes() NodeList {
 
 	for _, v := range resps {
 		if v.Status == gomemcached.SUCCESS {
-			a := AboutNode{}
+			a := StorageNode{}
 			err := json.Unmarshal(v.Body, &a)
 			if err == nil {
 				rv = append(rv, a)
@@ -112,17 +112,17 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		Length:  length,
 	}
 
-	err = storeMeta(resolvePath(req), fm)
+	err = recordBlobOwnership(h, length)
 	if err != nil {
-		log.Printf("Error storing file meta: %v", err)
+		log.Printf("Error storing blob ownership: %v", err)
 		w.WriteHeader(500)
 		fmt.Fprintf(w, "Error recording blob ownership: %v", err)
 		return
 	}
 
-	err = recordBlobOwnership(h, length)
+	err = storeMeta(resolvePath(req), fm)
 	if err != nil {
-		log.Printf("Error storing blob ownership: %v", err)
+		log.Printf("Error storing file meta: %v", err)
 		w.WriteHeader(500)
 		fmt.Fprintf(w, "Error recording blob ownership: %v", err)
 		return

@@ -34,7 +34,7 @@ var verifyWorkers = flag.Int("verifyWorkers", 4,
 
 var nodeTooOld = errors.New("Node information is too stale")
 
-type AboutNode struct {
+type StorageNode struct {
 	Addr     string    `json:"addr"`
 	Type     string    `json:"type"`
 	Time     time.Time `json:"time"`
@@ -42,14 +42,14 @@ type AboutNode struct {
 	Hash     string    `json:"hash"`
 }
 
-func (a AboutNode) Address() string {
+func (a StorageNode) Address() string {
 	if strings.HasPrefix(a.BindAddr, ":") {
 		return a.Addr + a.BindAddr
 	}
 	return a.BindAddr
 }
 
-type NodeList []AboutNode
+type NodeList []StorageNode
 
 func (a NodeList) Len() int {
 	return len(a)
@@ -132,7 +132,7 @@ func heartbeat() {
 			c.Close()
 		}
 
-		aboutMe := AboutNode{
+		aboutMe := StorageNode{
 			Addr:     localAddr,
 			Type:     "node",
 			Time:     time.Now().UTC(),

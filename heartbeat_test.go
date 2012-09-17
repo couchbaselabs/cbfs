@@ -6,12 +6,12 @@ import (
 
 func TestNodeAddresses(t *testing.T) {
 	tests := []struct {
-		in  AboutNode
+		in  StorageNode
 		exp string
 	}{
-		{AboutNode{Addr: "1.2.3.4", BindAddr: ":8484"},
+		{StorageNode{Addr: "1.2.3.4", BindAddr: ":8484"},
 			"1.2.3.4:8484"},
-		{AboutNode{Addr: "1.2.3.4", BindAddr: "5.6.7.8:8484"},
+		{StorageNode{Addr: "1.2.3.4", BindAddr: "5.6.7.8:8484"},
 			"5.6.7.8:8484"},
 	}
 
