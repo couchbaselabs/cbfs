@@ -201,6 +201,28 @@ func resolvePath(req *http.Request) string {
 	return path
 }
 
+func doHead(w http.ResponseWriter, req *http.Request) {
+	path := resolvePath(req)
+	got := fileMeta{}
+	err := couchbase.Get(path, &got)
+	if err != nil {
+		log.Printf("Error getting file %#v: %v", path, err)
+		w.WriteHeader(404)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	for k, v := range got.Headers {
+		if isResponseHeader(k) {
+			w.Header()[k] = v
+		}
+	}
+	w.Header().Set("Last-Modified",
+		got.Modified.UTC().Format(http.TimeFormat))
+
+	w.WriteHeader(200)
+}
+
 func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 	path := resolvePath(req)
 	got := fileMeta{}
@@ -375,6 +397,8 @@ func httpHandler(w http.ResponseWriter, req *http.Request) {
 		doPut(w, req)
 	case "GET":
 		doGet(w, req)
+	case "HEAD":
+		doHead(w, req)
 	case "DELETE":
 		doDelete(w, req)
 	default:
