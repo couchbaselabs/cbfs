@@ -8,10 +8,13 @@ import (
 )
 
 func TestFileMetaRoundTrip(t *testing.T) {
+	jsonguy := json.RawMessage([]byte(`{"test":"I am a bucket!"}`))
+
 	fmin := fileMeta{
 		http.Header{"X-Awesome": []string{"a", "b"}},
 		"someoidhere",
 		837582,
+		&jsonguy,
 	}
 
 	d, err := json.Marshal(fmin)

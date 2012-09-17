@@ -107,9 +107,9 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 	log.Printf("Wrote %v -> %v (%#v)", req.URL.Path, h, req.Header)
 
 	fm := fileMeta{
-		req.Header,
-		h,
-		length,
+		Headers: req.Header,
+		OID:     h,
+		Length:  length,
 	}
 
 	err = storeMeta(resolvePath(req), fm)

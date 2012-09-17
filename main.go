@@ -22,40 +22,22 @@ var cachePercentage = flag.Int("cachePercent", 100,
 	"Percentage of proxied requests to eagerly cache.")
 
 type fileMeta struct {
-	Headers http.Header
-	OID     string
-	Length  int64
+	Headers  http.Header      `json:"headers"`
+	OID      string           `json:"oid"`
+	Length   int64            `json:"length"`
+	Userdata *json.RawMessage `json:"userdata"`
 }
 
 func (fm fileMeta) MarshalJSON() ([]byte, error) {
 	m := map[string]interface{}{
-		"oid":     fm.OID,
-		"headers": map[string][]string(fm.Headers),
-		"type":    "file",
-		"ctype":   fm.Headers.Get("Content-Type"),
-		"length":  fm.Length,
+		"oid":      fm.OID,
+		"headers":  map[string][]string(fm.Headers),
+		"type":     "file",
+		"ctype":    fm.Headers.Get("Content-Type"),
+		"length":   fm.Length,
+		"userdata": fm.Userdata,
 	}
 	return json.Marshal(m)
-}
-
-func (fm *fileMeta) UnmarshalJSON(d []byte) error {
-	m := map[string]interface{}{}
-	err := json.Unmarshal(d, &m)
-	if err != nil {
-		return err
-	}
-
-	fm.OID = m["oid"].(string)
-	fm.Length = int64(m["length"].(float64))
-
-	fm.Headers = http.Header{}
-	for k, vs := range m["headers"].(map[string]interface{}) {
-		for _, v := range vs.([]interface{}) {
-			fm.Headers.Add(k, v.(string))
-		}
-	}
-
-	return nil
 }
 
 func storeMeta(name string, fm fileMeta) error {
