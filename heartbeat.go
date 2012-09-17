@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/url"
@@ -27,6 +29,8 @@ var staleNodeLimit = flag.Duration("staleNodeLimit", 15*time.Minute,
 	"How long until we clean up nodes for being too stale")
 var nodeCleanCount = flag.Int("nodeCleanCount", 1000,
 	"How many blobs to clean up from a dead node per period")
+var verifyWorkers = flag.Int("verifyWorkers", 4,
+	"Number of object verification workers.")
 
 var nodeTooOld = errors.New("Node information is too stale")
 
@@ -144,16 +148,63 @@ func heartbeat() {
 	}
 }
 
+func verifyObjectHash(h string) error {
+	fn := hashFilename(*root, h)
+	f, err := os.Open(fn)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	sh := getHash()
+	_, err = io.Copy(sh, f)
+	if err != nil {
+		return err
+	}
+
+	hstring := hex.EncodeToString(sh.Sum([]byte{}))
+	if h != hstring {
+		err = os.Remove(fn)
+		if err != nil {
+			log.Printf("Error removing corrupt file %v: %v", err)
+		}
+		return fmt.Errorf("Hash from disk of %v was %v", h, hstring)
+	}
+	return nil
+}
+
+func verifyWorker(ch chan os.FileInfo) {
+	for info := range ch {
+		err := verifyObjectHash(info.Name())
+		if err == nil {
+			recordBlobOwnership(info.Name(), info.Size())
+		} else {
+			log.Printf("Invalid hash for object %v found at verification: %v",
+				info.Name(), err)
+			removeBlobOwnershipRecord(info.Name(), serverId)
+		}
+	}
+}
+
 func reconcile() error {
 	explen := getHash().Size() * 2
+
+	vch := make(chan os.FileInfo)
+	defer close(vch)
+
+	for i := 0; i < *verifyWorkers; i++ {
+		go verifyWorker(vch)
+	}
+
 	return filepath.Walk(*root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if !info.IsDir() && !strings.HasPrefix(info.Name(), "tmp") &&
 			len(info.Name()) == explen {
-			// I can do way more efficient stuff than this.
-			recordBlobOwnership(info.Name(), info.Size())
+
+			vch <- info
+
 			return err
 		}
 		return nil
