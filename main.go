@@ -25,17 +25,20 @@ type fileMeta struct {
 	Headers  http.Header      `json:"headers"`
 	OID      string           `json:"oid"`
 	Length   int64            `json:"length"`
-	Userdata *json.RawMessage `json:"userdata"`
+	Userdata *json.RawMessage `json:"userdata,omitempty"`
 }
 
 func (fm fileMeta) MarshalJSON() ([]byte, error) {
 	m := map[string]interface{}{
-		"oid":      fm.OID,
-		"headers":  map[string][]string(fm.Headers),
-		"type":     "file",
-		"ctype":    fm.Headers.Get("Content-Type"),
-		"length":   fm.Length,
-		"userdata": fm.Userdata,
+		"oid":     fm.OID,
+		"headers": map[string][]string(fm.Headers),
+		"type":    "file",
+		"ctype":   fm.Headers.Get("Content-Type"),
+		"length":  fm.Length,
+	}
+
+	if fm.Userdata != nil {
+		m["userdata"] = fm.Userdata
 	}
 	return json.Marshal(m)
 }
