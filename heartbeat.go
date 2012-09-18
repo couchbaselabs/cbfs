@@ -49,6 +49,11 @@ func (a StorageNode) Address() string {
 	return a.BindAddr
 }
 
+func (a StorageNode) BlobURL(h string) string {
+	return fmt.Sprintf("http://%s/?oid=%s",
+		a.Address(), h)
+}
+
 type NodeList []StorageNode
 
 func (a NodeList) Len() int {

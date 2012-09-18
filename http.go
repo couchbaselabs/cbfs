@@ -361,9 +361,7 @@ func getBlobFromRemote(w http.ResponseWriter, meta fileMeta) {
 	for _, sid := range nl {
 		log.Printf("Trying to get %s from %s", meta.OID, sid)
 
-		remoteOidURL := fmt.Sprintf("http://%s/?oid=%s",
-			sid.Address(), meta.OID)
-		resp, err := http.Get(remoteOidURL)
+		resp, err := http.Get(sid.BlobURL(meta.OID))
 		if err != nil {
 			log.Printf("Error reading oid %s from node %s", meta.OID, sid)
 			continue
