@@ -335,6 +335,7 @@ func doHead(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Last-Modified",
 		got.Modified.UTC().Format(http.TimeFormat))
 	w.Header().Set("Etag", `"`+got.OID+`"`)
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", got.Length))
 
 	w.WriteHeader(200)
 }
