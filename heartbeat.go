@@ -82,6 +82,7 @@ func findRemoteNodes() NodeList {
 	err := couchbase.ViewCustom("cbfs", "nodes",
 		map[string]interface{}{
 			"include_docs": true,
+			"descending":   true,
 		}, &viewRes)
 	if err != nil {
 		log.Printf("Error executing nodes view: %v", err)
