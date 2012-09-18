@@ -337,7 +337,7 @@ func checkStaleNodes() error {
 			log.Printf("Wrong key type returned from view: %#v", r)
 			continue
 		}
-		t, err := time.Parse(time.RFC3339Nano, ks)
+		t, err := time.Parse(time.RFC3339, ks)
 		if err != nil {
 			log.Printf("Error parsing time from %v", r)
 			continue

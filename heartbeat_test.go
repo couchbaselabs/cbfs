@@ -37,7 +37,7 @@ func TestNodeAddresses(t *testing.T) {
 }
 
 func TestDateParsing(t *testing.T) {
-	tm, err := time.Parse(time.RFC3339Nano,
+	tm, err := time.Parse(time.RFC3339,
 		"2012-09-17T22:12:09.894702Z")
 	if err != nil {
 		t.Fatalf("Error parsing time: %v", err)
