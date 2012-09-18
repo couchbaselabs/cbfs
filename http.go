@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
@@ -90,6 +92,70 @@ func recordBlobAccess(h string) {
 	}
 }
 
+type storInfo struct {
+	node string
+	hs   string
+	err  error
+}
+
+// Given a Reader, we produce a new reader that will duplicate the
+// stream into the next available node and reproduce that content into
+// another node.  Iff that node successfully stores the content, we
+// return the hash it computed.
+//
+// The returned Reader must be consumed until the input EOFs or is
+// closed.  The returned channel may yield a storInfo struct before
+// it's closed.  If it's closed without yielding a storInfo, there are
+// no remote nodes available.
+func altStoreFile(r io.Reader) (io.Reader, <-chan storInfo) {
+	bgch := make(chan storInfo, 1)
+
+	nodes := findRemoteNodes()
+	if len(nodes) > 0 {
+		r1, r2 := newMultiReader(r)
+		r = r2
+
+		go func() {
+			defer close(bgch)
+
+			rv := storInfo{node: nodes[0].Address()}
+
+			rurl := fmt.Sprintf("http://%s/?raw=1",
+				nodes[0].Address())
+			log.Printf("Piping secondary storage to %v",
+				nodes[0].Address())
+			preq, err := http.NewRequest("PUT", rurl, r1)
+			if err != nil {
+				rv.err = err
+				bgch <- rv
+				return
+			}
+
+			presp, err := http.DefaultClient.Do(preq)
+			if err == nil {
+				if presp.StatusCode != 204 {
+					rv.err = errors.New(presp.Status)
+					bgch <- rv
+				}
+				_, err := io.Copy(ioutil.Discard, presp.Body)
+				if err == nil {
+					rv.hs = presp.Header.Get("X-Hash")
+				}
+				presp.Body.Close()
+			} else {
+				log.Printf("Error http'n to %v: %v", rurl, err)
+				io.Copy(ioutil.Discard, r1)
+			}
+			rv.err = err
+			bgch <- rv
+		}()
+	} else {
+		close(bgch)
+	}
+
+	return r, bgch
+}
+
 func putUserFile(w http.ResponseWriter, req *http.Request) {
 	f, err := NewHashRecord(*root, "")
 	if err != nil {
@@ -99,9 +165,14 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 	}
 	defer f.Close()
 
-	h, length, err := f.Process(req.Body)
+	r, bgch := altStoreFile(req.Body)
+
+	h, length, err := f.Process(r)
 	if err != nil {
 		log.Printf("Error completing blob write: %v", err)
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Error completing blob write: %v", err)
+		return
 	}
 
 	log.Printf("Wrote %v -> %v (%#v)", req.URL.Path, h, req.Header)
@@ -121,6 +192,17 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if si, hasStuff := <-bgch; hasStuff {
+		if si.err != nil || si.hs != h {
+			log.Printf("Error in secondary store to %v: %v",
+				si.node, si.err)
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "Error creating secondary copy: %v\n%v",
+				si.err, si.hs)
+			return
+		}
+	}
+
 	err = storeMeta(resolvePath(req), fm)
 	if err != nil {
 		log.Printf("Error storing file meta: %v", err)
@@ -132,14 +214,10 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(204)
 }
 
-func putRawHash(w http.ResponseWriter, req *http.Request) {
-	inputhash := ""
-	form, err := url.ParseQuery(req.URL.RawQuery)
-	if err == nil {
-		inputhash = form.Get("oid")
-	}
+func putRawHash(w http.ResponseWriter, req *http.Request, form url.Values) {
+	inputhash := form.Get("oid")
 
-	if inputhash == "" {
+	if inputhash == "" && form.Get("raw") == "" {
 		w.WriteHeader(400)
 		w.Write([]byte("No oid specified"))
 		return
@@ -154,7 +232,7 @@ func putRawHash(w http.ResponseWriter, req *http.Request) {
 	}
 	defer f.Close()
 
-	_, length, err := f.Process(req.Body)
+	sh, length, err := f.Process(req.Body)
 	if err != nil {
 		log.Printf("Error linking in raw hash: %v", err)
 		w.WriteHeader(500)
@@ -170,13 +248,25 @@ func putRawHash(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	w.Header().Set("X-Hash", sh)
+
 	w.WriteHeader(204)
 }
 
 func doPut(w http.ResponseWriter, req *http.Request) {
-	if req.URL.Path == "/" {
-		putRawHash(w, req)
-	} else {
+	form, err := url.ParseQuery(req.URL.RawQuery)
+	if err != nil {
+		form = url.Values{}
+	}
+
+	switch {
+	case req.URL.Path == "/" && form.Get("oid") != "":
+		putRawHash(w, req, form)
+	case req.URL.Path == "/" && form.Get("raw") != "":
+		putRawHash(w, req, form)
+	case req.URL.Path == "":
+		w.WriteHeader(400)
+	default:
 		putUserFile(w, req)
 	}
 }

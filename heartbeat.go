@@ -63,6 +63,34 @@ func (a NodeList) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
+func findRemoteNodes() NodeList {
+	viewRes := struct {
+		Rows []struct {
+			ID  string
+			Doc struct {
+				Json StorageNode
+			}
+		}
+	}{}
+
+	rv := make(NodeList, 0, 16)
+	err := couchbase.ViewCustom("cbfs", "nodes",
+		map[string]interface{}{
+			"include_docs": true,
+		}, &viewRes)
+	if err != nil {
+		log.Printf("Error executing nodes view: %v", err)
+		return NodeList{}
+	}
+	for _, r := range viewRes.Rows {
+		if r.ID[1:] != serverId {
+			rv = append(rv, r.Doc.Json)
+		}
+	}
+
+	return rv
+}
+
 type PeriodicJob struct {
 	period time.Duration
 	f      func() error
