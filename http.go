@@ -21,6 +21,7 @@ import (
 
 const (
 	blobPrefix = "/.cbfs/blob/"
+	metaPrefix = "/.cbfs/meta/"
 )
 
 type BlobOwnership struct {
@@ -291,6 +292,8 @@ func doPut(w http.ResponseWriter, req *http.Request) {
 	switch {
 	case strings.HasPrefix(req.URL.Path, blobPrefix):
 		putRawHash(w, req)
+	case strings.HasPrefix(req.URL.Path, metaPrefix):
+		putMeta(w, req, minusPrefix(req.URL.Path, metaPrefix))
 	default:
 		putUserFile(w, req)
 	}
@@ -462,10 +465,87 @@ func doList(w http.ResponseWriter, req *http.Request) {
 	})
 }
 
+func putMeta(w http.ResponseWriter, req *http.Request, path string) {
+	got := fileMeta{}
+	casid := uint64(0)
+	err := couchbase.Gets(path, &got, &casid)
+	if err != nil {
+		log.Printf("Error getting file %#v: %v", path, err)
+		w.WriteHeader(404)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	r := json.RawMessage{}
+	err = json.NewDecoder(req.Body).Decode(&r)
+	if err != nil {
+		w.WriteHeader(400)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	got.Userdata = &r
+
+	b, err := json.Marshal(&got)
+	if err != nil {
+		w.WriteHeader(500)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	err = couchbase.Do(path, func(mc *memcached.Client, vb uint16) error {
+		req := &gomemcached.MCRequest{
+			Opcode:  gomemcached.SET,
+			VBucket: vb,
+			Key:     []byte(path),
+			Cas:     casid,
+			Opaque:  0,
+			Extras:  []byte{0, 0, 0, 0, 0, 0, 0, 0},
+			Body:    b}
+		resp, err := mc.Send(req)
+		if err != nil {
+			return err
+		}
+		if resp.Status != gomemcached.SUCCESS {
+			return resp
+		}
+		return nil
+	})
+
+	if err == nil {
+		w.WriteHeader(201)
+	} else {
+		w.WriteHeader(500)
+		w.Write([]byte(err.Error()))
+	}
+}
+
+func doGetMeta(w http.ResponseWriter, req *http.Request, path string) {
+	got := fileMeta{}
+	err := couchbase.Get(path, &got)
+	if err != nil {
+		log.Printf("Error getting file %#v: %v", path, err)
+		w.WriteHeader(404)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	if got.Userdata == nil {
+		w.Write([]byte("{}"))
+	} else {
+		w.Write(*got.Userdata)
+	}
+}
+
 func doGet(w http.ResponseWriter, req *http.Request) {
 	switch {
 	case req.URL.Path == blobPrefix:
 		doList(w, req)
+	case strings.HasPrefix(req.URL.Path, metaPrefix):
+		doGetMeta(w, req,
+			minusPrefix(req.URL.Path, metaPrefix))
 	case strings.HasPrefix(req.URL.Path, blobPrefix):
 		http.ServeFile(w, req, hashFilename(*root,
 			minusPrefix(req.URL.Path, blobPrefix)))
