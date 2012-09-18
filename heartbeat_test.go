@@ -13,11 +13,11 @@ func TestNodeAddresses(t *testing.T) {
 	}{
 		{StorageNode{Addr: "1.2.3.4", BindAddr: ":8484"},
 			"1.2.3.4:8484",
-			"http://1.2.3.4:8484/?oid=c4521f18b3e40291db6d4da1948ccc5776198a22",
+			"http://1.2.3.4:8484/.cbfs/blob/c4521f18b3e40291db6d4da1948ccc5776198a22",
 		},
 		{StorageNode{Addr: "1.2.3.4", BindAddr: "5.6.7.8:8484"},
 			"5.6.7.8:8484",
-			"http://5.6.7.8:8484/?oid=c4521f18b3e40291db6d4da1948ccc5776198a22",
+			"http://5.6.7.8:8484/.cbfs/blob/c4521f18b3e40291db6d4da1948ccc5776198a22",
 		},
 	}
 

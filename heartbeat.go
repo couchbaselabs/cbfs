@@ -50,7 +50,7 @@ func (a StorageNode) Address() string {
 }
 
 func (a StorageNode) BlobURL(h string) string {
-	return fmt.Sprintf("http://%s/?oid=%s",
+	return fmt.Sprintf("http://%s/.cbfs/blob/%s",
 		a.Address(), h)
 }
 

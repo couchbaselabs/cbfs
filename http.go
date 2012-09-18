@@ -9,7 +9,6 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -18,6 +17,10 @@ import (
 
 	"github.com/dustin/gomemcached"
 	"github.com/dustin/gomemcached/client"
+)
+
+const (
+	blobPrefix = "/.cbfs/blob/"
 )
 
 type BlobOwnership struct {
@@ -120,11 +123,11 @@ func altStoreFile(r io.Reader) (io.Reader, <-chan storInfo) {
 
 			rv := storInfo{node: nodes[0].Address()}
 
-			rurl := fmt.Sprintf("http://%s/?raw=1",
-				nodes[0].Address())
+			rurl := "http://" +
+				nodes[0].Address() + blobPrefix
 			log.Printf("Piping secondary storage to %v",
 				nodes[0].Address())
-			preq, err := http.NewRequest("PUT", rurl, r1)
+			preq, err := http.NewRequest("POST", rurl, r1)
 			if err != nil {
 				rv.err = err
 				bgch <- rv
@@ -154,6 +157,37 @@ func altStoreFile(r io.Reader) (io.Reader, <-chan storInfo) {
 	}
 
 	return r, bgch
+}
+
+func doPostRawBlob(w http.ResponseWriter, req *http.Request) {
+	f, err := NewHashRecord(*root, "")
+	if err != nil {
+		log.Printf("Error writing tmp file: %v", err)
+		w.WriteHeader(500)
+		w.Write([]byte(err.Error()))
+		return
+	}
+	defer f.Close()
+
+	sh, length, err := f.Process(req.Body)
+	if err != nil {
+		log.Printf("Error linking in raw hash: %v", err)
+		w.WriteHeader(500)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	err = recordBlobOwnership(sh, length)
+	if err != nil {
+		log.Printf("Error recording blob ownership: %v", err)
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Error recording blob ownership: %v", err)
+		return
+	}
+
+	w.Header().Set("X-Hash", sh)
+
+	w.WriteHeader(204)
 }
 
 func putUserFile(w http.ResponseWriter, req *http.Request) {
@@ -214,10 +248,10 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(204)
 }
 
-func putRawHash(w http.ResponseWriter, req *http.Request, form url.Values) {
-	inputhash := form.Get("oid")
+func putRawHash(w http.ResponseWriter, req *http.Request) {
+	inputhash := minusPrefix(req.URL.Path, blobPrefix)
 
-	if inputhash == "" && form.Get("raw") == "" {
+	if inputhash == "" {
 		w.WriteHeader(400)
 		w.Write([]byte("No oid specified"))
 		return
@@ -254,18 +288,9 @@ func putRawHash(w http.ResponseWriter, req *http.Request, form url.Values) {
 }
 
 func doPut(w http.ResponseWriter, req *http.Request) {
-	form, err := url.ParseQuery(req.URL.RawQuery)
-	if err != nil {
-		form = url.Values{}
-	}
-
 	switch {
-	case req.URL.Path == "/" && form.Get("oid") != "":
-		putRawHash(w, req, form)
-	case req.URL.Path == "/" && form.Get("raw") != "":
-		putRawHash(w, req, form)
-	case req.URL.Path == "":
-		w.WriteHeader(400)
+	case strings.HasPrefix(req.URL.Path, blobPrefix):
+		putRawHash(w, req)
 	default:
 		putUserFile(w, req)
 	}
@@ -439,17 +464,22 @@ func doList(w http.ResponseWriter, req *http.Request) {
 
 func doGet(w http.ResponseWriter, req *http.Request) {
 	switch {
-	case req.URL.Path == "/" && req.FormValue("oid") != "":
-		http.ServeFile(w, req, hashFilename(*root, req.FormValue("oid")))
-	case req.URL.Path == "/" && req.FormValue("list") != "":
+	case req.URL.Path == blobPrefix:
 		doList(w, req)
+	case strings.HasPrefix(req.URL.Path, blobPrefix):
+		http.ServeFile(w, req, hashFilename(*root,
+			minusPrefix(req.URL.Path, blobPrefix)))
 	default:
 		doGetUserDoc(w, req)
 	}
 }
 
+func minusPrefix(s, prefix string) string {
+	return s[len(prefix):]
+}
+
 func doDeleteOID(w http.ResponseWriter, req *http.Request) {
-	oid := req.FormValue("oid")
+	oid := minusPrefix(req.URL.Path, blobPrefix)
 	err := os.Remove(hashFilename(*root, oid))
 	if err == nil {
 		w.WriteHeader(201)
@@ -471,7 +501,7 @@ func doDeleteUserDoc(w http.ResponseWriter, req *http.Request) {
 
 func doDelete(w http.ResponseWriter, req *http.Request) {
 	switch {
-	case req.URL.Path == "/" && req.FormValue("oid") != "":
+	case strings.HasPrefix(req.URL.Path, blobPrefix):
 		doDeleteOID(w, req)
 	default:
 		doDeleteUserDoc(w, req)
@@ -483,6 +513,12 @@ func httpHandler(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case "PUT":
 		doPut(w, req)
+	case "POST":
+		if req.URL.Path == blobPrefix {
+			doPostRawBlob(w, req)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
 	case "GET":
 		doGet(w, req)
 	case "HEAD":
