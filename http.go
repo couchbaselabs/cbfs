@@ -289,6 +289,8 @@ func doPut(w http.ResponseWriter, req *http.Request) {
 		putRawHash(w, req)
 	case strings.HasPrefix(req.URL.Path, metaPrefix):
 		putMeta(w, req, minusPrefix(req.URL.Path, metaPrefix))
+	case strings.HasPrefix(req.URL.Path, "/.cbfs/"):
+		w.WriteHeader(400)
 	default:
 		putUserFile(w, req)
 	}
@@ -614,6 +616,8 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 			minusPrefix(req.URL.Path, metaPrefix))
 	case strings.HasPrefix(req.URL.Path, blobPrefix):
 		doServeRawBlob(w, req, minusPrefix(req.URL.Path, blobPrefix))
+	case strings.HasPrefix(req.URL.Path, "/.cbfs/"):
+		w.WriteHeader(400)
 	default:
 		doGetUserDoc(w, req)
 	}
@@ -648,6 +652,8 @@ func doDelete(w http.ResponseWriter, req *http.Request) {
 	switch {
 	case strings.HasPrefix(req.URL.Path, blobPrefix):
 		doDeleteOID(w, req)
+	case strings.HasPrefix(req.URL.Path, "/.cbfs/"):
+		w.WriteHeader(400)
 	default:
 		doDeleteUserDoc(w, req)
 	}
