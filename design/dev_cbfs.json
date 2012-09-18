@@ -1,14 +1,26 @@
 {
-  "views": {
+    "blobusage": {
+        "map": "function (doc, meta) {\n  if (doc.type === \"file\") {\n    emit([doc.oid, \"file\", meta.id], null);\n  } else if (doc.type === \"blob\") {\n    for (var node in doc.nodes) {\n      emit([doc.oid, \"blob\", node], null);\n    }\n  }\n}",
+        "reduce": "_count"
+    },
     "node_blobs": {
-      "map": "function (doc, meta) {\n  if (doc.type === \"blob\") {\n    for (var n in doc.nodes) {\n      emit(n, null);\n    }\n  }\n}\n",
-      "reduce": "_count"
+        "map": "function (doc, meta) {\n  if (doc.type === \"blob\") {\n    for (var n in doc.nodes) {\n      emit(n, null);\n    }\n  }\n}",
+        "reduce": "_count"
+    },
+    "node_size": {
+        "map": "function (doc, meta) {\n  if (doc.type === \"blob\") {\n    for (var n in doc.nodes) {\n      emit(n, doc.length);\n    }\n  }\n}",
+        "reduce": "_sum"
     },
     "nodes": {
-      "map": "function (doc, meta) {\n  if (doc.type === \"node\") {\n    emit(doc.time, null);\n  }\n}\n"
+        "map": "function (doc, meta) {\n  if (doc.type === \"node\") {\n    emit(doc.time, null);\n  }\n}"
     },
-    "file_blobs": {
-      "map": "function (doc, meta) {\n  if (doc.type === \"file\") {\n    emit([doc.oid, \"file\", meta.id], null);\n  } else if (doc.type === \"blob\") {\n    for (var node in doc.nodes) {\n      emit([doc.oid, \"blob\", node], null);\n    }\n  }\n}"
+    "size": {
+        "map": "function (doc, meta) {\n  if (doc.type === 'file') {\n    emit(meta.id, doc.length);\n  }\n}",
+        "reduce": "_sum"
+    },
+    "views": {
+        "file_blobs": {
+            "map": "function (doc, meta) {\n  if (doc.type === \"file\") {\n    emit([doc.oid, \"file\", meta.id], null);\n  } else if (doc.type === \"blob\") {\n    for (var node in doc.nodes) {\n      emit([doc.oid, \"blob\", node], null);\n    }\n  }\n}"
+        }
     }
-  }
 }
