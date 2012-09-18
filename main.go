@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/dustin/gomemcached/client"
 	"log"
 	"net/http"
 	"os"
@@ -46,8 +47,23 @@ func (fm fileMeta) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m)
 }
 
-func storeMeta(name string, fm fileMeta) error {
-	return couchbase.Set(name, fm)
+func storeMeta(k string, fm fileMeta) error {
+	return couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
+		_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
+			existing := fileMeta{}
+			err := json.Unmarshal(in, &existing)
+			if err == nil {
+				fm.Userdata = existing.Userdata
+			}
+
+			rv, err := json.Marshal(&fm)
+			if err != nil {
+				log.Fatalf("Error marshaling file meta: %v", err)
+			}
+			return rv, memcached.CASStore
+		}, 0)
+		return err
+	})
 }
 
 func hashFilename(base, hstr string) string {
