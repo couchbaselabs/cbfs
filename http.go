@@ -643,7 +643,7 @@ func doDeleteOID(w http.ResponseWriter, req *http.Request) {
 	oid := minusPrefix(req.URL.Path, blobPrefix)
 	err := os.Remove(hashFilename(*root, oid))
 	if err == nil {
-		w.WriteHeader(201)
+		w.WriteHeader(204)
 	} else {
 		w.WriteHeader(404)
 		w.Write([]byte(err.Error()))
@@ -653,7 +653,7 @@ func doDeleteOID(w http.ResponseWriter, req *http.Request) {
 func doDeleteUserDoc(w http.ResponseWriter, req *http.Request) {
 	err := couchbase.Delete(resolvePath(req))
 	if err == nil {
-		w.WriteHeader(201)
+		w.WriteHeader(204)
 	} else {
 		w.WriteHeader(404)
 		w.Write([]byte(err.Error()))
