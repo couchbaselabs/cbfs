@@ -334,6 +334,7 @@ func doHead(w http.ResponseWriter, req *http.Request) {
 	}
 	w.Header().Set("Last-Modified",
 		got.Modified.UTC().Format(http.TimeFormat))
+	w.Header().Set("Etag", `"`+got.OID+`"`)
 
 	w.WriteHeader(200)
 }
@@ -349,6 +350,15 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	inm := req.Header.Get("If-None-Match")
+	if len(inm) > 2 {
+		inm = inm[1 : len(inm)-1]
+		if got.OID == inm {
+			w.WriteHeader(304)
+			return
+		}
+	}
+
 	f, err := os.Open(hashFilename(*root, got.OID))
 	if err != nil {
 		getBlobFromRemote(w, got)
@@ -361,6 +371,8 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 			w.Header()[k] = v
 		}
 	}
+
+	w.Header().Set("Etag", `"`+got.OID+`"`)
 
 	go recordBlobAccess(got.OID)
 	http.ServeContent(w, req, path, got.Modified, f)
