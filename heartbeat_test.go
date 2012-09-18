@@ -2,6 +2,7 @@ package main
 
 import (
 	"testing"
+	"time"
 )
 
 func TestNodeAddresses(t *testing.T) {
@@ -32,5 +33,17 @@ func TestNodeAddresses(t *testing.T) {
 				test.expurl, test.in, test.in.BlobURL(testblob))
 			t.Fail()
 		}
+	}
+}
+
+func TestDateParsing(t *testing.T) {
+	tm, err := time.Parse(time.RFC3339Nano,
+		"2012-09-17T22:12:09.894702Z")
+	if err != nil {
+		t.Fatalf("Error parsing time: %v", err)
+	}
+	exp, got := int64(1347919929894702000), tm.UnixNano()
+	if exp != got {
+		t.Fatalf("Expected %v, got %v", exp, got)
 	}
 }
