@@ -369,6 +369,22 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 	http.ServeContent(w, req, path, got.Modified, f)
 }
 
+func doServeRawBlob(w http.ResponseWriter, req *http.Request, oid string) {
+	f, err := os.Open(hashFilename(*root, oid))
+	if err != nil {
+		w.WriteHeader(404)
+		fmt.Fprintf(w, "Error opening blob: %v", err)
+		removeBlobOwnershipRecord(oid, serverId)
+		return
+	}
+	defer f.Close()
+
+	w.Header().Set("Content-Type", "application/octet-stream")
+
+	go recordBlobAccess(oid)
+	http.ServeContent(w, req, "", time.Time{}, f)
+}
+
 func getBlobFromRemote(w http.ResponseWriter, meta fileMeta) {
 
 	// Find the owners of this blob
@@ -616,8 +632,7 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 		doGetMeta(w, req,
 			minusPrefix(req.URL.Path, metaPrefix))
 	case strings.HasPrefix(req.URL.Path, blobPrefix):
-		http.ServeFile(w, req, hashFilename(*root,
-			minusPrefix(req.URL.Path, blobPrefix)))
+		doServeRawBlob(w, req, minusPrefix(req.URL.Path, blobPrefix))
 	default:
 		doGetUserDoc(w, req)
 	}
