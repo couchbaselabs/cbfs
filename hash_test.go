@@ -19,11 +19,7 @@ var randomData []byte
 var hashOfRandomData string
 
 func initData() {
-	if testing.Short() {
-		randomData = make([]byte, 64*1024)
-	} else {
-		randomData = make([]byte, 1024*1024)
-	}
+	randomData = make([]byte, 64*1024)
 
 	randomSrc := randomDataMaker{rand.NewSource(1028890720402726901)}
 	n, err := randomSrc.Read(randomData)
