@@ -1,0 +1,14 @@
+{
+  "views": {
+    "node_blobs": {
+      "map": "function (doc, meta) {\n  if (doc.type === \"blob\") {\n    for (var n in doc.nodes) {\n      emit(n, null);\n    }\n  }\n}\n",
+      "reduce": "_count"
+    },
+    "nodes": {
+      "map": "function (doc, meta) {\n  if (doc.type === \"node\") {\n    emit(doc.time, null);\n  }\n}\n"
+    },
+    "file_blobs": {
+      "map": "function (doc, meta) {\n  if (doc.type === \"file\") {\n    emit([doc.oid, \"file\", meta.id], null);\n  } else if (doc.type === \"blob\") {\n    for (var node in doc.nodes) {\n      emit([doc.oid, \"blob\", node], null);\n    }\n  }\n}"
+    }
+  }
+}
