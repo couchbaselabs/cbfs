@@ -539,10 +539,79 @@ func doGetMeta(w http.ResponseWriter, req *http.Request, path string) {
 	}
 }
 
+func doListNodes(w http.ResponseWriter, req *http.Request) {
+	viewRes := struct {
+		Rows []struct {
+			Key   string
+			Value float64
+		}
+	}{}
+
+	err := couchbase.ViewCustom("cbfs", "node_size",
+		map[string]interface{}{
+			"group_level": 1,
+		}, &viewRes)
+	if err != nil {
+		log.Printf("Error executing nodes view: %v", err)
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Error generating node list: %v", err)
+		return
+	}
+
+	nodeSizes := map[string]float64{}
+	nodeKeys := []string{}
+	for _, r := range viewRes.Rows {
+		nodeSizes[r.Key] = r.Value
+		nodeKeys = append(nodeKeys, "/"+r.Key)
+	}
+
+	respob := map[string]interface{}{}
+	for nid, mcresp := range couchbase.GetBulk(nodeKeys) {
+		if mcresp.Status != gomemcached.SUCCESS {
+			log.Printf("Error fetching %v: %v", nid, mcresp)
+			continue
+		}
+
+		node := StorageNode{}
+		err = json.Unmarshal(mcresp.Body, &node)
+		if err != nil {
+			log.Printf("Error unmarshalling storage node %v: %v",
+				nid, err)
+			continue
+		}
+
+		nid = nid[1:]
+		age := time.Since(node.Time)
+		respob[nid] = map[string]interface{}{
+			"size":      nodeSizes[nid],
+			"addr":      node.Address(),
+			"hbtime":    node.Time,
+			"hbage_ms":  age.Nanoseconds() / 1e6,
+			"hbage_str": age.String(),
+			"hash":      node.Hash,
+			"addr_raw":  node.Addr,
+			"bindaddr":  node.BindAddr,
+		}
+	}
+
+	data, err := json.Marshal(respob)
+	if err != nil {
+		log.Printf("Error marshaling node response: %v", err)
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Error marshaling node response: %v", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
+}
+
 func doGet(w http.ResponseWriter, req *http.Request) {
 	switch {
 	case req.URL.Path == blobPrefix:
 		doList(w, req)
+	case req.URL.Path == "/.cbfs/nodes/":
+		doListNodes(w, req)
 	case strings.HasPrefix(req.URL.Path, metaPrefix):
 		doGetMeta(w, req,
 			minusPrefix(req.URL.Path, metaPrefix))
