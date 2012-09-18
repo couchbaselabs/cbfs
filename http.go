@@ -132,7 +132,7 @@ func altStoreFile(r io.Reader) (io.Reader, <-chan storInfo) {
 
 			presp, err := http.DefaultClient.Do(preq)
 			if err == nil {
-				if presp.StatusCode != 204 {
+				if presp.StatusCode != 201 {
 					rv.err = errors.New(presp.Status)
 					bgch <- rv
 				}
@@ -183,7 +183,7 @@ func doPostRawBlob(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Set("X-Hash", sh)
 
-	w.WriteHeader(204)
+	w.WriteHeader(201)
 }
 
 func putUserFile(w http.ResponseWriter, req *http.Request) {
@@ -241,7 +241,7 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.WriteHeader(204)
+	w.WriteHeader(201)
 }
 
 func putRawHash(w http.ResponseWriter, req *http.Request) {
@@ -280,7 +280,7 @@ func putRawHash(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Set("X-Hash", sh)
 
-	w.WriteHeader(204)
+	w.WriteHeader(201)
 }
 
 func doPut(w http.ResponseWriter, req *http.Request) {
