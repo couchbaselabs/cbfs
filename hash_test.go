@@ -13,17 +13,6 @@ import (
 	"testing"
 )
 
-type randomDataMaker struct {
-	src rand.Source
-}
-
-func (r *randomDataMaker) Read(p []byte) (n int, err error) {
-	for i := range p {
-		p[i] = byte(r.src.Int63() & 0xff)
-	}
-	return len(p), nil
-}
-
 var once = &sync.Once{}
 
 var randomData []byte
