@@ -99,8 +99,14 @@ func uploadFile(src, dest string) error {
 func uploader(ch chan uploadReq) {
 	defer wg.Done()
 	for req := range ch {
-		log.Printf("%v -> %v", req.src, req.dest)
-		err := uploadFile(req.src, req.dest)
+
+		dest := req.dest
+		if strings.HasSuffix(dest, "/index.html") {
+			dest = dest[:len(dest)-len("index.html")]
+		}
+
+		log.Printf("%v -> %v", req.src, dest)
+		err := uploadFile(req.src, dest)
 		if err != nil {
 			log.Fatalf("Error uploading file: %v", err)
 		}
