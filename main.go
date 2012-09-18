@@ -47,6 +47,14 @@ func (fm fileMeta) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m)
 }
 
+func mustEncode(i interface{}) []byte {
+	rv, err := json.Marshal(i)
+	if err != nil {
+		log.Panicf("Error mustEncoding %#v: %v", i, err)
+	}
+	return rv
+}
+
 func storeMeta(k string, fm fileMeta) error {
 	return couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
 		_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
@@ -55,12 +63,7 @@ func storeMeta(k string, fm fileMeta) error {
 			if err == nil {
 				fm.Userdata = existing.Userdata
 			}
-
-			rv, err := json.Marshal(&fm)
-			if err != nil {
-				log.Fatalf("Error marshaling file meta: %v", err)
-			}
-			return rv, memcached.CASStore
+			return mustEncode(&fm), memcached.CASStore
 		}, 0)
 		return err
 	})

@@ -130,11 +130,8 @@ func runNamedGlobalTask(name string, t time.Duration, f func() error) bool {
 	}
 
 	err := couchbase.Do(key, func(mc *memcached.Client, vb uint16) error {
-		data, err := json.Marshal(&jm)
-		if err != nil {
-			log.Fatalf("Can't jsonify a JobMarker: %v", err)
-		}
-		resp, err := mc.Add(vb, key, 0, int(t.Seconds()), data)
+		resp, err := mc.Add(vb, key, 0, int(t.Seconds()),
+			mustEncode(&jm))
 		if err != nil {
 			return err
 		}
@@ -283,11 +280,7 @@ func removeBlobOwnershipRecord(h, node string) {
 			if len(ownership.Nodes) == 0 {
 				op = memcached.CASDelete
 			} else {
-				rv, err = json.Marshal(&ownership)
-				if err != nil {
-					log.Fatalf("Error marshaling blob ownership: %v",
-						err)
-				}
+				rv = mustEncode(&ownership)
 			}
 
 			return rv, op

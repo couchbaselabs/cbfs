@@ -73,12 +73,7 @@ func recordBlobOwnership(h string, l int64) error {
 			ownership.OID = h
 			ownership.Length = l
 			ownership.Type = "blob"
-
-			rv, err := json.Marshal(&ownership)
-			if err != nil {
-				log.Fatalf("Error marshaling blob ownership: %v", err)
-			}
-			return rv, memcached.CASStore
+			return mustEncode(&ownership), memcached.CASStore
 		}, 0)
 		return err
 	})
@@ -501,13 +496,7 @@ func putMeta(w http.ResponseWriter, req *http.Request, path string) {
 	}
 
 	got.Userdata = &r
-
-	b, err := json.Marshal(&got)
-	if err != nil {
-		w.WriteHeader(500)
-		w.Write([]byte(err.Error()))
-		return
-	}
+	b := mustEncode(&got)
 
 	err = couchbase.Do(path, func(mc *memcached.Client, vb uint16) error {
 		req := &gomemcached.MCRequest{
@@ -610,16 +599,8 @@ func doListNodes(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	data, err := json.Marshal(respob)
-	if err != nil {
-		log.Printf("Error marshaling node response: %v", err)
-		w.WriteHeader(500)
-		fmt.Fprintf(w, "Error marshaling node response: %v", err)
-		return
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(data)
+	w.Write(mustEncode(respob))
 }
 
 func doGet(w http.ResponseWriter, req *http.Request) {
