@@ -262,25 +262,40 @@ func removeBlobOwnershipRecord(h, node string) {
 
 	k := "/" + h
 	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
-		_, err := mc.CAS(vb, k, func(in []byte) []byte {
+		_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
 			ownership := BlobOwnership{}
 			err := json.Unmarshal(in, &ownership)
 			if err == nil {
+				if _, ok := ownership.Nodes[node]; !ok {
+					// Skip it fast if we don't have it.
+					return nil, memcached.CASQuit
+				}
 				delete(ownership.Nodes, node)
 			} else {
-				return nil
+				log.Printf("Error unmarhaling blob removal from %s: %v",
+					in, err)
+				return nil, memcached.CASQuit
 			}
 
-			rv, err := json.Marshal(&ownership)
-			if err != nil {
-				log.Fatalf("Error marshaling blob ownership: %v", err)
+			var rv []byte
+			op := memcached.CASStore
+
+			if len(ownership.Nodes) == 0 {
+				op = memcached.CASDelete
+			} else {
+				rv, err = json.Marshal(&ownership)
+				if err != nil {
+					log.Fatalf("Error marshaling blob ownership: %v",
+						err)
+				}
 			}
-			return rv
+
+			return rv, op
 		}, 0)
 		return err
 	})
-	if err != nil {
-		log.Printf("Error cleaning %v from %v", node, h)
+	if err != nil && err != memcached.CASQuit {
+		log.Printf("Error cleaning %v from %v: %v", node, h, err)
 	}
 }
 
