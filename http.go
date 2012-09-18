@@ -508,17 +508,21 @@ func doDelete(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func doPost(w http.ResponseWriter, req *http.Request) {
+	if req.URL.Path == blobPrefix {
+		doPostRawBlob(w, req)
+	} else {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
 func httpHandler(w http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 	switch req.Method {
 	case "PUT":
 		doPut(w, req)
 	case "POST":
-		if req.URL.Path == blobPrefix {
-			doPostRawBlob(w, req)
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
+		doPost(w, req)
 	case "GET":
 		doGet(w, req)
 	case "HEAD":
