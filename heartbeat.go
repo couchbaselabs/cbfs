@@ -432,13 +432,16 @@ func garbageCollectBlobFromNode(oid, sid string) {
 		resp, err := http.DefaultClient.Do(req)
 
 		if err != nil {
-			log.Printf("Error deleting oid %s from node %s, %v", oid, sid, err)
+			log.Printf("Error deleting oid %s from node %s, %v",
+				oid, sid, err)
 			return
 		}
 
-		// non-obvious to me at first, but also with 404 we should also remove the blob ownership
+		// non-obvious to me at first, but also with 404 we
+		// should also remove the blob ownership
 		if resp.StatusCode != 204 && resp.StatusCode != 404 {
-			log.Printf("Unexpected status code %d deleting remote oid %s from node %s", resp.StatusCode, oid, sid)
+			log.Printf("Unexpected status %v deleting %s from node %s",
+				resp.Status, oid, sid)
 			return
 		}
 	}
