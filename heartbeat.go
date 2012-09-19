@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -31,6 +32,8 @@ var nodeCleanCount = flag.Int("nodeCleanCount", 1000,
 	"How many blobs to clean up from a dead node per period")
 var verifyWorkers = flag.Int("verifyWorkers", 4,
 	"Number of object verification workers.")
+var garbageCollectFreq = flag.Duration("gcFreq", 5*time.Minute,
+	"How frequently to check dangling blobs.")
 
 var nodeTooOld = errors.New("Node information is too stale")
 
@@ -107,10 +110,15 @@ var periodicJobs = map[string]*PeriodicJob{
 		time.Minute * 5,
 		checkStaleNodes,
 	},
+	"garbageCollectBlobs": &PeriodicJob{
+		time.Minute * 5,
+		garbageCollectBlobs,
+	},
 }
 
 func adjustPeriodicJobs() error {
 	periodicJobs["checkStaleNodes"].period = *staleNodeFreq
+	periodicJobs["garbageCollectBlobs"].period = *garbageCollectFreq
 	return nil
 }
 
@@ -358,6 +366,83 @@ func checkStaleNodes() error {
 		}
 	}
 	return nil
+}
+
+func garbageCollectBlobs() error {
+	log.Printf("Garbage collecting blobs without any file references")
+
+	viewRes := struct {
+		Rows []struct {
+			Key []string
+		}
+	}{}
+
+	// we hit this view descending because we want file sorted before blob
+	// the fact that we walk the list backwards hopefully not too awkward
+	err := couchbase.ViewCustom("cbfs", "file_blobs",
+		map[string]interface{}{
+			"stale": false, "descending": true}, &viewRes)
+
+	if err != nil {
+		return err
+	}
+
+	lastBlob := ""
+	count := 0
+	for _, r := range viewRes.Rows {
+		blobId := r.Key[0]
+		typeFlag := r.Key[1]
+		blobNode := r.Key[2]
+
+		switch typeFlag {
+		case "file":
+			lastBlob = blobId
+		case "blob":
+			if blobId != lastBlob {
+				go garbageCollectBlobFromNode(blobId, blobNode)
+				count++
+			}
+		}
+
+	}
+	log.Printf("Scheduled %d blobs for deletion", count)
+	return nil
+}
+
+func garbageCollectBlobFromNode(oid, sid string) {
+	if sid == serverId {
+		//local delete
+		err := os.Remove(hashFilename(*root, oid))
+		if err != nil {
+			log.Printf("Error removing blob, already deleted? %v", err)
+		}
+	} else {
+		//remote
+		remote := StorageNode{}
+		remotekey := "/" + sid
+		err := couchbase.Get(remotekey, &remote)
+		if err != nil {
+			// will state node cleanup these records or should i?
+			log.Printf("No record of this node")
+			return
+		}
+
+		req, err := http.NewRequest("DELETE", remote.BlobURL(oid), nil)
+		resp, err := http.DefaultClient.Do(req)
+
+		if err != nil {
+			log.Printf("Error deleting oid %s from node %s, %v", oid, sid, err)
+			return
+		}
+
+		// non-obvious to me at first, but also with 404 we should also remove the blob ownership
+		if resp.StatusCode != 204 && resp.StatusCode != 404 {
+			log.Printf("Unexpected status code %d deleting remote oid %s from node %s", resp.StatusCode, oid, sid)
+			return
+		}
+	}
+	removeBlobOwnershipRecord(oid, sid)
+	log.Printf("Removed blob: %v from node %v", oid, sid)
 }
 
 func runPeriodicJob(name string, job *PeriodicJob) {
