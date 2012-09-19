@@ -44,6 +44,8 @@ type StorageNode struct {
 	Time     time.Time `json:"time"`
 	BindAddr string    `json:"bindaddr"`
 	Hash     string    `json:"hash"`
+
+	name string
 }
 
 func (a StorageNode) Address() string {
@@ -94,6 +96,7 @@ func findRemoteNodes() NodeList {
 	}
 	for _, r := range viewRes.Rows {
 		if r.ID[1:] != serverId {
+			r.Doc.Json.name = r.ID[1:]
 			rv = append(rv, r.Doc.Json)
 		}
 	}
@@ -447,6 +450,98 @@ func garbageCollectBlobFromNode(oid, sid string) {
 	}
 	removeBlobOwnershipRecord(oid, sid)
 	log.Printf("Removed blob: %v from node %v", oid, sid)
+}
+
+type fetchSpec struct {
+	oid  string
+	node string
+}
+
+func dataInitFetchOne(h, u string) error {
+	f, err := NewHashRecord(*root, h)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	resp, err := http.Get(u)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	h, l, err := f.Process(resp.Body)
+	if err != nil {
+		return err
+	}
+	return recordBlobOwnership(h, l)
+}
+
+func dataInitFetcher(nm map[string]StorageNode, ch <-chan fetchSpec) {
+	for fs := range ch {
+		node, found := nm[fs.node]
+		if !found {
+			log.Printf("couldn't find %v", fs.node)
+			continue
+		}
+		log.Printf("Fetching %v from %v", fs.oid, node.BlobURL(fs.oid))
+		err := dataInitFetchOne(fs.oid, node.BlobURL(fs.oid))
+		if err != nil {
+			log.Printf("Error fetching %v: %v", fs.oid, err)
+		}
+	}
+}
+
+func grabSomeData() {
+	viewRes := struct {
+		Rows []struct {
+			Id  string
+			Doc struct {
+				Json struct {
+					Nodes map[string]string
+				}
+			}
+		}
+	}{}
+
+	// Find some less replicated docs to suck in.
+	err := couchbase.ViewCustom("cbfs", "repcounts",
+		map[string]interface{}{
+			"reduce":       false,
+			"include_docs": true,
+			"limit":        1000,
+			"startkey":     1,
+		},
+		&viewRes)
+
+	if err != nil {
+		log.Printf("Error finding docs to suck: %v", err)
+		return
+	}
+
+	nl := findRemoteNodes()
+	nm := map[string]StorageNode{}
+
+	for _, n := range nl {
+		nm[n.name] = n
+	}
+
+	ch := make(chan fetchSpec, 1000)
+	defer close(ch)
+
+	for i := 0; i < 4; i++ {
+		go dataInitFetcher(nm, ch)
+	}
+
+	for _, r := range viewRes.Rows {
+		if _, ok := r.Doc.Json.Nodes[serverId]; !ok {
+			for n := range r.Doc.Json.Nodes {
+				if n != serverId {
+					ch <- fetchSpec{r.Id[1:], n}
+				}
+			}
+		}
+	}
 }
 
 func runPeriodicJob(name string, job *PeriodicJob) {
