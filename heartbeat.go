@@ -267,6 +267,7 @@ func reconcileLoop() {
 		if err != nil {
 			log.Printf("Error in reconciliation loop: %v", err)
 		}
+		grabSomeData()
 		time.Sleep(*reconcileFreq)
 	}
 }
