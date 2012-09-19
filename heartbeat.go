@@ -35,6 +35,10 @@ var verifyWorkers = flag.Int("verifyWorkers", 4,
 	"Number of object verification workers.")
 var garbageCollectFreq = flag.Duration("gcFreq", 5*time.Minute,
 	"How frequently to check dangling blobs.")
+var maxStartupObjects = flag.Int("maxStartObjs", 1000,
+	"Maximum number of objects to pull on start")
+var maxStartupRepls = flag.Int("maxStartRepls", 3,
+	"Blob replication limit for startup objects.")
 
 var nodeTooOld = errors.New("Node information is too stale")
 
@@ -509,8 +513,9 @@ func grabSomeData() {
 		map[string]interface{}{
 			"reduce":       false,
 			"include_docs": true,
-			"limit":        1000,
+			"limit":        *maxStartupObjects,
 			"startkey":     1,
+			"endkey":       1 + *maxStartupRepls,
 		},
 		&viewRes)
 
