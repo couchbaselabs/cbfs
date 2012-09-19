@@ -12,11 +12,15 @@
             "reduce": "_count"
         },
         "node_size": {
-            "map": "function (doc, meta) {\n  if (doc.type === \"blob\") {\n    for (var n in doc.nodes) {\n      emit(n, doc.length);\n    }\n  }\n}",
+            "map": "function (doc, meta) {\n  if (doc.type === \"node\") {\n    emit(meta.id.substring(1), 0);\n  } else if (doc.type === \"blob\") {\n    for (var n in doc.nodes) {\n      emit(n, doc.length);\n    }\n  }\n}",
             "reduce": "_sum"
         },
         "nodes": {
             "map": "function (doc, meta) {\n  if (doc.type === \"node\") {\n    emit(doc.time, null);\n  }\n}"
+        },
+        "repcounts": {
+            "map": "function (doc, meta) {\n  if (doc.type === \"blob\") {\n    var nreps = 0;\n    for (var x in doc.nodes) {\n      nreps++;\n    }\n    emit(nreps, null);\n  }\n}",
+            "reduce": "_count"
         },
         "size": {
             "map": "function (doc, meta) {\n  if (doc.type === 'file') {\n    emit(meta.id, doc.length);\n  }\n}",
