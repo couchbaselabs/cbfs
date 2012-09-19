@@ -9,6 +9,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -20,8 +21,9 @@ import (
 )
 
 const (
-	blobPrefix = "/.cbfs/blob/"
-	metaPrefix = "/.cbfs/meta/"
+	blobPrefix  = "/.cbfs/blob/"
+	metaPrefix  = "/.cbfs/meta/"
+	proxyPrefix = "/.cbfs/viewproxy/"
 )
 
 type BlobOwnership struct {
@@ -618,6 +620,34 @@ func doListNodes(w http.ResponseWriter, req *http.Request) {
 	w.Write(mustEncode(respob))
 }
 
+func proxyViewRequest(w http.ResponseWriter, req *http.Request,
+	path string) {
+
+	node := couchbase.Nodes[rand.Intn(len(couchbase.Nodes))]
+	u, err := url.Parse(node.CouchAPIBase)
+	if err != nil {
+		w.WriteHeader(http.StatusBadGateway)
+		return
+	}
+
+	u.Path = "/" + path
+	u.RawQuery = req.URL.RawQuery
+
+	res, err := http.Get(u.String())
+	if err != nil {
+		w.WriteHeader(http.StatusBadGateway)
+		return
+	}
+	defer res.Body.Close()
+
+	for k, vs := range res.Header {
+		w.Header()[k] = vs
+	}
+	w.WriteHeader(res.StatusCode)
+
+	io.Copy(w, res.Body)
+}
+
 func doGet(w http.ResponseWriter, req *http.Request) {
 	switch {
 	case req.URL.Path == blobPrefix:
@@ -629,6 +659,8 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 			minusPrefix(req.URL.Path, metaPrefix))
 	case strings.HasPrefix(req.URL.Path, blobPrefix):
 		doServeRawBlob(w, req, minusPrefix(req.URL.Path, blobPrefix))
+	case *enableViewProxy && strings.HasPrefix(req.URL.Path, proxyPrefix):
+		proxyViewRequest(w, req, minusPrefix(req.URL.Path, proxyPrefix))
 	case strings.HasPrefix(req.URL.Path, "/.cbfs/"):
 		w.WriteHeader(400)
 	default:

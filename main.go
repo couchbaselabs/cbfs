@@ -22,6 +22,8 @@ var defaultPath = flag.String("defaultPath", "/index.html",
 	"Default path to fetch for / reqs")
 var cachePercentage = flag.Int("cachePercent", 100,
 	"Percentage of proxied requests to eagerly cache.")
+var enableViewProxy = flag.Bool("viewProxy", false,
+	"Enable the view proxy")
 
 type fileMeta struct {
 	Headers  http.Header      `json:"headers"`
