@@ -51,6 +51,17 @@ type uploadReq struct {
 	dest string
 }
 
+func recognizeTypeByName(n, def string) string {
+	byname := mime.TypeByExtension(n)
+	switch {
+	case byname != "":
+		return byname
+	case strings.HasSuffix(n, ".js"):
+		return "application/javascript"
+	}
+	return def
+}
+
 func uploadFile(src, dest string) error {
 	f, err := os.Open(src)
 	if err != nil {
@@ -77,10 +88,7 @@ func uploadFile(src, dest string) error {
 	ctype := http.DetectContentType(someBytes)
 	if strings.HasPrefix(ctype, "text/plain") ||
 		strings.HasPrefix(ctype, "application/octet-stream") {
-		byname := mime.TypeByExtension(src)
-		if byname != "" {
-			ctype = byname
-		}
+		ctype = recognizeTypeByName(src, ctype)
 	}
 
 	preq.Header.Set("Content-Type", ctype)
