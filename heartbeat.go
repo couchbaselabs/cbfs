@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
@@ -446,6 +447,7 @@ func garbageCollectBlobFromNode(oid, sid string) {
 }
 
 func runPeriodicJob(name string, job *PeriodicJob) {
+	time.Sleep(time.Second * time.Duration(5+rand.Intn(60)))
 	for {
 		if runNamedGlobalTask(name, job.period, job.f) {
 			log.Printf("Attempted job %v", name)
