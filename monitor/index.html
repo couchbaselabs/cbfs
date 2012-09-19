@@ -4,10 +4,37 @@
     <script type="text/javascript" src="jquery.min.js"></script>
     <script type="text/javascript" src="d3.v2.min.js"></script>
     <script type="text/javascript" src="monitor.js"></script>
+
+    <style type="text/css">
+#bubbles {
+  display: inline;
+}
+
+#repcounts {
+  display: inline;
+  width: 200px;
+  height: 150px;
+}
+
+#repcounts .chart rect {
+  stroke: white;
+  fill: steelblue;
+}
+
+#repcounts .chart rect.under {
+  stroke: white;
+  fill: red;
+}
+
+#repcounts .chart text {
+  fill: #444;
+}
+    </style>
   </head>
 
   <body>
-    <div id="maindisplay"></div>
+    <div id="bubbles"></div>
+    <div id="repcounts"></div>
   </body>
 
   <script type="text/javascript">
