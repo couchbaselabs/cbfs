@@ -38,6 +38,8 @@ var maxStartupObjects = flag.Int("maxStartObjs", 1000,
 	"Maximum number of objects to pull on start")
 var maxStartupRepls = flag.Int("maxStartRepls", 3,
 	"Blob replication limit for startup objects.")
+var minReplicas = flag.Int("minReplicas", 3,
+	"Minimum number of replicas to try to keep")
 
 type PeriodicJob struct {
 	period time.Duration
@@ -203,8 +205,10 @@ func reconcileLoop() {
 	}
 }
 
-func removeBlobOwnershipRecord(h, node string) {
+// Returns the number of known owners (-1 if it can't be determined)
+func removeBlobOwnershipRecord(h, node string) int {
 	log.Printf("Cleaning up %v from %v", h, node)
+	numOwners := -1
 
 	k := "/" + h
 	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
@@ -226,6 +230,8 @@ func removeBlobOwnershipRecord(h, node string) {
 			var rv []byte
 			op := memcached.CASStore
 
+			numOwners = len(ownership.Nodes)
+
 			if len(ownership.Nodes) == 0 {
 				op = memcached.CASDelete
 			} else {
@@ -238,10 +244,68 @@ func removeBlobOwnershipRecord(h, node string) {
 	})
 	if err != nil && err != memcached.CASQuit {
 		log.Printf("Error cleaning %v from %v: %v", node, h, err)
+		numOwners = -1
+	}
+
+	return numOwners
+}
+
+func salvageBlob(oid, deadNode string, nl NodeList) {
+	// Find the owners of this blob
+	ownership := BlobOwnership{}
+	oidkey := "/" + oid
+	err := couchbase.Get(oidkey, &ownership)
+	if err != nil {
+		log.Printf("Missing ownership record for OID: %v", oid)
+		return
+	}
+
+	owners := ownership.ResolveNodes()
+
+	var srcCandidate, destCandidate StorageNode
+	// Find a good source candidate.  Prefer myself.
+	for _, node := range owners {
+		if node.IsLocal() {
+			srcCandidate = node
+		}
+
+		if srcCandidate.name == "" && node.name != deadNode {
+			srcCandidate = node
+		}
+	}
+
+	// Find a good destination candidate. Can't be a source
+	// candidate.  Prefer local again.
+	for _, node := range nl.minus(owners) {
+		if node.IsLocal() && !srcCandidate.IsLocal() {
+			destCandidate = node
+		}
+
+		if destCandidate.name == "" &&
+			node.name != deadNode &&
+			node.name != srcCandidate.name {
+
+			destCandidate = node
+		}
+	}
+
+	if srcCandidate.name == "" || destCandidate.name == "" {
+		log.Printf("Couldn't find candidates for blob!")
+	} else {
+		err = srcCandidate.copyBlob(oid, destCandidate)
+		if err != nil {
+			log.Printf("Failed to copy: %v", err)
+		}
 	}
 }
 
 func cleanupNode(node string) {
+	nodes, err := findAllNodes()
+	if err != nil {
+		log.Printf("Error finding node list, aborting clean: %v", err)
+		return
+	}
+
 	log.Printf("Cleaning up node %v", node)
 	vres, err := couchbase.View("cbfs", "node_blobs",
 		map[string]interface{}{
@@ -256,8 +320,12 @@ func cleanupNode(node string) {
 	}
 	foundRows := 0
 	for _, r := range vres.Rows {
-		removeBlobOwnershipRecord(r.ID[1:], node)
+		numOwners := removeBlobOwnershipRecord(r.ID[1:], node)
 		foundRows++
+
+		if numOwners < *minReplicas {
+			salvageBlob(r.ID[1:], node, nodes)
+		}
 	}
 	if foundRows == 0 && len(vres.Errors) == 0 {
 		log.Printf("Removing node record: %v", node)
