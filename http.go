@@ -344,11 +344,24 @@ func doHead(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if req.FormValue("rev") != "" {
+		w.WriteHeader(400)
+		return
+	}
+
 	for k, v := range got.Headers {
 		if isResponseHeader(k) {
 			w.Header()[k] = v
 		}
 	}
+
+	oldestRev := got.Revno
+	if len(got.Previous) > 0 {
+		oldestRev = got.Previous[0].Revno
+	}
+
+	w.Header().Set("X-CBFS-Revno", strconv.Itoa(got.Revno))
+	w.Header().Set("X-CBFS-OldestRev", strconv.Itoa(oldestRev))
 	w.Header().Set("Last-Modified",
 		got.Modified.UTC().Format(http.TimeFormat))
 	w.Header().Set("Etag", `"`+got.OID+`"`)
@@ -368,6 +381,45 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	oid := got.OID
+	respHeaders := got.Headers
+	modified := got.Modified
+	revno := got.Revno
+	oldestRev := revno
+
+	if len(got.Previous) > 0 {
+		oldestRev = got.Previous[0].Revno
+	}
+
+	revnoStr := req.FormValue("rev")
+	if revnoStr != "" {
+		i, err := strconv.Atoi(revnoStr)
+		if err != nil {
+			w.WriteHeader(400)
+			fmt.Fprintf(w, "Invalid revno")
+			return
+		}
+		revno = i
+
+		oid = ""
+		for _, rev := range got.Previous {
+			if rev.Revno == revno {
+				oid = rev.OID
+				modified = rev.Modified
+				respHeaders = rev.Headers
+				break
+			}
+		}
+		if oid == "" {
+			w.WriteHeader(410)
+			fmt.Fprintf(w, "Don't have this file with rev %v", revno)
+			return
+		}
+	}
+
+	w.Header().Set("X-CBFS-Revno", strconv.Itoa(revno))
+	w.Header().Set("X-CBFS-OldestRev", strconv.Itoa(oldestRev))
+
 	inm := req.Header.Get("If-None-Match")
 	if len(inm) > 2 {
 		inm = inm[1 : len(inm)-1]
@@ -377,23 +429,23 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	f, err := os.Open(hashFilename(*root, got.OID))
+	f, err := os.Open(hashFilename(*root, oid))
 	if err != nil {
-		getBlobFromRemote(w, got)
+		getBlobFromRemote(w, oid, respHeaders)
 		return
 	}
 	defer f.Close()
 
-	for k, v := range got.Headers {
+	for k, v := range respHeaders {
 		if isResponseHeader(k) {
 			w.Header()[k] = v
 		}
 	}
 
-	w.Header().Set("Etag", `"`+got.OID+`"`)
+	w.Header().Set("Etag", `"`+oid+`"`)
 
-	go recordBlobAccess(got.OID)
-	http.ServeContent(w, req, path, got.Modified, f)
+	go recordBlobAccess(oid)
+	http.ServeContent(w, req, path, modified, f)
 }
 
 func doServeRawBlob(w http.ResponseWriter, req *http.Request, oid string) {
@@ -412,14 +464,15 @@ func doServeRawBlob(w http.ResponseWriter, req *http.Request, oid string) {
 	http.ServeContent(w, req, "", time.Time{}, f)
 }
 
-func getBlobFromRemote(w http.ResponseWriter, meta fileMeta) {
+func getBlobFromRemote(w http.ResponseWriter, oid string,
+	respHeader http.Header) {
 
 	// Find the owners of this blob
 	ownership := BlobOwnership{}
-	oidkey := "/" + meta.OID
+	oidkey := "/" + oid
 	err := couchbase.Get(oidkey, &ownership)
 	if err != nil {
-		log.Printf("Missing ownership record for OID: %v", meta.OID)
+		log.Printf("Missing ownership record for OID: %v", oid)
 		// Not sure 404 is the right response here
 		w.WriteHeader(404)
 		return
@@ -430,11 +483,11 @@ func getBlobFromRemote(w http.ResponseWriter, meta fileMeta) {
 	// Loop through the nodes that claim to own this blob
 	// If we encounter any errors along the way, try the next node
 	for _, sid := range nl {
-		log.Printf("Trying to get %s from %s", meta.OID, sid)
+		log.Printf("Trying to get %s from %s", oid, sid)
 
-		resp, err := http.Get(sid.BlobURL(meta.OID))
+		resp, err := http.Get(sid.BlobURL(oid))
 		if err != nil {
-			log.Printf("Error reading oid %s from node %s", meta.OID, sid)
+			log.Printf("Error reading oid %s from node %s", oid, sid)
 			continue
 		}
 
@@ -446,7 +499,7 @@ func getBlobFromRemote(w http.ResponseWriter, meta fileMeta) {
 		// Found one, set the headers and send it.  Keep a
 		// local copy for good luck.
 
-		for k, v := range meta.Headers {
+		for k, v := range respHeader {
 			if isResponseHeader(k) {
 				w.Header()[k] = v
 			}
@@ -457,7 +510,7 @@ func getBlobFromRemote(w http.ResponseWriter, meta fileMeta) {
 
 		if *cachePercentage > rand.Intn(100) {
 			log.Printf("Storing remotely proxied request")
-			hw, err = NewHashRecord(*root, meta.OID)
+			hw, err = NewHashRecord(*root, oid)
 			if err == nil {
 				writeTo = io.MultiWriter(hw, w)
 			} else {
@@ -476,7 +529,7 @@ func getBlobFromRemote(w http.ResponseWriter, meta fileMeta) {
 			if hw != nil {
 				_, err = hw.Finish()
 				if err == nil {
-					go recordBlobOwnership(meta.OID, length)
+					go recordBlobOwnership(oid, length)
 				}
 			}
 		}
@@ -486,9 +539,9 @@ func getBlobFromRemote(w http.ResponseWriter, meta fileMeta) {
 
 	//if we got to this point, no node in the list actually had it
 	log.Printf("Don't have hash file: %v and no remote nodes could help",
-		meta.OID)
+		oid)
 	w.WriteHeader(500)
-	fmt.Fprintf(w, "Cannot locate blob %v", meta.OID)
+	fmt.Fprintf(w, "Cannot locate blob %v", oid)
 	return
 }
 
