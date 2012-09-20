@@ -415,13 +415,12 @@ func garbageCollectBlobFromNode(oid, sid string) {
 
 		req, err := http.NewRequest("DELETE", remote.BlobURL(oid), nil)
 		resp, err := http.DefaultClient.Do(req)
-		defer resp.Body.Close()
-
 		if err != nil {
 			log.Printf("Error deleting oid %s from node %s, %v",
 				oid, sid, err)
 			return
 		}
+		defer resp.Body.Close()
 
 		// non-obvious to me at first, but also with 404 we
 		// should also remove the blob ownership
