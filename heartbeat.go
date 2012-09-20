@@ -274,35 +274,25 @@ func cleanupNode(node string) {
 
 func checkStaleNodes() error {
 	log.Printf("Checking stale nodes")
-	vres, err := couchbase.View("cbfs", "nodes", map[string]interface{}{
-		"stale": false})
+	nl, err := findAllNodes()
 	if err != nil {
 		return err
 	}
-	for _, r := range vres.Rows {
-		ks, ok := r.Key.(string)
-		if !ok {
-			log.Printf("Wrong key type returned from view: %#v", r)
-			continue
-		}
-		t, err := time.Parse(time.RFC3339, ks)
-		if err != nil {
-			log.Printf("Error parsing time from %v", r)
-			continue
-		}
-		d := time.Since(t)
-		node := r.ID[1:]
+
+	for _, node := range nl {
+		d := time.Since(node.Time)
 
 		if d > *staleNodeLimit {
-			if node == serverId {
+			if node.name == serverId {
 				log.Printf("Would've cleaned up myself after %v",
 					d)
 				continue
 			}
-			log.Printf("  Node %v missed heartbeat schedule: %v", node, d)
-			go cleanupNode(node)
+			log.Printf("  Node %v missed heartbeat schedule: %v",
+				node.name, d)
+			go cleanupNode(node.name)
 		} else {
-			log.Printf("%v is ok at %v", node, d)
+			log.Printf("%v is ok at %v", node.name, d)
 		}
 	}
 	return nil
