@@ -133,11 +133,17 @@ func syncUp(src, u string, ch chan<- uploadReq) {
 			if err != nil {
 				return err
 			}
-			if !info.IsDir() {
+			switch info.Mode() & os.ModeType {
+			case os.ModeDir:
+				// ignoring quietly
+			case os.ModeCharDevice, os.ModeDevice,
+				os.ModeNamedPipe, os.ModeSocket, os.ModeSymlink:
+
+				log.Printf("Ignoring special file: %v", path)
+			default:
 				shortPath := path[len(src):]
 				ch <- uploadReq{path, u + shortPath}
 			}
-
 			return err
 		})
 	if err != nil {
