@@ -54,7 +54,7 @@ func (a NodeList) Len() int {
 }
 
 func (a NodeList) Less(i, j int) bool {
-	return a[i].Time.Before(a[j].Time)
+	return a[i].Time.After(a[j].Time)
 }
 
 func (a NodeList) Swap(i, j int) {
