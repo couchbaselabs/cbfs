@@ -16,8 +16,6 @@ var root = flag.String("root", "storage", "Storage location")
 var hashType = flag.String("hash", "sha1", "Hash to use")
 var couchbaseServer = flag.String("couchbase", "", "Couchbase URL")
 var couchbaseBucket = flag.String("bucket", "default", "Couchbase bucket")
-var guidFile = flag.String("guidfile", ".serverguid",
-	"Path to server identifier")
 var cachePercentage = flag.Int("cachePercent", 100,
 	"Percentage of proxied requests to eagerly cache.")
 var enableViewProxy = flag.Bool("viewProxy", false,

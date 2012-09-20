@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"flag"
-	"io/ioutil"
 	"strings"
 	"time"
 )
@@ -29,17 +28,12 @@ func validateServerId(s string) error {
 func initServerId() error {
 	var err error
 	var bytes []byte
-	if serverId == "" {
-		bytes, err = ioutil.ReadFile(*guidFile)
-	}
 	if len(bytes) > 0 && err == nil {
 		serverId = strings.TrimSpace(string(bytes))
 	} else {
 		if serverId == "" {
 			serverId = time.Now().UTC().Format(time.RFC3339Nano)
 		}
-		err = ioutil.WriteFile(*guidFile,
-			[]byte(serverId), 0666)
 	}
 	return err
 }
