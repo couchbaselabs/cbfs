@@ -115,6 +115,22 @@ func (nl NodeList) minusLocal() NodeList {
 	return rv
 }
 
+func (nl NodeList) minus(other NodeList) NodeList {
+	rv := make(NodeList, 0, len(nl))
+	for _, n := range nl {
+		found := false
+		for _, o := range other {
+			if o.name == n.name {
+				found = true
+			}
+		}
+		if !found {
+			rv = append(rv, n)
+		}
+	}
+	return rv
+}
+
 func findRemoteNodes() (NodeList, error) {
 	allNodes, err := findAllNodes()
 	if err != nil {
