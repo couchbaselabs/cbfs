@@ -25,6 +25,7 @@ const (
 	blobPrefix  = "/.cbfs/blob/"
 	metaPrefix  = "/.cbfs/meta/"
 	proxyPrefix = "/.cbfs/viewproxy/"
+	fetchPrefix = "/.cbfs/fetch/"
 )
 
 type BlobOwnership struct {
@@ -431,7 +432,7 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 
 	f, err := os.Open(hashFilename(*root, oid))
 	if err != nil {
-		getBlobFromRemote(w, oid, respHeaders)
+		getBlobFromRemote(w, oid, respHeaders, *cachePercentage)
 		return
 	}
 	defer f.Close()
@@ -465,7 +466,7 @@ func doServeRawBlob(w http.ResponseWriter, req *http.Request, oid string) {
 }
 
 func getBlobFromRemote(w http.ResponseWriter, oid string,
-	respHeader http.Header) {
+	respHeader http.Header, cachePerc int) {
 
 	// Find the owners of this blob
 	ownership := BlobOwnership{}
@@ -508,7 +509,7 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 		writeTo := io.Writer(w)
 		var hw *hashRecord
 
-		if *cachePercentage > rand.Intn(100) {
+		if cachePerc > rand.Intn(100) {
 			log.Printf("Storing remotely proxied request")
 			hw, err = NewHashRecord(*root, oid)
 			if err == nil {
@@ -686,12 +687,46 @@ func proxyViewRequest(w http.ResponseWriter, req *http.Request,
 	io.Copy(w, res.Body)
 }
 
+type captureResponseWriter struct {
+	hdr        http.Header
+	statusCode int
+}
+
+func (c *captureResponseWriter) Header() http.Header {
+	return c.hdr
+}
+
+func (c *captureResponseWriter) Write(b []byte) (int, error) {
+	return len(b), nil
+}
+
+func (c *captureResponseWriter) WriteHeader(code int) {
+	c.statusCode = code
+}
+
+func doFetchDoc(w http.ResponseWriter, req *http.Request,
+	path string) {
+
+	c := captureResponseWriter{}
+
+	getBlobFromRemote(&c, path, http.Header{}, 100)
+
+	if c.statusCode == 200 {
+		w.WriteHeader(204)
+	} else {
+		w.WriteHeader(c.statusCode)
+	}
+}
+
 func doGet(w http.ResponseWriter, req *http.Request) {
 	switch {
 	case req.URL.Path == blobPrefix:
 		doList(w, req)
 	case req.URL.Path == "/.cbfs/nodes/":
 		doListNodes(w, req)
+	case strings.HasPrefix(req.URL.Path, fetchPrefix):
+		doFetchDoc(w, req,
+			minusPrefix(req.URL.Path, fetchPrefix))
 	case strings.HasPrefix(req.URL.Path, metaPrefix):
 		doGetMeta(w, req,
 			minusPrefix(req.URL.Path, metaPrefix))
