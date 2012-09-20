@@ -22,6 +22,7 @@ import (
 var workers = flag.Int("workers", 4, "Number of upload workers")
 var couchbaseServer = flag.String("couchbase", "", "Couchbase URL")
 var couchbaseBucket = flag.String("bucket", "default", "Couchbase bucket")
+var revs = flag.Int("revs", 0, "Number of old revisions to keep (-1 == all)")
 
 var cb *couchbase.Bucket
 
@@ -96,6 +97,7 @@ func uploadFile(src, dest string) error {
 	if err != nil {
 		return err
 	}
+	preq.Header.Set("X-CBFS-KeepRevs", strconv.Itoa(*revs))
 
 	ctype := http.DetectContentType(someBytes)
 	if strings.HasPrefix(ctype, "text/plain") ||
