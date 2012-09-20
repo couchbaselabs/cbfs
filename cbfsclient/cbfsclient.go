@@ -182,10 +182,11 @@ func getConfCommand(args []string) {
 	if cb == nil {
 		log.Fatalf("No couchbase bucket specified")
 	}
-	conf := cbfsconfig.CBFSConfig{}
+	conf := cbfsconfig.DefaultConfig()
 	err := conf.RetrieveConfig(cb)
 	if err != nil {
-		log.Fatalf("Error getting config: %v", err)
+		log.Printf("Error getting config: %v", err)
+		log.Printf("Using default, as shown below:")
 	}
 
 	conf.Dump(os.Stdout)
