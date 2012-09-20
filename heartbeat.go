@@ -354,23 +354,30 @@ func garbageCollectBlobs() error {
 		Rows []struct {
 			Key []string
 		}
+		Errors []struct {
+			From   string
+			Reason string
+		}
 	}{}
-
-	ch := make(chan gcObject, 1000)
-	defer close(ch)
-
-	for i := 0; i < *gcWorkers; i++ {
-		go gcWorker(ch)
-	}
 
 	// we hit this view descending because we want file sorted before blob
 	// the fact that we walk the list backwards hopefully not too awkward
 	err := couchbase.ViewCustom("cbfs", "file_blobs",
 		map[string]interface{}{
 			"stale": false, "descending": true}, &viewRes)
-
 	if err != nil {
 		return err
+	}
+
+	if len(viewRes.Errors) > 0 {
+		return fmt.Errorf("View errors: %v", viewRes.Errors)
+	}
+
+	ch := make(chan gcObject, 1000)
+	defer close(ch)
+
+	for i := 0; i < *gcWorkers; i++ {
+		go gcWorker(ch)
 	}
 
 	lastBlob := ""
