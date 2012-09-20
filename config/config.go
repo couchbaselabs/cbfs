@@ -1,6 +1,10 @@
 package cbfsconfig
 
 import (
+	"fmt"
+	"io"
+	"reflect"
+	"text/tabwriter"
 	"time"
 
 	"github.com/couchbaselabs/go-couchbase"
@@ -40,6 +44,22 @@ func DefaultConfig() CBFSConfig {
 		StaleNodeCheckFreq: time.Minute,
 		StaleNodeLimit:     time.Minute * 10,
 	}
+}
+
+// Dump a text representation of this config to the given writer.
+func (conf CBFSConfig) Dump(w io.Writer) {
+	tw := tabwriter.NewWriter(w, 2, 4, 1, ' ', 0)
+	val := reflect.ValueOf(conf)
+	for i := 0; i < val.NumField(); i++ {
+		sf := val.Type().Field(i)
+		fieldName := sf.Tag.Get("json")
+		if fieldName == "" {
+			fieldName = sf.Name
+		}
+
+		fmt.Fprintf(tw, "%v:\t%v\n", fieldName, val.Field(i).Interface())
+	}
+	tw.Flush()
 }
 
 // Update this config within a bucket.
