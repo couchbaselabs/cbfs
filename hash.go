@@ -23,7 +23,7 @@ var hashBuilders = map[string]func() hash.Hash{
 }
 
 func getHash() hash.Hash {
-	h, ok := hashBuilders[*hashType]
+	h, ok := hashBuilders[globalConfig.Hash]
 	if !ok {
 		return nil
 	}

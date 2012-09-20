@@ -43,7 +43,7 @@ func initData() {
 
 func benchHash(h string, b *testing.B) {
 	once.Do(initData)
-	*hashType = h
+	globalConfig.Hash = h
 	b.SetBytes(int64(len(randomData)))
 	for i := 0; i < b.N; i++ {
 		sh := getHash()

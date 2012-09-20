@@ -9,17 +9,20 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/couchbaselabs/cbfs/config"
 )
 
 var bindAddr = flag.String("bind", ":8484", "Address to bind web thing to")
 var root = flag.String("root", "storage", "Storage location")
-var hashType = flag.String("hash", "sha1", "Hash to use")
 var couchbaseServer = flag.String("couchbase", "", "Couchbase URL")
 var couchbaseBucket = flag.String("bucket", "default", "Couchbase bucket")
 var cachePercentage = flag.Int("cachePercent", 100,
 	"Percentage of proxied requests to eagerly cache.")
 var enableViewProxy = flag.Bool("viewProxy", false,
 	"Enable the view proxy")
+
+var globalConfig = cbfsconfig.DefaultConfig()
 
 type prevMeta struct {
 	Headers  http.Header `json:"headers"`
@@ -110,19 +113,14 @@ func main() {
 	if getHash() == nil {
 		fmt.Fprintf(os.Stderr,
 			"Unsupported hash specified: %v.  Supported hashes:\n",
-			*hashType)
+			globalConfig.Hash)
 		for h := range hashBuilders {
 			fmt.Fprintf(os.Stderr, " * %v\n", h)
 		}
 		os.Exit(1)
 	}
 
-	err := adjustPeriodicJobs()
-	if err != nil {
-		log.Fatalf("Error adjusting periodic jobs from flags: %v", err)
-	}
-
-	err = initServerId()
+	err := initServerId()
 	if err != nil {
 		log.Fatalf("Error initializing server ID: %v", err)
 	}
@@ -130,6 +128,11 @@ func main() {
 	couchbase, err = dbConnect()
 	if err != nil {
 		log.Fatalf("Can't connect to couchbase: %v", err)
+	}
+
+	err = globalConfig.RetrieveConfig(couchbase)
+	if err != nil {
+		log.Printf("Error retrieving global config: %v", err)
 	}
 
 	go heartbeat()

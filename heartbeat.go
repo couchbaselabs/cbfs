@@ -20,47 +20,31 @@ import (
 	"github.com/dustin/gomemcached/client"
 )
 
-var heartFreq = flag.Duration("heartbeat", 10*time.Second,
-	"Heartbeat frequency")
-var reconcileFreq = flag.Duration("reconcile", 24*time.Hour,
-	"Reconciliation frequency")
-var staleNodeFreq = flag.Duration("staleNodeCheck", 5*time.Minute,
-	"How frequently to check for stale nodes.")
-var staleNodeLimit = flag.Duration("staleNodeLimit", 15*time.Minute,
-	"How long until we clean up nodes for being too stale")
-var nodeCleanCount = flag.Int("nodeCleanCount", 1000,
-	"How many blobs to clean up from a dead node per period")
 var verifyWorkers = flag.Int("verifyWorkers", 4,
 	"Number of object verification workers.")
-var garbageCollectFreq = flag.Duration("gcFreq", 5*time.Minute,
-	"How frequently to check dangling blobs.")
 var maxStartupObjects = flag.Int("maxStartObjs", 1000,
 	"Maximum number of objects to pull on start")
 var maxStartupRepls = flag.Int("maxStartRepls", 3,
 	"Blob replication limit for startup objects.")
-var minReplicas = flag.Int("minReplicas", 3,
-	"Minimum number of replicas to try to keep")
 
 type PeriodicJob struct {
-	period time.Duration
+	period func() time.Duration
 	f      func() error
 }
 
 var periodicJobs = map[string]*PeriodicJob{
 	"checkStaleNodes": &PeriodicJob{
-		time.Minute * 5,
+		func() time.Duration {
+			return globalConfig.StaleNodeCheckFreq
+		},
 		checkStaleNodes,
 	},
 	"garbageCollectBlobs": &PeriodicJob{
-		time.Minute * 5,
+		func() time.Duration {
+			return globalConfig.GCFreq
+		},
 		garbageCollectBlobs,
 	},
-}
-
-func adjustPeriodicJobs() error {
-	periodicJobs["checkStaleNodes"].period = *staleNodeFreq
-	periodicJobs["garbageCollectBlobs"].period = *garbageCollectFreq
-	return nil
 }
 
 type JobMarker struct {
@@ -117,14 +101,13 @@ func heartbeat() {
 			Type:     "node",
 			Time:     time.Now().UTC(),
 			BindAddr: *bindAddr,
-			Hash:     *hashType,
 		}
 
 		err = couchbase.Set("/"+serverId, aboutMe)
 		if err != nil {
 			log.Printf("Failed to record a heartbeat: %v", err)
 		}
-		time.Sleep(*heartFreq)
+		time.Sleep(globalConfig.HeartbeatFreq)
 	}
 }
 
@@ -192,7 +175,7 @@ func reconcile() error {
 }
 
 func reconcileLoop() {
-	if *reconcileFreq == 0 {
+	if globalConfig.ReconcileFreq == 0 {
 		return
 	}
 	for {
@@ -201,7 +184,7 @@ func reconcileLoop() {
 			log.Printf("Error in reconciliation loop: %v", err)
 		}
 		grabSomeData()
-		time.Sleep(*reconcileFreq)
+		time.Sleep(globalConfig.ReconcileFreq)
 	}
 }
 
@@ -293,7 +276,7 @@ func cleanupNode(node string) {
 	vres, err := couchbase.View("cbfs", "node_blobs",
 		map[string]interface{}{
 			"key":    `"` + node + `"`,
-			"limit":  *nodeCleanCount,
+			"limit":  globalConfig.NodeCleanCount,
 			"reduce": false,
 			"stale":  false,
 		})
@@ -306,7 +289,7 @@ func cleanupNode(node string) {
 		numOwners := removeBlobOwnershipRecord(r.ID[1:], node)
 		foundRows++
 
-		if numOwners < *minReplicas {
+		if numOwners < globalConfig.MinReplicas {
 			salvageBlob(r.ID[1:], node, nodes)
 		}
 	}
@@ -333,7 +316,7 @@ func checkStaleNodes() error {
 	for _, node := range nl {
 		d := time.Since(node.Time)
 
-		if d > *staleNodeLimit {
+		if d > globalConfig.StaleNodeLimit {
 			if node.IsLocal() {
 				log.Printf("Would've cleaned up myself after %v",
 					d)
@@ -530,12 +513,12 @@ func grabSomeData() {
 func runPeriodicJob(name string, job *PeriodicJob) {
 	time.Sleep(time.Second * time.Duration(5+rand.Intn(60)))
 	for {
-		if runNamedGlobalTask(name, job.period, job.f) {
+		if runNamedGlobalTask(name, job.period(), job.f) {
 			log.Printf("Attempted job %v", name)
 		} else {
 			log.Printf("Didn't run job %v", name)
 		}
-		time.Sleep(job.period + time.Second)
+		time.Sleep(job.period() + time.Second)
 	}
 }
 
