@@ -18,6 +18,8 @@ import (
 
 	"github.com/dustin/gomemcached"
 	"github.com/dustin/gomemcached/client"
+
+	"github.com/couchbaselabs/cbfs/config"
 )
 
 var verifyWorkers = flag.Int("verifyWorkers", 4,
@@ -525,5 +527,24 @@ func runPeriodicJob(name string, job *PeriodicJob) {
 func runPeriodicJobs() {
 	for n, j := range periodicJobs {
 		go runPeriodicJob(n, j)
+	}
+}
+
+func updateConfig() error {
+	conf := cbfsconfig.CBFSConfig{}
+	err := conf.RetrieveConfig(couchbase)
+	if err != nil {
+		return err
+	}
+	globalConfig = &conf
+	return nil
+}
+
+func reloadConfig() {
+	for {
+		if err := updateConfig(); err != nil {
+			log.Printf("Error updating config: %v", err)
+		}
+		time.Sleep(time.Minute)
 	}
 }

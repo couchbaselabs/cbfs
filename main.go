@@ -21,8 +21,14 @@ var cachePercentage = flag.Int("cachePercent", 100,
 	"Percentage of proxied requests to eagerly cache.")
 var enableViewProxy = flag.Bool("viewProxy", false,
 	"Enable the view proxy")
+var verbose = flag.Bool("verbose", false, "Show some more stuff")
 
-var globalConfig = cbfsconfig.DefaultConfig()
+var globalConfig *cbfsconfig.CBFSConfig
+
+func init() {
+	conf := cbfsconfig.DefaultConfig()
+	globalConfig = &conf
+}
 
 type prevMeta struct {
 	Headers  http.Header `json:"headers"`
@@ -130,9 +136,14 @@ func main() {
 		log.Fatalf("Can't connect to couchbase: %v", err)
 	}
 
-	err = globalConfig.RetrieveConfig(couchbase)
+	err = updateConfig()
 	if err != nil {
-		log.Printf("Error retrieving global config: %v", err)
+		log.Printf("Error updating initial config, using default: %v",
+			err)
+	}
+	if *verbose {
+		log.Printf("Server config:")
+		globalConfig.Dump(os.Stdout)
 	}
 
 	go heartbeat()
