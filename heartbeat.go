@@ -24,6 +24,8 @@ import (
 
 var verifyWorkers = flag.Int("verifyWorkers", 4,
 	"Number of object verification workers.")
+var gcWorkers = flag.Int("gcWorkers", 4,
+	"Number of GC cleanup workers.")
 var maxStartupObjects = flag.Int("maxStartObjs", 1000,
 	"Maximum number of objects to pull on start")
 var maxStartupRepls = flag.Int("maxStartRepls", 3,
@@ -334,6 +336,17 @@ func checkStaleNodes() error {
 	return nil
 }
 
+type gcObject struct {
+	oid  string
+	node string
+}
+
+func gcWorker(ch chan gcObject) {
+	for g := range ch {
+		garbageCollectBlobFromNode(g.oid, g.node)
+	}
+}
+
 func garbageCollectBlobs() error {
 	log.Printf("Garbage collecting blobs without any file references")
 
@@ -342,6 +355,13 @@ func garbageCollectBlobs() error {
 			Key []string
 		}
 	}{}
+
+	ch := make(chan gcObject, 1000)
+	defer close(ch)
+
+	for i := 0; i < *gcWorkers; i++ {
+		go gcWorker(ch)
+	}
 
 	// we hit this view descending because we want file sorted before blob
 	// the fact that we walk the list backwards hopefully not too awkward
@@ -365,7 +385,7 @@ func garbageCollectBlobs() error {
 			lastBlob = blobId
 		case "blob":
 			if blobId != lastBlob {
-				go garbageCollectBlobFromNode(blobId, blobNode)
+				ch <- gcObject{blobId, blobNode}
 				count++
 			}
 		}
