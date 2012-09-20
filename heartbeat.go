@@ -283,7 +283,7 @@ func checkStaleNodes() error {
 		d := time.Since(node.Time)
 
 		if d > *staleNodeLimit {
-			if node.name == serverId {
+			if node.IsLocal() {
 				log.Printf("Would've cleaned up myself after %v",
 					d)
 				continue

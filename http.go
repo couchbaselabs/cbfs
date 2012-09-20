@@ -33,12 +33,10 @@ type BlobOwnership struct {
 	Type   string               `json:"type"`
 }
 
-func (b BlobOwnership) ResolveRemoteNodes() NodeList {
+func (b BlobOwnership) ResolveNodes() NodeList {
 	keys := make([]string, 0, len(b.Nodes))
 	for k := range b.Nodes {
-		if k != serverId {
-			keys = append(keys, "/"+k)
-		}
+		keys = append(keys, "/"+k)
 	}
 	resps := couchbase.GetBulk(keys)
 
@@ -57,6 +55,10 @@ func (b BlobOwnership) ResolveRemoteNodes() NodeList {
 	sort.Sort(rv)
 
 	return rv
+}
+
+func (b BlobOwnership) ResolveRemoteNodes() NodeList {
+	return b.ResolveNodes().minusLocal()
 }
 
 func recordBlobOwnership(h string, l int64) error {

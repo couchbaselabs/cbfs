@@ -37,6 +37,10 @@ func (a StorageNode) BlobURL(h string) string {
 		a.Address(), h)
 }
 
+func (n StorageNode) IsLocal() bool {
+	return n.name == serverId
+}
+
 type NodeList []StorageNode
 
 func (a NodeList) Len() int {
@@ -101,16 +105,20 @@ func findAllNodes() (NodeList, error) {
 	return rv, nil
 }
 
+func (nl NodeList) minusLocal() NodeList {
+	rv := make(NodeList, 0, len(nl))
+	for _, n := range nl {
+		if !n.IsLocal() {
+			rv = append(rv, n)
+		}
+	}
+	return rv
+}
+
 func findRemoteNodes() (NodeList, error) {
 	allNodes, err := findAllNodes()
 	if err != nil {
 		return allNodes, err
 	}
-	remoteNodes := make(NodeList, 0, len(allNodes))
-	for _, n := range allNodes {
-		if n.name != serverId {
-			remoteNodes = append(remoteNodes, n)
-		}
-	}
-	return remoteNodes, nil
+	return allNodes.minusLocal(), nil
 }
