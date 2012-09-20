@@ -18,8 +18,6 @@ var couchbaseServer = flag.String("couchbase", "", "Couchbase URL")
 var couchbaseBucket = flag.String("bucket", "default", "Couchbase bucket")
 var guidFile = flag.String("guidfile", ".serverguid",
 	"Path to server identifier")
-var defaultPath = flag.String("defaultPath", "/index.html",
-	"Default path to fetch for / reqs")
 var cachePercentage = flag.Int("cachePercent", 100,
 	"Percentage of proxied requests to eagerly cache.")
 var enableViewProxy = flag.Bool("viewProxy", false,
