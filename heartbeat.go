@@ -505,7 +505,7 @@ func grabSomeData() {
 			"include_docs": true,
 			"limit":        *maxStartupObjects,
 			"startkey":     1,
-			"endkey":       1 + *maxStartupRepls,
+			"endkey":       *maxStartupRepls - 1,
 		},
 		&viewRes)
 
