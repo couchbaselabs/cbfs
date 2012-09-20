@@ -50,10 +50,6 @@
         }
     ],
     "views": {
-        "blobusage": {
-            "map": "function (doc, meta) {\n  if (doc.type === \"file\") {\n    emit([doc.oid, \"file\", meta.id], null);\n  } else if (doc.type === \"blob\") {\n    for (var node in doc.nodes) {\n      emit([doc.oid, \"blob\", node], null);\n    }\n  }\n}",
-            "reduce": "_count"
-        },
         "file_blobs": {
             "map": "function (doc, meta) {\n  if (doc.type === \"file\") {\n    var toEmit = {};\n    toEmit[doc.oid] = meta.id;\n    if (doc.older) {\n      for (var i = 0; i < doc.older.length; i++) {\n        toEmit[doc.older[i].oid] = meta.id;\n      }\n    }\n    for (var k in toEmit) {\n      emit([k, \"file\", meta.id], null);\n    }\n  } else if (doc.type === \"blob\") {\n    for (var node in doc.nodes) {\n      emit([doc.oid, \"blob\", node], null);\n    }\n  }\n}"
         },
@@ -65,16 +61,9 @@
             "map": "function (doc, meta) {\n  if (doc.type === \"node\") {\n    emit(meta.id.substring(1), 0);\n  } else if (doc.type === \"blob\") {\n    for (var n in doc.nodes) {\n      emit(n, doc.length);\n    }\n  }\n}",
             "reduce": "_sum"
         },
-        "nodes": {
-            "map": "function (doc, meta) {\n  if (doc.type === \"node\") {\n    emit(doc.time, null);\n  }\n}"
-        },
         "repcounts": {
             "map": "function (doc, meta) {\n  if (doc.type === \"blob\") {\n    var nreps = 0;\n    for (var x in doc.nodes) {\n      nreps++;\n    }\n    emit(nreps, null);\n  }\n}",
             "reduce": "_count"
-        },
-        "size": {
-            "map": "function (doc, meta) {\n  if (doc.type === 'file') {\n    emit(meta.id, doc.length);\n  }\n}",
-            "reduce": "_sum"
         }
     }
 }
