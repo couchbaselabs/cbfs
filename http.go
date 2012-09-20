@@ -42,11 +42,12 @@ func (b BlobOwnership) ResolveNodes() NodeList {
 
 	rv := make(NodeList, 0, len(resps))
 
-	for _, v := range resps {
+	for k, v := range resps {
 		if v.Status == gomemcached.SUCCESS {
 			a := StorageNode{}
 			err := json.Unmarshal(v.Body, &a)
 			if err == nil {
+				a.name = k[1:]
 				rv = append(rv, a)
 			}
 		}
