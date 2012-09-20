@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -40,6 +38,11 @@ func (a StorageNode) BlobURL(h string) string {
 		a.Address(), h)
 }
 
+func (a StorageNode) fetchURL(h string) string {
+	return fmt.Sprintf("http://%s/.cbfs/fetch/%s",
+		a.Address(), h)
+}
+
 func (n StorageNode) IsLocal() bool {
 	return n.name == serverId
 }
@@ -58,53 +61,18 @@ func (a NodeList) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
-// Copy a blob from the storage node represented by this object to a
-// destination.  This does the right thing for local or remote on
-// either end.
-func (n StorageNode) copyBlob(oid string, to StorageNode) error {
-	log.Printf("Copying %v from %v to %v", oid, n.name, to.name)
-
-	var src io.ReadCloser
-	var err error
-
-	if n.IsLocal() {
-		src, err = os.Open(hashFilename(*root, oid))
-		if err != nil {
-			return err
-		}
-	} else {
-		resp, e := http.Get(n.BlobURL(oid))
-		if e != nil {
-			return e
-		}
-		src = resp.Body
+// Ask a node to acquire a blob.
+func (n StorageNode) acquireBlob(oid string) error {
+	resp, err := http.Get(n.fetchURL(oid))
+	if err != nil {
+		return err
 	}
-	defer src.Close()
+	defer resp.Body.Close()
 
-	if to.IsLocal() {
-		dest, err := NewHashRecord(*root, oid)
-		if err != nil {
-			return err
-		}
-		defer dest.Close()
-
-		_, _, err = dest.Process(src)
-	} else {
-		req, err := http.NewRequest("PUT", to.BlobURL(oid), src)
-		if err != nil {
-			return err
-		}
-
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != 201 {
-			return fmt.Errorf("Remote PUT error: %v", resp.Status)
-		}
+	if resp.StatusCode != 204 {
+		return fmt.Errorf("Error executing remote fetch: %v",
+			resp.Status)
 	}
-
 	return nil
 }
 

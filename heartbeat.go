@@ -262,39 +262,22 @@ func salvageBlob(oid, deadNode string, nl NodeList) {
 
 	owners := ownership.ResolveNodes()
 
-	var srcCandidate, destCandidate StorageNode
-	// Find a good source candidate.  Prefer myself.
-	for _, node := range owners {
-		if node.IsLocal() {
-			srcCandidate = node
-		}
-
-		if srcCandidate.name == "" && node.name != deadNode {
-			srcCandidate = node
-		}
-	}
-
-	// Find a good destination candidate. Can't be a source
-	// candidate.  Prefer local again.
+	var destCandidate StorageNode
+	// Find a good destination candidate.
 	for _, node := range nl.minus(owners) {
-		if node.IsLocal() && !srcCandidate.IsLocal() {
-			destCandidate = node
-		}
-
 		if destCandidate.name == "" &&
-			node.name != deadNode &&
-			node.name != srcCandidate.name {
+			node.name != deadNode {
 
 			destCandidate = node
 		}
 	}
 
-	if srcCandidate.name == "" || destCandidate.name == "" {
-		log.Printf("Couldn't find candidates for blob!")
+	if destCandidate.name == "" {
+		log.Printf("Couldn't find a candidate for blob!")
 	} else {
-		err = srcCandidate.copyBlob(oid, destCandidate)
+		err = destCandidate.acquireBlob(oid)
 		if err != nil {
-			log.Printf("Failed to copy: %v", err)
+			log.Printf("Failed to acquire: %v", err)
 		}
 	}
 }
