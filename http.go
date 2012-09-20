@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -238,7 +239,16 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	err = storeMeta(resolvePath(req), fm)
+	revs := 0
+	rheader := req.Header.Get("X-CBFS-KeepRevs")
+	if rheader != "" {
+		i, err := strconv.Atoi(rheader)
+		if err == nil {
+			revs = i
+		}
+	}
+
+	err = storeMeta(resolvePath(req), fm, revs)
 	if err != nil {
 		log.Printf("Error storing file meta: %v", err)
 		w.WriteHeader(500)

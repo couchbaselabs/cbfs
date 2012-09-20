@@ -23,12 +23,22 @@ var cachePercentage = flag.Int("cachePercent", 100,
 var enableViewProxy = flag.Bool("viewProxy", false,
 	"Enable the view proxy")
 
+type prevMeta struct {
+	Headers  http.Header `json:"headers"`
+	OID      string      `json:"oid"`
+	Length   int64       `json:"length"`
+	Modified time.Time   `json:"modified"`
+	Revno    int         `json:"revno"`
+}
+
 type fileMeta struct {
 	Headers  http.Header      `json:"headers"`
 	OID      string           `json:"oid"`
 	Length   int64            `json:"length"`
 	Userdata *json.RawMessage `json:"userdata,omitempty"`
 	Modified time.Time        `json:"modified"`
+	Previous []prevMeta       `json:"older"`
+	Revno    int              `json:"revno"`
 }
 
 func (fm fileMeta) MarshalJSON() ([]byte, error) {
@@ -39,10 +49,14 @@ func (fm fileMeta) MarshalJSON() ([]byte, error) {
 		"ctype":    fm.Headers.Get("Content-Type"),
 		"length":   fm.Length,
 		"modified": fm.Modified,
+		"revno":    fm.Revno,
 	}
 
 	if fm.Userdata != nil {
 		m["userdata"] = fm.Userdata
+	}
+	if len(fm.Previous) > 0 {
+		m["older"] = fm.Previous
 	}
 	return json.Marshal(m)
 }
@@ -55,13 +69,32 @@ func mustEncode(i interface{}) []byte {
 	return rv
 }
 
-func storeMeta(k string, fm fileMeta) error {
+func storeMeta(k string, fm fileMeta, revs int) error {
 	return couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
 		_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
 			existing := fileMeta{}
 			err := json.Unmarshal(in, &existing)
 			if err == nil {
 				fm.Userdata = existing.Userdata
+				fm.Revno = existing.Revno + 1
+
+				if revs == -1 || revs > 0 {
+					newMeta := prevMeta{
+						Headers:  existing.Headers,
+						OID:      existing.OID,
+						Length:   existing.Length,
+						Modified: existing.Modified,
+						Revno:    existing.Revno,
+					}
+
+					fm.Previous = append(existing.Previous,
+						newMeta)
+
+					diff := len(fm.Previous) - revs
+					if revs != -1 && diff > 0 {
+						fm.Previous = fm.Previous[diff:]
+					}
+				}
 			}
 			return mustEncode(&fm), memcached.CASStore
 		}, 0)

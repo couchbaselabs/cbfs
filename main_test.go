@@ -22,11 +22,11 @@ func TestFileMetaRoundTrip(t *testing.T) {
 	now := time.Now()
 
 	fmin := fileMeta{
-		http.Header{"X-Awesome": []string{"a", "b"}},
-		"someoidhere",
-		837582,
-		&jsonguy,
-		now,
+		Headers:  http.Header{"X-Awesome": []string{"a", "b"}},
+		OID:      "someoidhere",
+		Length:   837582,
+		Userdata: &jsonguy,
+		Modified: now,
 	}
 
 	d, err := json.Marshal(fmin)
