@@ -201,6 +201,11 @@ func removeBlobOwnershipRecord(h, node string) int {
 	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
 		_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
 			ownership := BlobOwnership{}
+
+			if len(in) == 0 {
+				return nil, memcached.CASQuit
+			}
+
 			err := json.Unmarshal(in, &ownership)
 			if err == nil {
 				if _, ok := ownership.Nodes[node]; !ok {
