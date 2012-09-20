@@ -456,7 +456,11 @@ func grabSomeData() {
 		return
 	}
 
-	nl := findRemoteNodes()
+	nl, err := findRemoteNodes()
+	if err != nil {
+		log.Printf("Error finding nodes: %v", err)
+		return
+	}
 	nm := map[string]StorageNode{}
 
 	for _, n := range nl {

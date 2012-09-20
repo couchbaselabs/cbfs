@@ -111,8 +111,8 @@ type storInfo struct {
 func altStoreFile(r io.Reader) (io.Reader, <-chan storInfo) {
 	bgch := make(chan storInfo, 1)
 
-	nodes := findRemoteNodes()
-	if len(nodes) > 0 {
+	nodes, err := findRemoteNodes()
+	if err == nil && len(nodes) > 0 {
 		r1, r2 := newMultiReader(r)
 		r = r2
 
@@ -564,17 +564,8 @@ func doGetMeta(w http.ResponseWriter, req *http.Request, path string) {
 }
 
 func doListNodes(w http.ResponseWriter, req *http.Request) {
-	viewRes := struct {
-		Rows []struct {
-			Key   string
-			Value float64
-		}
-	}{}
 
-	err := couchbase.ViewCustom("cbfs", "node_size",
-		map[string]interface{}{
-			"group_level": 1,
-		}, &viewRes)
+	nl, err := findAllNodes()
 	if err != nil {
 		log.Printf("Error executing nodes view: %v", err)
 		w.WriteHeader(500)
@@ -582,32 +573,11 @@ func doListNodes(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	nodeSizes := map[string]float64{}
-	nodeKeys := []string{}
-	for _, r := range viewRes.Rows {
-		nodeSizes[r.Key] = r.Value
-		nodeKeys = append(nodeKeys, "/"+r.Key)
-	}
-
 	respob := map[string]interface{}{}
-	for nid, mcresp := range couchbase.GetBulk(nodeKeys) {
-		if mcresp.Status != gomemcached.SUCCESS {
-			log.Printf("Error fetching %v: %v", nid, mcresp)
-			continue
-		}
-
-		node := StorageNode{}
-		err = json.Unmarshal(mcresp.Body, &node)
-		if err != nil {
-			log.Printf("Error unmarshalling storage node %v: %v",
-				nid, err)
-			continue
-		}
-
-		nid = nid[1:]
+	for _, node := range nl {
 		age := time.Since(node.Time)
-		respob[nid] = map[string]interface{}{
-			"size":      nodeSizes[nid],
+		respob[node.name] = map[string]interface{}{
+			"size":      node.storageSize,
 			"addr":      node.Address(),
 			"hbtime":    node.Time,
 			"hbage_ms":  age.Nanoseconds() / 1e6,
