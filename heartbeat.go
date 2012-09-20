@@ -489,6 +489,7 @@ func grabSomeData() {
 			"limit":        *maxStartupObjects,
 			"startkey":     1,
 			"endkey":       *maxStartupRepls - 1,
+			"stale":        false,
 		},
 		&viewRes)
 
