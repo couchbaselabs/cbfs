@@ -120,9 +120,22 @@ func uploader(ch chan uploadReq) {
 	defer wg.Done()
 	for req := range ch {
 		log.Printf("%v -> %v", req.src, req.dest)
-		err := uploadFile(req.src, req.dest)
-		if err != nil {
-			log.Fatalf("Error uploading file: %v", err)
+		retries := 0
+		done := false
+		for !done {
+			err := uploadFile(req.src, req.dest)
+			if err != nil {
+				if retries < 3 {
+					retries++
+					log.Printf("Error uploading file: %v... retrying",
+						err)
+					time.Sleep(time.Duration(retries) * time.Second)
+				} else {
+					log.Fatalf("Error uploading file: %v", err)
+				}
+			} else {
+				done = true
+			}
 		}
 	}
 }
