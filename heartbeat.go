@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -139,56 +138,6 @@ func reconcileLoop() {
 		grabSomeData()
 		time.Sleep(globalConfig.ReconcileFreq)
 	}
-}
-
-// Returns the number of known owners (-1 if it can't be determined)
-func removeBlobOwnershipRecord(h, node string) int {
-	log.Printf("Cleaning up %v from %v", h, node)
-	numOwners := -1
-
-	k := "/" + h
-	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
-		_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
-			ownership := BlobOwnership{}
-
-			if len(in) == 0 {
-				return nil, memcached.CASQuit
-			}
-
-			err := json.Unmarshal(in, &ownership)
-			if err == nil {
-				if _, ok := ownership.Nodes[node]; !ok {
-					// Skip it fast if we don't have it.
-					return nil, memcached.CASQuit
-				}
-				delete(ownership.Nodes, node)
-			} else {
-				log.Printf("Error unmarhaling blob removal from %s: %v",
-					in, err)
-				return nil, memcached.CASQuit
-			}
-
-			var rv []byte
-			op := memcached.CASStore
-
-			numOwners = len(ownership.Nodes)
-
-			if len(ownership.Nodes) == 0 {
-				op = memcached.CASDelete
-			} else {
-				rv = mustEncode(&ownership)
-			}
-
-			return rv, op
-		}, 0)
-		return err
-	})
-	if err != nil && err != memcached.CASQuit {
-		log.Printf("Error cleaning %v from %v: %v", node, h, err)
-		numOwners = -1
-	}
-
-	return numOwners
 }
 
 func salvageBlob(oid, deadNode string, nl NodeList) {

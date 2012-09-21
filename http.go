@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -27,76 +26,6 @@ const (
 	proxyPrefix = "/.cbfs/viewproxy/"
 	fetchPrefix = "/.cbfs/fetch/"
 )
-
-type BlobOwnership struct {
-	OID    string               `json:"oid"`
-	Length int64                `json:"length"`
-	Nodes  map[string]time.Time `json:"nodes"`
-	Type   string               `json:"type"`
-}
-
-func (b BlobOwnership) ResolveNodes() NodeList {
-	keys := make([]string, 0, len(b.Nodes))
-	for k := range b.Nodes {
-		keys = append(keys, "/"+k)
-	}
-	resps := couchbase.GetBulk(keys)
-
-	rv := make(NodeList, 0, len(resps))
-
-	for k, v := range resps {
-		if v.Status == gomemcached.SUCCESS {
-			a := StorageNode{}
-			err := json.Unmarshal(v.Body, &a)
-			if err == nil {
-				a.name = k[1:]
-				rv = append(rv, a)
-			}
-		}
-	}
-
-	sort.Sort(rv)
-
-	return rv
-}
-
-func (b BlobOwnership) ResolveRemoteNodes() NodeList {
-	return b.ResolveNodes().minusLocal()
-}
-
-func recordBlobOwnership(h string, l int64) error {
-	k := "/" + h
-	return couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
-		_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
-			ownership := BlobOwnership{}
-			err := json.Unmarshal(in, &ownership)
-			if err == nil {
-				ownership.Nodes[serverId] = time.Now().UTC()
-			} else {
-				ownership.Nodes = map[string]time.Time{
-					serverId: time.Now().UTC(),
-				}
-			}
-			ownership.OID = h
-			ownership.Length = l
-			ownership.Type = "blob"
-			return mustEncode(&ownership), memcached.CASStore
-		}, 0)
-		return err
-	})
-}
-
-func recordBlobAccess(h string) {
-	_, err := couchbase.Incr("/"+h+"/r", 1, 1, 0)
-	if err != nil {
-		log.Printf("Error incrementing counter for %v: %v", h, err)
-	}
-
-	_, err = couchbase.Incr("/"+serverId+"/r", 1, 1, 0)
-	if err != nil {
-		log.Printf("Error incrementing node identifier: %v", h, err)
-	}
-}
 
 type storInfo struct {
 	node string
