@@ -30,7 +30,7 @@ func verifyObjectHash(h string) error {
 
 	hstring := hex.EncodeToString(sh.Sum([]byte{}))
 	if h != hstring {
-		err = os.Remove(fn)
+		err = removeObject(h)
 		if err != nil {
 			log.Printf("Error removing corrupt file %v: %v", err)
 		}
