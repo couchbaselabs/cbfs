@@ -226,6 +226,8 @@ func setConfCommand(args []string) {
 			args[0])
 	case "gcfreq":
 		conf.GCFreq = parseDuration(args[1])
+	case "gclimit":
+		conf.GCLimit = parseInt(args[1])
 	case "hash":
 		conf.Hash = args[1]
 	case "hbfreq":

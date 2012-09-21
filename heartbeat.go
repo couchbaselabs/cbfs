@@ -384,7 +384,10 @@ func garbageCollectBlobs() error {
 	// the fact that we walk the list backwards hopefully not too awkward
 	err := couchbase.ViewCustom("cbfs", "file_blobs",
 		map[string]interface{}{
-			"stale": false, "descending": true}, &viewRes)
+			"stale":      false,
+			"descending": true,
+			"limit":      globalConfig.GCLimit,
+		}, &viewRes)
 	if err != nil {
 		return err
 	}

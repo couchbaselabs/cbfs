@@ -16,6 +16,8 @@ const dbKey = "/@globalConfig"
 type CBFSConfig struct {
 	// Frequency of Object GC Process
 	GCFreq time.Duration `json:"gcfreq"`
+	// Maximum number of items to look for in a GC pass.
+	GCLimit int `json:"gclimit"`
 	// Hash algorithm to use
 	Hash string `json:"hash"`
 	// Expected heartbeat frequency
@@ -36,6 +38,7 @@ type CBFSConfig struct {
 func DefaultConfig() CBFSConfig {
 	return CBFSConfig{
 		GCFreq:             time.Minute * 5,
+		GCLimit:            5000,
 		Hash:               "sha1",
 		HeartbeatFreq:      time.Second * 5,
 		MinReplicas:        3,
