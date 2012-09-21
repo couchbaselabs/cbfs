@@ -29,7 +29,7 @@ function updateBubbles(bubble, vis, d) {
 
     function fill(val) {
         var offset = Math.min(1, val / 180000);
-        return d3.interpolateRgb("#bbf", "#f66")(offset);
+        return d3.interpolateRgb("#bbf", "#f55")(offset);
     }
 
     var data = bubble.nodes({children: children})
