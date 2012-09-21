@@ -145,6 +145,7 @@ func main() {
 		log.Printf("Server config:")
 		globalConfig.Dump(os.Stdout)
 	}
+	go reloadConfig()
 
 	go heartbeat()
 	go reconcileLoop()

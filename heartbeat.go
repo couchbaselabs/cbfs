@@ -574,9 +574,9 @@ func updateConfig() error {
 
 func reloadConfig() {
 	for {
+		time.Sleep(time.Minute)
 		if err := updateConfig(); err != nil {
 			log.Printf("Error updating config: %v", err)
 		}
-		time.Sleep(time.Minute)
 	}
 }
