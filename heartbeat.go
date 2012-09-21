@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net"
@@ -451,6 +452,7 @@ func garbageCollectBlobFromNode(oid, sid string) {
 			return
 		}
 		defer resp.Body.Close()
+		io.Copy(ioutil.Discard, resp.Body)
 
 		// non-obvious to me at first, but also with 404 we
 		// should also remove the blob ownership
