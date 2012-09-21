@@ -488,6 +488,12 @@ func dataInitFetchOne(h, u string) error {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != 200 {
+		io.Copy(ioutil.Discard, resp.Body)
+		return fmt.Errorf("Unexpected status fetching %v from %v: %v",
+			h, u, resp.Status)
+	}
+
 	h, l, err := f.Process(resp.Body)
 	if err != nil {
 		return err
