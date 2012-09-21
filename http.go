@@ -419,12 +419,14 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 
 		resp, err := http.Get(sid.BlobURL(oid))
 		if err != nil {
-			log.Printf("Error reading oid %s from node %s", oid, sid)
+			log.Printf("Error reading oid %s from node %v",
+				oid, sid.name)
 			continue
 		}
 
 		if resp.StatusCode != 200 {
-			log.Printf("Error response code %d from node %s", resp.StatusCode, sid)
+			log.Printf("Error response code %d from node %s",
+				resp.StatusCode, sid)
 			continue
 		}
 
@@ -581,6 +583,7 @@ func doListNodes(w http.ResponseWriter, req *http.Request) {
 			"hbage_ms":  age.Nanoseconds() / 1e6,
 			"hbage_str": age.String(),
 			"hash":      node.Hash,
+			"used":      node.Used,
 			"free":      node.Free,
 			"addr_raw":  node.Addr,
 			"bindaddr":  node.BindAddr,
@@ -679,7 +682,7 @@ func minusPrefix(s, prefix string) string {
 
 func doDeleteOID(w http.ResponseWriter, req *http.Request) {
 	oid := minusPrefix(req.URL.Path, blobPrefix)
-	err := os.Remove(hashFilename(*root, oid))
+	err := removeObject(oid)
 	if err == nil {
 		w.WriteHeader(204)
 	} else {

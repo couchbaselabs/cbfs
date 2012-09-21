@@ -31,11 +31,12 @@ func getHash() hash.Hash {
 }
 
 type hashRecord struct {
-	tmpf   *os.File
-	sh     hash.Hash
-	w      io.Writer
-	hashin string
-	base   string
+	tmpf    *os.File
+	sh      hash.Hash
+	w       io.Writer
+	hashin  string
+	base    string
+	written int64
 }
 
 func NewHashRecord(tmpdir, hashin string) (*hashRecord, error) {
@@ -56,7 +57,11 @@ func NewHashRecord(tmpdir, hashin string) (*hashRecord, error) {
 }
 
 func (h *hashRecord) Write(p []byte) (n int, err error) {
-	return h.w.Write(p)
+	n, err = h.w.Write(p)
+	if err == nil {
+		h.written += int64(n)
+	}
+	return
 }
 
 func (h *hashRecord) Finish() (string, error) {
@@ -76,6 +81,7 @@ func (h *hashRecord) Finish() (string, error) {
 	err = os.Rename(h.tmpf.Name(), fn)
 	if err != nil {
 		os.MkdirAll(filepath.Dir(fn), 0777)
+		os.Remove(fn)
 		err = os.Rename(h.tmpf.Name(), fn)
 		if err != nil {
 			log.Printf("Error renaming %v to %v: %v",
@@ -87,11 +93,12 @@ func (h *hashRecord) Finish() (string, error) {
 
 	h.tmpf = nil
 
+	storedObject(hs, h.written)
 	return hs, nil
 }
 
 func (h *hashRecord) Process(r io.Reader) (string, int64, error) {
-	length, err := io.Copy(h.w, r)
+	length, err := io.Copy(h, r)
 	if err != nil {
 		return "", length, err
 	}

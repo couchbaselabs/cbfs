@@ -21,6 +21,7 @@ type StorageNode struct {
 	Time     time.Time `json:"time"`
 	BindAddr string    `json:"bindaddr"`
 	Hash     string    `json:"hash"`
+	Used     int64     `json:"used"`
 	Free     uint64    `json:"free"`
 
 	name        string

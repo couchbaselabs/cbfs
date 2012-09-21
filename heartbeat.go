@@ -11,7 +11,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -115,6 +114,7 @@ func heartbeat() {
 			Type:     "node",
 			Time:     time.Now().UTC(),
 			BindAddr: *bindAddr,
+			Used:     spaceUsed,
 			Free:     freeSpace,
 		}
 
@@ -311,7 +311,7 @@ func garbageCollectBlobs() error {
 func garbageCollectBlobFromNode(oid, sid string) {
 	if sid == serverId {
 		//local delete
-		err := os.Remove(hashFilename(*root, oid))
+		err := removeObject(oid)
 		if err != nil {
 			log.Printf("Error removing blob, already deleted? %v", err)
 		}
