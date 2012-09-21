@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -30,6 +31,10 @@ var maxStartupObjects = flag.Int("maxStartObjs", 1000,
 	"Maximum number of objects to pull on start")
 var maxStartupRepls = flag.Int("maxStartRepls", 3,
 	"Blob replication limit for startup objects.")
+var maxStorage = flag.Uint64("maxSize", 0,
+	"Approximate maximum amount of space to allocate")
+
+var noFSFree = errors.New("no filesystemFree")
 
 type PeriodicJob struct {
 	period func() time.Duration
@@ -100,11 +105,21 @@ func heartbeat() {
 			c.Close()
 		}
 
+		freeSpace, err := filesystemFree()
+		if err != nil && err != noFSFree {
+			log.Printf("Error getting filesystem info: %v", err)
+		}
+
+		if *maxStorage > 0 && freeSpace > *maxStorage {
+			freeSpace = *maxStorage
+		}
+
 		aboutMe := StorageNode{
 			Addr:     localAddr,
 			Type:     "node",
 			Time:     time.Now().UTC(),
 			BindAddr: *bindAddr,
+			Free:     freeSpace,
 		}
 
 		err = couchbase.Set("/"+serverId, aboutMe)
