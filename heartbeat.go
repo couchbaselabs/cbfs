@@ -445,6 +445,10 @@ func garbageCollectBlobFromNode(oid, sid string) {
 		}
 
 		req, err := http.NewRequest("DELETE", remote.BlobURL(oid), nil)
+		if err != nil {
+			log.Printf("Error making an HTTP request")
+			return
+		}
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			log.Printf("Error deleting oid %s from node %s, %v",
