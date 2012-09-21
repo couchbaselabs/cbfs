@@ -23,6 +23,7 @@ function updateBubbles(bubble, vis, d) {
         children.push({age: d[n].hbage_ms,
                        hbs: d[n].hbage_str,
                        node: n,
+                       avail: d[n].free,
                        value: d[n].size});
     }
 
@@ -65,7 +66,7 @@ function updateBubbles(bubble, vis, d) {
     vis.selectAll("g.node text")
         .data(data)
         .text(function(d) {
-            return d.node + " " + prettySize(d.value);
+            return d.node + " " + prettySize(d.value) + "/" + prettySize(d.avail);
         });
 
     vis.selectAll("g.node circle")

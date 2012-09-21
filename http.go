@@ -652,6 +652,7 @@ func doListNodes(w http.ResponseWriter, req *http.Request) {
 			"hbage_ms":  age.Nanoseconds() / 1e6,
 			"hbage_str": age.String(),
 			"hash":      node.Hash,
+			"free":      node.Free,
 			"addr_raw":  node.Addr,
 			"bindaddr":  node.BindAddr,
 		}
