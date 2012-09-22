@@ -244,8 +244,10 @@ func setConfCommand(args []string) {
 		conf.StaleNodeCheckFreq = parseDuration(args[1])
 	case "staleLimit":
 		conf.StaleNodeLimit = parseDuration(args[1])
-	case "minReplicaCheckFreq":
-		conf.MinReplicaCheckFreq = parseDuration(args[1])
+	case "underReplicaCheckFreq":
+		conf.UnderReplicaCheckFreq = parseDuration(args[1])
+	case "overReplicaCheckFreq":
+		conf.OverReplicaCheckFreq = parseDuration(args[1])
 	}
 
 	err = conf.StoreConfig(cb)

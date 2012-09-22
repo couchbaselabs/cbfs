@@ -51,13 +51,13 @@ var periodicJobs = map[string]*PeriodicJob{
 	},
 	"ensureMinReplCount": &PeriodicJob{
 		func() time.Duration {
-			return globalConfig.MinReplicaCheckFreq
+			return globalConfig.UnderReplicaCheckFreq
 		},
 		ensureMinimumReplicaCount,
 	},
 	"pruneExcessiveReplicas": &PeriodicJob{
 		func() time.Duration {
-			return globalConfig.MinReplicaCheckFreq
+			return globalConfig.OverReplicaCheckFreq
 		},
 		pruneExcessiveReplicas,
 	},
