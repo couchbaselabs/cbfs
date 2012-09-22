@@ -153,31 +153,13 @@ func reconcileLoop() {
 }
 
 func salvageBlob(oid, deadNode string, nl NodeList) {
-	// Find the owners of this blob
-	ownership := BlobOwnership{}
-	oidkey := "/" + oid
-	err := couchbase.Get(oidkey, &ownership)
-	if err != nil {
-		log.Printf("Missing ownership record for OID: %v", oid)
-		return
-	}
+	candidates := nl.candidatesFor(oid,
+		NodeList{nl.named(deadNode)})
 
-	owners := ownership.ResolveNodes()
-
-	var destCandidate StorageNode
-	// Find a good destination candidate.
-	for _, node := range nl.minus(owners) {
-		if destCandidate.name == "" &&
-			node.name != deadNode {
-
-			destCandidate = node
-		}
-	}
-
-	if destCandidate.name == "" {
+	if len(candidates) == 0 {
 		log.Printf("Couldn't find a candidate for blob!")
 	} else {
-		err = destCandidate.acquireBlob(oid)
+		err := candidates[0].acquireBlob(oid)
 		if err != nil {
 			log.Printf("Failed to acquire: %v", err)
 		}

@@ -190,6 +190,38 @@ func (nl NodeList) minus(other NodeList) NodeList {
 	return rv
 }
 
+func (nl NodeList) named(name string) StorageNode {
+	for _, sn := range nl {
+		if sn.name == name {
+			return sn
+		}
+	}
+	return StorageNode{}
+}
+
+func (nl NodeList) candidatesFor(oid string, exclude NodeList) NodeList {
+	// Find the owners of this blob
+	ownership := BlobOwnership{}
+	oidkey := "/" + oid
+	err := couchbase.Get(oidkey, &ownership)
+	if err != nil {
+		log.Printf("Missing ownership record for OID: %v", oid)
+		return nl
+	}
+
+	owners := ownership.ResolveNodes()
+
+	rv := NodeList{}
+	// Find a good destination candidate.
+	for _, node := range nl.minus(owners) {
+		if node.Free > ownership.Length {
+			rv = append(rv, node)
+		}
+	}
+
+	return rv
+}
+
 func findRemoteNodes() (NodeList, error) {
 	allNodes, err := findAllNodes()
 	if err != nil {
