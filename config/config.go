@@ -32,20 +32,23 @@ type CBFSConfig struct {
 	StaleNodeCheckFreq time.Duration `json:"nodeCheckFreq"`
 	// Time since the last heartbeat at which we consider a node stale
 	StaleNodeLimit time.Duration `json:"staleLimit"`
+	// Min replica check frequency
+	MinReplicaCheckFreq time.Duration `json:"minReplicaCheckFreq"`
 }
 
 // Get the default configuration
 func DefaultConfig() CBFSConfig {
 	return CBFSConfig{
-		GCFreq:             time.Minute * 5,
-		GCLimit:            5000,
-		Hash:               "sha1",
-		HeartbeatFreq:      time.Second * 5,
-		MinReplicas:        3,
-		NodeCleanCount:     1000,
-		ReconcileFreq:      time.Hour * 24,
-		StaleNodeCheckFreq: time.Minute,
-		StaleNodeLimit:     time.Minute * 10,
+		GCFreq:              time.Minute * 5,
+		GCLimit:             5000,
+		Hash:                "sha1",
+		HeartbeatFreq:       time.Second * 5,
+		MinReplicas:         3,
+		NodeCleanCount:      1000,
+		ReconcileFreq:       time.Hour * 24,
+		StaleNodeCheckFreq:  time.Minute,
+		StaleNodeLimit:      time.Minute * 10,
+		MinReplicaCheckFreq: time.Minute * 5,
 	}
 }
 

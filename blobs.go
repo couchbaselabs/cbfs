@@ -129,3 +129,45 @@ func removeBlobOwnershipRecord(h, node string) int {
 
 	return numOwners
 }
+
+func ensureMinimumReplicaCount() error {
+	nl, err := findAllNodes()
+	if err != nil {
+		return err
+	}
+
+	viewRes := struct {
+		Rows []struct {
+			Id  string
+			Doc struct {
+				Json struct {
+					Nodes map[string]string
+				}
+			}
+		}
+	}{}
+
+	// Find some less replicated docs to suck in.
+	err = couchbase.ViewCustom("cbfs", "repcounts",
+		map[string]interface{}{
+			"reduce":       false,
+			"include_docs": true,
+			"limit":        1000,
+			"startkey":     1,
+			"endkey":       *maxStartupRepls - 1,
+			"stale":        false,
+		},
+		&viewRes)
+
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Increasing replica count of %v items",
+		len(viewRes.Rows))
+
+	for _, r := range viewRes.Rows {
+		salvageBlob(r.Id[1:], "", nl)
+	}
+	return nil
+}

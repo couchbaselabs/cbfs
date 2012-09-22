@@ -49,6 +49,12 @@ var periodicJobs = map[string]*PeriodicJob{
 		},
 		garbageCollectBlobs,
 	},
+	"ensureMinReplCount": &PeriodicJob{
+		func() time.Duration {
+			return globalConfig.MinReplicaCheckFreq
+		},
+		ensureMinimumReplicaCount,
+	},
 }
 
 type JobMarker struct {
