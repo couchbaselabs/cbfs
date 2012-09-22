@@ -117,8 +117,8 @@ func heartbeat() {
 			log.Printf("Error getting filesystem info: %v", err)
 		}
 
-		if *maxStorage > 0 && freeSpace > *maxStorage {
-			freeSpace = *maxStorage
+		if maxStorage > 0 && freeSpace > maxStorage {
+			freeSpace = maxStorage
 		}
 
 		aboutMe := StorageNode{

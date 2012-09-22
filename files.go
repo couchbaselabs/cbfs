@@ -12,8 +12,9 @@ import (
 	"sync/atomic"
 )
 
-var maxStorage = flag.Uint64("maxSize", 0,
+var maxStorageString = flag.String("maxSize", "",
 	"Approximate maximum amount of space to allocate")
+var maxStorage uint64
 
 var spaceUsed int64
 var firstReconcile = true

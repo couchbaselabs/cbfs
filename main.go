@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/dustin/gomemcached/client"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/couchbaselabs/cbfs/config"
+	"github.com/dustin/go-humanize"
+	"github.com/dustin/gomemcached/client"
 )
 
 var bindAddr = flag.String("bind", ":8484", "Address to bind web thing to")
@@ -129,6 +130,14 @@ func main() {
 	err := initServerId()
 	if err != nil {
 		log.Fatalf("Error initializing server ID: %v", err)
+	}
+
+	if *maxStorageString != "" {
+		maxStorage, err = humanize.ParseBytes(*maxStorageString)
+		if err != nil {
+			log.Fatalf("Error parsing max storage parameter: %v",
+				err)
+		}
 	}
 
 	couchbase, err = dbConnect()
