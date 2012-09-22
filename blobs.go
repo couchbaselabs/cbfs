@@ -142,13 +142,19 @@ func ensureMinimumReplicaCount() error {
 		}
 	}{}
 
+	// Don't bother trying to replicate to more nodes than exist.
+	endKey := globalConfig.MinReplicas - 1
+	if globalConfig.MinReplicas > len(nl) {
+		endKey = len(nl) - 1
+	}
+
 	// Find some less replicated docs to suck in.
 	err = couchbase.ViewCustom("cbfs", "repcounts",
 		map[string]interface{}{
 			"reduce":   false,
 			"limit":    1000,
 			"startkey": 1,
-			"endkey":   globalConfig.MinReplicas - 1,
+			"endkey":   endKey,
 			"stale":    false,
 		},
 		&viewRes)
