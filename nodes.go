@@ -152,6 +152,18 @@ func findAllNodes() (NodeList, error) {
 	return rv, nil
 }
 
+func findNodeMap() (map[string]StorageNode, error) {
+	rv := map[string]StorageNode{}
+	nl, err := findAllNodes()
+	if err != nil {
+		return rv, err
+	}
+	for _, n := range nl {
+		rv[n.name] = n
+	}
+	return rv, nil
+}
+
 func (nl NodeList) minusLocal() NodeList {
 	rv := make(NodeList, 0, len(nl))
 	for _, n := range nl {

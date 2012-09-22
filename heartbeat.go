@@ -22,8 +22,8 @@ import (
 
 var verifyWorkers = flag.Int("verifyWorkers", 4,
 	"Number of object verification workers.")
-var gcWorkers = flag.Int("gcWorkers", 4,
-	"Number of GC cleanup workers.")
+var cleanupWorkers = flag.Int("cleanupWorkers", 4,
+	"Number of blob cleanup workers.")
 var maxStartupObjects = flag.Int("maxStartObjs", 1000,
 	"Maximum number of objects to pull on start")
 var maxStartupRepls = flag.Int("maxStartRepls", 3,
@@ -251,14 +251,14 @@ func checkStaleNodes() error {
 	return nil
 }
 
-type gcObject struct {
+type cleanupObject struct {
 	oid  string
-	node string
+	node StorageNode
 }
 
-func gcWorker(ch chan gcObject) {
+func cleanupWorker(ch chan cleanupObject) {
 	for g := range ch {
-		garbageCollectBlobFromNode(g.oid, g.node)
+		removeBlobFromNode(g.oid, g.node)
 	}
 }
 
@@ -291,11 +291,16 @@ func garbageCollectBlobs() error {
 		return fmt.Errorf("View errors: %v", viewRes.Errors)
 	}
 
-	ch := make(chan gcObject, 1000)
+	nm, err := findNodeMap()
+	if err != nil {
+		return err
+	}
+
+	ch := make(chan cleanupObject, 1000)
 	defer close(ch)
 
-	for i := 0; i < *gcWorkers; i++ {
-		go gcWorker(ch)
+	for i := 0; i < *cleanupWorkers; i++ {
+		go cleanupWorker(ch)
 	}
 
 	lastBlob := ""
@@ -310,8 +315,14 @@ func garbageCollectBlobs() error {
 			lastBlob = blobId
 		case "blob":
 			if blobId != lastBlob {
-				ch <- gcObject{blobId, blobNode}
-				count++
+				n, ok := nm[blobNode]
+				if ok {
+					ch <- cleanupObject{blobId, n}
+					count++
+				} else {
+					log.Printf("No nodemap entry for %v",
+						blobNode)
+				}
 			}
 		}
 
@@ -320,8 +331,8 @@ func garbageCollectBlobs() error {
 	return nil
 }
 
-func garbageCollectBlobFromNode(oid, sid string) {
-	if sid == serverId {
+func removeBlobFromNode(oid string, node StorageNode) {
+	if node.name == serverId {
 		//local delete
 		err := removeObject(oid)
 		if err != nil {
@@ -329,23 +340,14 @@ func garbageCollectBlobFromNode(oid, sid string) {
 		}
 	} else {
 		//remote
-		remote := StorageNode{}
-		remotekey := "/" + sid
-		err := couchbase.Get(remotekey, &remote)
-		if err != nil {
-			// will state node cleanup these records or should i?
-			log.Printf("No record of this node")
-			return
-		}
-
-		err = remote.deleteBlob(oid)
+		err := node.deleteBlob(oid)
 		if err != nil {
 			log.Printf("Error GCing blob: %v", err)
 			return
 		}
 	}
-	removeBlobOwnershipRecord(oid, sid)
-	log.Printf("Removed blob: %v from node %v", oid, sid)
+	removeBlobOwnershipRecord(oid, node.name)
+	log.Printf("Removed blob: %v from node %v", oid, node.name)
 }
 
 type fetchSpec struct {

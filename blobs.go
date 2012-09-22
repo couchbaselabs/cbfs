@@ -166,7 +166,9 @@ func ensureMinimumReplicaCount() error {
 	return nil
 }
 
-func pruneBlob(oid string, nodemap map[string]string, nl NodeList) {
+func pruneBlob(oid string, nodemap map[string]string, nl NodeList,
+	ch chan<- cleanupObject) {
+
 	if len(nodemap) <= globalConfig.MaxReplicas {
 		log.Printf("Asked to prune a blob that has too few replicas: %v",
 			oid)
@@ -187,13 +189,7 @@ func pruneBlob(oid string, nodemap map[string]string, nl NodeList) {
 		}
 		remaining--
 		if sn, ok := nm[n]; ok {
-			err := sn.deleteBlob(oid)
-			if err == nil {
-				removeBlobOwnershipRecord(oid, n)
-			} else {
-				log.Printf("Error pruning blob %v from %v: %v",
-					oid, n, err)
-			}
+			ch <- cleanupObject{oid, sn}
 		}
 	}
 
@@ -235,8 +231,20 @@ func pruneExcessiveReplicas() error {
 	log.Printf("Decreasing replica count of %v items",
 		len(viewRes.Rows))
 
+	// Short-circuit when there's nothing to clean
+	if len(viewRes.Rows) == 0 {
+		return nil
+	}
+
+	ch := make(chan cleanupObject, 1000)
+	defer close(ch)
+
+	for i := 0; i < *cleanupWorkers; i++ {
+		go cleanupWorker(ch)
+	}
+
 	for _, r := range viewRes.Rows {
-		pruneBlob(r.Id[1:], r.Doc.Json.Nodes, nl)
+		pruneBlob(r.Id[1:], r.Doc.Json.Nodes, nl, ch)
 	}
 	return nil
 }
