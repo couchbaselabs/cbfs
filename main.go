@@ -156,6 +156,8 @@ func main() {
 	}
 	go reloadConfig()
 
+	initTaskQueueWorkers()
+
 	go heartbeat()
 	go reconcileLoop()
 	go runPeriodicJobs()

@@ -22,8 +22,6 @@ import (
 
 var verifyWorkers = flag.Int("verifyWorkers", 4,
 	"Number of object verification workers.")
-var cleanupWorkers = flag.Int("cleanupWorkers", 4,
-	"Number of blob cleanup workers.")
 var maxStartupObjects = flag.Int("maxStartObjs", 1000,
 	"Maximum number of objects to pull on start")
 var maxStartupRepls = flag.Int("maxStartRepls", 3,
@@ -159,10 +157,7 @@ func salvageBlob(oid, deadNode string, nl NodeList) {
 	if len(candidates) == 0 {
 		log.Printf("Couldn't find a candidate for blob!")
 	} else {
-		err := candidates[0].acquireBlob(oid)
-		if err != nil {
-			log.Printf("Failed to acquire: %v", err)
-		}
+		queueBlobAcquire(candidates[0], oid)
 	}
 }
 
@@ -233,17 +228,6 @@ func checkStaleNodes() error {
 	return nil
 }
 
-type cleanupObject struct {
-	oid  string
-	node StorageNode
-}
-
-func cleanupWorker(ch chan cleanupObject) {
-	for g := range ch {
-		removeBlobFromNode(g.oid, g.node)
-	}
-}
-
 func garbageCollectBlobs() error {
 	log.Printf("Garbage collecting blobs without any file references")
 
@@ -278,13 +262,6 @@ func garbageCollectBlobs() error {
 		return err
 	}
 
-	ch := make(chan cleanupObject, 1000)
-	defer close(ch)
-
-	for i := 0; i < *cleanupWorkers; i++ {
-		go cleanupWorker(ch)
-	}
-
 	lastBlob := ""
 	count := 0
 	for _, r := range viewRes.Rows {
@@ -299,7 +276,7 @@ func garbageCollectBlobs() error {
 			if blobId != lastBlob {
 				n, ok := nm[blobNode]
 				if ok {
-					ch <- cleanupObject{blobId, n}
+					queueBlobRemoval(n, blobId)
 					count++
 				} else {
 					log.Printf("No nodemap entry for %v",

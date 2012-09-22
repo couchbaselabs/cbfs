@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"log"
 	"sort"
 	"time"
@@ -16,6 +17,22 @@ type BlobOwnership struct {
 	Nodes  map[string]time.Time `json:"nodes"`
 	Type   string               `json:"type"`
 }
+
+type internodeCommand uint8
+
+const (
+	removeObjectCmd = internodeCommand(iota)
+	acquireObjectCmd
+)
+
+type internodeTask struct {
+	node StorageNode
+	cmd  internodeCommand
+	oid  string
+}
+
+var taskWorkers = flag.Int("taskWorkers", 4,
+	"Number of blob move/removal workers.")
 
 func (b BlobOwnership) ResolveNodes() NodeList {
 	keys := make([]string, 0, len(b.Nodes))
@@ -141,10 +158,7 @@ func increaseReplicaCount(oid string, length int64, by int) error {
 	}
 	for _, n := range onto {
 		log.Printf("Asking %v to acquire %v", n.name, oid)
-		err = n.acquireBlob(oid)
-		if err != nil {
-			return err
-		}
+		queueBlobAcquire(n, oid)
 	}
 	return nil
 }
@@ -191,9 +205,7 @@ func ensureMinimumReplicaCount() error {
 	return nil
 }
 
-func pruneBlob(oid string, nodemap map[string]string, nl NodeList,
-	ch chan<- cleanupObject) {
-
+func pruneBlob(oid string, nodemap map[string]string, nl NodeList) {
 	if len(nodemap) <= globalConfig.MaxReplicas {
 		log.Printf("Asked to prune a blob that has too few replicas: %v",
 			oid)
@@ -214,7 +226,7 @@ func pruneBlob(oid string, nodemap map[string]string, nl NodeList,
 		}
 		remaining--
 		if sn, ok := nm[n]; ok {
-			ch <- cleanupObject{oid, sn}
+			queueBlobRemoval(sn, oid)
 		}
 	}
 
@@ -261,15 +273,48 @@ func pruneExcessiveReplicas() error {
 		return nil
 	}
 
-	ch := make(chan cleanupObject, 1000)
-	defer close(ch)
-
-	for i := 0; i < *cleanupWorkers; i++ {
-		go cleanupWorker(ch)
-	}
-
 	for _, r := range viewRes.Rows {
-		pruneBlob(r.Id[1:], r.Doc.Json.Nodes, nl, ch)
+		pruneBlob(r.Id[1:], r.Doc.Json.Nodes, nl)
 	}
 	return nil
+}
+
+var internodeTaskQueue = make(chan internodeTask, 1000)
+
+func internodeTaskWorker() {
+	for c := range internodeTaskQueue {
+		switch c.cmd {
+		case removeObjectCmd:
+			removeBlobFromNode(c.oid, c.node)
+		case acquireObjectCmd:
+			if err := c.node.acquireBlob(c.oid); err != nil {
+				log.Printf("Error acquiring %v from %v: %v",
+					c.oid, err)
+			}
+		default:
+			log.Fatalf("Unhandled worker task: %v", c)
+		}
+	}
+}
+
+func initTaskQueueWorkers() {
+	for i := 0; i < *taskWorkers; i++ {
+		go internodeTaskWorker()
+	}
+}
+
+func queueBlobRemoval(n StorageNode, oid string) {
+	internodeTaskQueue <- internodeTask{
+		node: n,
+		cmd:  removeObjectCmd,
+		oid:  oid,
+	}
+}
+
+func queueBlobAcquire(n StorageNode, oid string) {
+	internodeTaskQueue <- internodeTask{
+		node: n,
+		cmd:  acquireObjectCmd,
+		oid:  oid,
+	}
 }
