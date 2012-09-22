@@ -130,6 +130,25 @@ func removeBlobOwnershipRecord(h, node string) int {
 	return numOwners
 }
 
+func increaseReplicaCount(oid string, length int64, by int) error {
+	nl, err := findAllNodes()
+	if err != nil {
+		return err
+	}
+	onto := nl.candidatesFor(oid, NodeList{})
+	if len(onto) > by {
+		onto = onto[:by]
+	}
+	for _, n := range onto {
+		log.Printf("Asking %v to acquire %v", n.name, oid)
+		err = n.acquireBlob(oid)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func ensureMinimumReplicaCount() error {
 	nl, err := findAllNodes()
 	if err != nil {

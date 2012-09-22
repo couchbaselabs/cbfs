@@ -185,6 +185,12 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if globalConfig.MinReplicas > 2 {
+		// We're below min replica count.  Start fixing that
+		// up immediately.
+		go increaseReplicaCount(h, length, globalConfig.MinReplicas-2)
+	}
+
 	w.WriteHeader(201)
 }
 
