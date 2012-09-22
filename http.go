@@ -79,7 +79,6 @@ func altStoreFile(r io.Reader) (io.Reader, <-chan storInfo) {
 				presp.Body.Close()
 			} else {
 				log.Printf("Error http'n to %v: %v", rurl, err)
-				io.Copy(ioutil.Discard, r1)
 			}
 			rv.err = err
 			bgch <- rv
