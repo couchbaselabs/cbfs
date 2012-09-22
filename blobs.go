@@ -138,24 +138,18 @@ func ensureMinimumReplicaCount() error {
 
 	viewRes := struct {
 		Rows []struct {
-			Id  string
-			Doc struct {
-				Json struct {
-					Nodes map[string]string
-				}
-			}
+			Id string
 		}
 	}{}
 
 	// Find some less replicated docs to suck in.
 	err = couchbase.ViewCustom("cbfs", "repcounts",
 		map[string]interface{}{
-			"reduce":       false,
-			"include_docs": true,
-			"limit":        1000,
-			"startkey":     1,
-			"endkey":       globalConfig.MinReplicas - 1,
-			"stale":        false,
+			"reduce":   false,
+			"limit":    1000,
+			"startkey": 1,
+			"endkey":   globalConfig.MinReplicas - 1,
+			"stale":    false,
 		},
 		&viewRes)
 
