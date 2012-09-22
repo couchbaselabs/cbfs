@@ -24,6 +24,8 @@ type CBFSConfig struct {
 	HeartbeatFreq time.Duration `json:"hbfreq"`
 	// Minimum number of replicas to try to keep
 	MinReplicas int `json:"minrepl"`
+	// Maximum number of replicas to try to keep
+	MaxReplicas int `json:"maxrepl"`
 	// Number of blobs to remove from a stale node per period
 	NodeCleanCount int `json:"cleanCount"`
 	// Reconciliation frequency
@@ -44,6 +46,7 @@ func DefaultConfig() CBFSConfig {
 		Hash:                "sha1",
 		HeartbeatFreq:       time.Second * 5,
 		MinReplicas:         3,
+		MaxReplicas:         5,
 		NodeCleanCount:      1000,
 		ReconcileFreq:       time.Hour * 24,
 		StaleNodeCheckFreq:  time.Minute,

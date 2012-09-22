@@ -55,6 +55,12 @@ var periodicJobs = map[string]*PeriodicJob{
 		},
 		ensureMinimumReplicaCount,
 	},
+	"pruneExcessiveReplicas": &PeriodicJob{
+		func() time.Duration {
+			return globalConfig.MinReplicaCheckFreq
+		},
+		pruneExcessiveReplicas,
+	},
 }
 
 type JobMarker struct {
@@ -332,25 +338,9 @@ func garbageCollectBlobFromNode(oid, sid string) {
 			return
 		}
 
-		req, err := http.NewRequest("DELETE", remote.BlobURL(oid), nil)
+		err = remote.deleteBlob(oid)
 		if err != nil {
-			log.Printf("Error making an HTTP request")
-			return
-		}
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			log.Printf("Error deleting oid %s from node %s, %v",
-				oid, sid, err)
-			return
-		}
-		defer resp.Body.Close()
-		io.Copy(ioutil.Discard, resp.Body)
-
-		// non-obvious to me at first, but also with 404 we
-		// should also remove the blob ownership
-		if resp.StatusCode != 204 && resp.StatusCode != 404 {
-			log.Printf("Unexpected status %v deleting %s from node %s",
-				resp.Status, oid, sid)
+			log.Printf("Error GCing blob: %v", err)
 			return
 		}
 	}

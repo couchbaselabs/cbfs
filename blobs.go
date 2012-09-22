@@ -165,3 +165,78 @@ func ensureMinimumReplicaCount() error {
 	}
 	return nil
 }
+
+func pruneBlob(oid string, nodemap map[string]string, nl NodeList) {
+	if len(nodemap) <= globalConfig.MaxReplicas {
+		log.Printf("Asked to prune a blob that has too few replicas: %v",
+			oid)
+	}
+
+	log.Printf("Pruning blob %v down from %v repls to %v",
+		oid, len(nodemap), globalConfig.MaxReplicas)
+
+	nm := map[string]StorageNode{}
+	for _, n := range nl {
+		nm[n.name] = n
+	}
+
+	remaining := len(nodemap)
+	for n := range nodemap {
+		if remaining <= globalConfig.MaxReplicas {
+			break
+		}
+		remaining--
+		if sn, ok := nm[n]; ok {
+			err := sn.deleteBlob(oid)
+			if err == nil {
+				removeBlobOwnershipRecord(oid, n)
+			} else {
+				log.Printf("Error pruning blob %v from %v: %v",
+					oid, n, err)
+			}
+		}
+	}
+
+}
+
+func pruneExcessiveReplicas() error {
+	nl, err := findAllNodes()
+	if err != nil {
+		return err
+	}
+
+	viewRes := struct {
+		Rows []struct {
+			Id  string
+			Doc struct {
+				Json struct {
+					Nodes map[string]string
+				}
+			}
+		}
+	}{}
+
+	// Find some less replicated docs to suck in.
+	err = couchbase.ViewCustom("cbfs", "repcounts",
+		map[string]interface{}{
+			"descending":   true,
+			"reduce":       false,
+			"include_docs": true,
+			"limit":        1000,
+			"endkey":       globalConfig.MaxReplicas + 1,
+			"stale":        false,
+		},
+		&viewRes)
+
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Decreasing replica count of %v items",
+		len(viewRes.Rows))
+
+	for _, r := range viewRes.Rows {
+		pruneBlob(r.Id[1:], r.Doc.Json.Nodes, nl)
+	}
+	return nil
+}

@@ -234,6 +234,8 @@ func setConfCommand(args []string) {
 		conf.HeartbeatFreq = parseDuration(args[1])
 	case "minrepl":
 		conf.MinReplicas = parseInt(args[1])
+	case "maxrepl":
+		conf.MaxReplicas = parseInt(args[1])
 	case "cleanCount":
 		conf.NodeCleanCount = parseInt(args[1])
 	case "reconcileFreq":
