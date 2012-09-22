@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"sort"
 	"strings"
@@ -58,6 +59,18 @@ func (a NodeList) Len() int {
 }
 
 func (a NodeList) Less(i, j int) bool {
+	tdiff := a[i].Time.Sub(a[j].Time)
+	if tdiff < 0 {
+		tdiff = -tdiff
+	}
+	// Nodes that have heartbeated within a heartbeat time of each
+	// other are sorted randomly.  This generally happens when
+	// they're heartbeating regularly and we don't want to prefer
+	// one over the other just because it happened to talk most
+	// frequently.
+	if tdiff < globalConfig.HeartbeatFreq {
+		return rand.Intn(1) == 0
+	}
 	return a[i].Time.After(a[j].Time)
 }
 
@@ -214,7 +227,7 @@ func (nl NodeList) candidatesFor(oid string, exclude NodeList) NodeList {
 	rv := NodeList{}
 	// Find a good destination candidate.
 	for _, node := range nl.minus(owners) {
-		if node.Free > ownership.Length {
+		if node.Free > uint64(ownership.Length) {
 			rv = append(rv, node)
 		}
 	}

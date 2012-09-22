@@ -20,7 +20,6 @@ func TestNodeSorting(t *testing.T) {
 	}
 
 	sort.Sort(nl)
-	t.Logf("Sorted: %v", nl)
 
 	if nl[0].Time.UnixNano() < nl[1].Time.UnixNano() {
 		t.Fatalf("Error:  wrong order:  %v", nl)
