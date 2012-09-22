@@ -154,7 +154,7 @@ func ensureMinimumReplicaCount() error {
 			"include_docs": true,
 			"limit":        1000,
 			"startkey":     1,
-			"endkey":       *maxStartupRepls - 1,
+			"endkey":       globalConfig.MinReplicas - 1,
 			"stale":        false,
 		},
 		&viewRes)
