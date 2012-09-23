@@ -25,6 +25,7 @@ func storedObject(h string, l int64) {
 
 func removedObject(h string, l int64) {
 	atomic.AddInt64(&spaceUsed, -l)
+	removeBlobOwnershipRecord(h, serverId)
 }
 
 func removeObject(h string) error {

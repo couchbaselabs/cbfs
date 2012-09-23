@@ -129,7 +129,7 @@ func removeBlobOwnershipRecord(h, node string) int {
 
 			numOwners = len(ownership.Nodes)
 
-			if len(ownership.Nodes) == 0 {
+			if len(ownership.Nodes) == 0 && node == serverId {
 				op = memcached.CASDelete
 			} else {
 				rv = mustEncode(&ownership)

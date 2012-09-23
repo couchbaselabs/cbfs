@@ -305,7 +305,6 @@ func removeBlobFromNode(oid string, node StorageNode) {
 			return
 		}
 	}
-	removeBlobOwnershipRecord(oid, node.name)
 	log.Printf("Removed blob: %v from node %v", oid, node.name)
 }
 
