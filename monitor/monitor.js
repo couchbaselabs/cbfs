@@ -86,8 +86,10 @@ function updateBubbles(bubble, vis, d) {
 
 }
 
-function drawBubbles(d) {
-    var r = Math.min(window.innerWidth, window.innerHeight);
+function drawBubbles(d, r) {
+    if (!r) {
+        r = Math.min(window.innerWidth, window.innerHeight);
+    }
     var bubble = d3.layout.pack()
         .sort(null)
         .size([r, r])
