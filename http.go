@@ -649,6 +649,13 @@ func doFetchDoc(w http.ResponseWriter, req *http.Request,
 
 	c := captureResponseWriter{}
 
+	// If we already have it, we don't need it more.
+	f, err := os.Open(hashFilename(*root, path))
+	if err == nil {
+		f.Close()
+		w.WriteHeader(204)
+	}
+
 	getBlobFromRemote(&c, path, http.Header{}, 100)
 
 	if c.statusCode == 200 {
