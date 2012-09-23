@@ -71,6 +71,13 @@ type JobMarker struct {
 func runNamedGlobalTask(name string, t time.Duration, f func() error) bool {
 	key := "/@" + name
 
+	if t.Seconds() < 1 {
+		log.Printf("WARN: would've run with a 0s ttl, skipping %v",
+			name)
+		time.Sleep(time.Second)
+		return false
+	}
+
 	jm := JobMarker{
 		Node:    serverId,
 		Started: time.Now(),
