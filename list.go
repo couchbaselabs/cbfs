@@ -10,7 +10,7 @@ func listFiles(path string, includeMeta bool) (map[string]interface{}, error) {
 	viewRes := struct {
 		Rows []struct {
 			Key   []string
-			Value float64
+			Value map[string]interface{}
 		}
 	}{}
 
@@ -66,7 +66,11 @@ func listFiles(path string, includeMeta bool) (map[string]interface{}, error) {
 		} else {
 			// no record in the multi-get metans this is a directory
 			dirs[r.Key[len(r.Key)-1]] = map[string]interface{}{
-				"children": r.Value}
+				"children": r.Value["count"],
+				"size":     r.Value["sum"],
+				"smallest": r.Value["min"],
+				"largest":  r.Value["max"],
+			}
 		}
 	}
 
