@@ -15,7 +15,10 @@ func listFiles(path string, includeMeta bool) (map[string]interface{}, error) {
 	}{}
 
 	// use the requested path to build our view query parameters
-	startKey := strings.Split(path, "/")
+	startKey := []string{}
+	if path != "" {
+		startKey = strings.Split(path, "/")
+	}
 	endKey := make([]string, len(startKey)+1, len(startKey)+1)
 	copy(endKey, startKey)
 	endKey[len(startKey)] = "ZZZZZZ" // FIXME use {} instead
