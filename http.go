@@ -22,6 +22,7 @@ import (
 
 const (
 	blobPrefix  = "/.cbfs/blob/"
+	nodePrefix  = "/.cbfs/nodes"
 	metaPrefix  = "/.cbfs/meta/"
 	proxyPrefix = "/.cbfs/viewproxy/"
 	fetchPrefix = "/.cbfs/fetch/"
@@ -669,7 +670,7 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 	switch {
 	case req.URL.Path == blobPrefix:
 		doList(w, req)
-	case req.URL.Path == "/.cbfs/nodes/":
+	case req.URL.Path == nodePrefix:
 		doListNodes(w, req)
 	case strings.HasPrefix(req.URL.Path, fetchPrefix):
 		doFetchDoc(w, req,
