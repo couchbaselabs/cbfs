@@ -289,7 +289,7 @@ func internodeTaskWorker() {
 		case acquireObjectCmd:
 			if err := c.node.acquireBlob(c.oid); err != nil {
 				log.Printf("Error acquiring %v from %v: %v",
-					c.oid, err)
+					c.oid, c.node.name, err)
 			}
 		default:
 			log.Fatalf("Unhandled worker task: %v", c)
