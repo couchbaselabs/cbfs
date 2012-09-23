@@ -65,7 +65,7 @@ func (b BlobOwnership) ResolveRemoteNodes() NodeList {
 
 func recordBlobOwnership(h string, l int64) error {
 	k := "/" + h
-	return couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
+	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
 		_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
 			ownership := BlobOwnership{}
 			err := json.Unmarshal(in, &ownership)
@@ -87,6 +87,10 @@ func recordBlobOwnership(h string, l int64) error {
 		}, 0)
 		return err
 	})
+	if err == memcached.CASQuit {
+		err = nil
+	}
+	return err
 }
 
 func recordBlobAccess(h string) {
