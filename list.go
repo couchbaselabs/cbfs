@@ -65,7 +65,8 @@ func listFiles(path string, includeMeta bool) (map[string]interface{}, error) {
 			}
 		} else {
 			// no record in the multi-get metans this is a directory
-			dirs[r.Key[len(r.Key)-1]] = map[string]interface{}{}
+			dirs[r.Key[len(r.Key)-1]] = map[string]interface{}{
+				"children": r.Value}
 		}
 	}
 
