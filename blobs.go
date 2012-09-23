@@ -70,6 +70,10 @@ func recordBlobOwnership(h string, l int64) error {
 			ownership := BlobOwnership{}
 			err := json.Unmarshal(in, &ownership)
 			if err == nil {
+				if _, ok := ownership.Nodes[serverId]; ok {
+					// Skip it fast if it already knows us
+					return nil, memcached.CASQuit
+				}
 				ownership.Nodes[serverId] = time.Now().UTC()
 			} else {
 				ownership.Nodes = map[string]time.Time{
