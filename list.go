@@ -26,7 +26,11 @@ func listFiles(path string, includeMeta bool) (map[string]interface{}, error) {
 
 	// query the view
 	err := couchbase.ViewCustom("cbfs", "file_browse",
-		map[string]interface{}{"group_level": groupLevel, "start_key": startKey, "end_key": endKey}, &viewRes)
+		map[string]interface{}{
+			"group_level": groupLevel,
+			"start_key":   startKey,
+			"end_key":     endKey,
+		}, &viewRes)
 	if err != nil {
 		return nil, err
 	}
