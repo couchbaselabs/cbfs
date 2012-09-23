@@ -64,6 +64,10 @@
         "repcounts": {
             "map": "function (doc, meta) {\n  if (doc.type === \"blob\") {\n    var nreps = 0;\n    for (var x in doc.nodes) {\n      nreps++;\n    }\n    emit(nreps, null);\n  }\n}",
             "reduce": "_count"
+        },
+        "file_browse": {
+            "map": "function (doc, meta) {\n  if(doc.type == \"file\") {  \n    var idarr = meta.id.split(\"/\");\n    emit(idarr,1);\n  }\n}",
+            "reduce": "_count"
         }
     }
 }

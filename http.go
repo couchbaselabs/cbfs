@@ -26,6 +26,7 @@ const (
 	metaPrefix  = "/.cbfs/meta/"
 	proxyPrefix = "/.cbfs/viewproxy/"
 	fetchPrefix = "/.cbfs/fetch/"
+	listPrefix  = "/.cbfs/list/"
 )
 
 type storInfo struct {
@@ -666,6 +667,28 @@ func doFetchDoc(w http.ResponseWriter, req *http.Request,
 	}
 }
 
+func doListDocs(w http.ResponseWriter, req *http.Request,
+	path string) {
+
+	// trim off trailing slash early so we handle them consistently
+	if strings.HasSuffix(path, "/") {
+		path = path[0 : len(path)-1]
+	}
+
+	includeMeta := req.FormValue("includeMeta")
+
+	fl, err := listFiles(path, includeMeta == "true")
+	if err != nil {
+		log.Printf("Error executing file browse view: %v", err)
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Error generating file list: %v", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(mustEncode(fl))
+}
+
 func doGet(w http.ResponseWriter, req *http.Request) {
 	switch {
 	case req.URL.Path == blobPrefix:
@@ -682,6 +705,8 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 		doServeRawBlob(w, req, minusPrefix(req.URL.Path, blobPrefix))
 	case *enableViewProxy && strings.HasPrefix(req.URL.Path, proxyPrefix):
 		proxyViewRequest(w, req, minusPrefix(req.URL.Path, proxyPrefix))
+	case strings.HasPrefix(req.URL.Path, listPrefix):
+		doListDocs(w, req, minusPrefix(req.URL.Path, listPrefix))
 	case strings.HasPrefix(req.URL.Path, "/.cbfs/"):
 		w.WriteHeader(400)
 	default:
