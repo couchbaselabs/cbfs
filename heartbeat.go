@@ -178,7 +178,7 @@ func cleanupNode(node string) {
 	log.Printf("Cleaning up node %v", node)
 	vres, err := couchbase.View("cbfs", "node_blobs",
 		map[string]interface{}{
-			"key":    `"` + node + `"`,
+			"key":    node,
 			"limit":  globalConfig.NodeCleanCount,
 			"reduce": false,
 			"stale":  false,
