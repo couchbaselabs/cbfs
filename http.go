@@ -22,7 +22,7 @@ import (
 
 const (
 	blobPrefix  = "/.cbfs/blob/"
-	nodePrefix  = "/.cbfs/nodes"
+	nodePrefix  = "/.cbfs/nodes/"
 	metaPrefix  = "/.cbfs/meta/"
 	proxyPrefix = "/.cbfs/viewproxy/"
 	fetchPrefix = "/.cbfs/fetch/"
