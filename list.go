@@ -66,7 +66,7 @@ func listFiles(path string, includeMeta bool) (map[string]interface{}, error) {
 	}
 
 	// assemble the final return value
-	rv := map[string]interface{}{"dirs": dirs, "files": files}
+	rv := map[string]interface{}{"path": "/" + path, "dirs": dirs, "files": files}
 
 	return rv, nil
 }
