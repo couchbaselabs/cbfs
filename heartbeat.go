@@ -351,11 +351,12 @@ func garbageCollectBlobsTask() error {
 				"stale":      false,
 				"descending": true,
 				"limit":      globalConfig.GCLimit + 1,
+				"startKey":   startKey,
 			}, &viewRes)
 		if err != nil {
 			return err
 		}
-		done = len(viewRes.Rows) < globalConfig.GCLimit+1
+		done = len(viewRes.Rows) < globalConfig.GCLimit
 
 		if len(viewRes.Errors) > 0 {
 			return fmt.Errorf("View errors: %v", viewRes.Errors)
