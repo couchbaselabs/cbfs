@@ -237,18 +237,32 @@ func checkStaleNodes() error {
 
 func taskRunning(taskName string) bool {
 	into := map[string]interface{}{}
-	err := couchbase.Get("/@"+taskName, &into)
+	err := couchbase.Get("/@"+taskName+"/running", &into)
 	return err == nil
 }
 
-func garbageCollectBlobs() error {
-	// Don't let this run concurrently with the min repl thing.
-	// They don't get along.
-	for taskRunning("ensureMinReplCount") {
-		log.Printf("Waiting for ensureMinReplCount to finish for a gc")
+func runMarkedTask(name, excl string, f func() error) error {
+	for taskRunning(excl) {
 		time.Sleep(5 * time.Second)
 	}
+	taskKey := "/@" + name + "/running"
+	err := couchbase.Set(taskKey, map[string]interface{}{
+		"node": serverId,
+		"time": time.Now().UTC(),
+	})
+	if err != nil {
+		return err
+	}
+	defer couchbase.Delete(taskKey)
+	return f()
+}
 
+func garbageCollectBlobs() error {
+	return runMarkedTask("garbageCollectBlobs", "ensureMinReplCount",
+		garbageCollectBlobsTask)
+}
+
+func garbageCollectBlobsTask() error {
 	log.Printf("Garbage collecting blobs without any file references")
 
 	viewRes := struct {

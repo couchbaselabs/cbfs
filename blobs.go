@@ -172,6 +172,11 @@ func increaseReplicaCount(oid string, length int64, by int) error {
 }
 
 func ensureMinimumReplicaCount() error {
+	return runMarkedTask("ensureMinReplCount", "garbageCollectBlobs",
+		ensureMinimumReplicaCountTask)
+}
+
+func ensureMinimumReplicaCountTask() error {
 	// Don't let this run concurrently with the garbage collector.
 	// They don't get along.
 	for taskRunning("garbageCollectBlobs") {
