@@ -351,7 +351,7 @@ func garbageCollectBlobsTask() error {
 				"stale":      false,
 				"descending": true,
 				"limit":      globalConfig.GCLimit + 1,
-				"startkey":   startKey,
+				"startkey":   []string{startKey},
 			}, &viewRes)
 		if err != nil {
 			return err
