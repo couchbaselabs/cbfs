@@ -430,6 +430,7 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 				oid, sid.name)
 			continue
 		}
+		defer resp.Body.Close()
 
 		if resp.StatusCode != 200 {
 			log.Printf("Error response %v from node %v",
