@@ -86,7 +86,7 @@ func (n StorageNode) acquireBlob(oid string) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 204 {
+	if resp.StatusCode != 202 {
 		return fmt.Errorf("Error executing remote fetch: %v",
 			resp.Status)
 	}

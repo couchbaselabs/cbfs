@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"flag"
 	"log"
+	"net/http"
+	"os"
 	"sort"
 	"time"
 
@@ -23,6 +25,7 @@ type internodeCommand uint8
 const (
 	removeObjectCmd = internodeCommand(iota)
 	acquireObjectCmd
+	fetchObjectCmd
 )
 
 type internodeTask struct {
@@ -299,6 +302,24 @@ func pruneExcessiveReplicas() error {
 	return nil
 }
 
+func performFetch(oid string) {
+	c := captureResponseWriter{}
+
+	// If we already have it, we don't need it more.
+	f, err := os.Open(hashFilename(*root, oid))
+	if err == nil {
+		f.Close()
+		return
+	}
+
+	getBlobFromRemote(&c, oid, http.Header{}, 100)
+
+	if c.statusCode != 200 {
+		log.Printf("Error grabbing remote object, got %v",
+			c.statusCode)
+	}
+}
+
 var internodeTaskQueue = make(chan internodeTask, 1000)
 
 func internodeTaskWorker() {
@@ -331,10 +352,19 @@ func queueBlobRemoval(n StorageNode, oid string) {
 	}
 }
 
+// Ask a remote node to go get a blob
 func queueBlobAcquire(n StorageNode, oid string) {
 	internodeTaskQueue <- internodeTask{
 		node: n,
 		cmd:  acquireObjectCmd,
 		oid:  oid,
+	}
+}
+
+// Ask this node to go get a blob
+func queueBlobFetch(oid string) {
+	internodeTaskQueue <- internodeTask{
+		cmd: fetchObjectCmd,
+		oid: oid,
 	}
 }

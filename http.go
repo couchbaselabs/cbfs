@@ -649,22 +649,8 @@ func (c *captureResponseWriter) WriteHeader(code int) {
 func doFetchDoc(w http.ResponseWriter, req *http.Request,
 	path string) {
 
-	c := captureResponseWriter{}
-
-	// If we already have it, we don't need it more.
-	f, err := os.Open(hashFilename(*root, path))
-	if err == nil {
-		f.Close()
-		w.WriteHeader(204)
-	}
-
-	getBlobFromRemote(&c, path, http.Header{}, 100)
-
-	if c.statusCode == 200 {
-		w.WriteHeader(204)
-	} else {
-		w.WriteHeader(c.statusCode)
-	}
+	queueBlobFetch(path)
+	w.WriteHeader(202)
 }
 
 func doListDocs(w http.ResponseWriter, req *http.Request,
