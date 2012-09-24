@@ -124,10 +124,6 @@ func removeBlobOwnershipRecord(h, node string) int {
 
 			err := json.Unmarshal(in, &ownership)
 			if err == nil {
-				if _, ok := ownership.Nodes[node]; !ok {
-					// Skip it fast if we don't have it.
-					return nil, memcached.CASQuit
-				}
 				delete(ownership.Nodes, node)
 			} else {
 				log.Printf("Error unmarhaling blob removal from %s: %v",

@@ -374,10 +374,14 @@ func garbageCollectBlobsTask() error {
 			case "blob":
 				if blobId != lastBlob {
 					n, ok := nm[blobNode]
-					if ok {
+					switch {
+					case blobNode == "":
+						removeBlobOwnershipRecord(blobId, serverId)
+						count++
+					case ok:
 						queueBlobRemoval(n, blobId)
 						count++
-					} else {
+					default:
 						log.Printf("No nodemap entry for %v",
 							blobNode)
 					}
