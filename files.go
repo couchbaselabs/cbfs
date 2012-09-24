@@ -59,7 +59,7 @@ func verifyObjectHash(h string) error {
 	if h != hstring {
 		err = removeObject(h)
 		if err != nil {
-			log.Printf("Error removing corrupt file %v: %v", err)
+			log.Printf("Error removing corrupt file %v: %v", h, err)
 		}
 		return fmt.Errorf("Hash from disk of %v was %v", h, hstring)
 	}

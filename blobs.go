@@ -104,7 +104,7 @@ func recordBlobAccess(h string) {
 
 	_, err = couchbase.Incr("/"+serverId+"/r", 1, 1, 0)
 	if err != nil {
-		log.Printf("Error incrementing node identifier: %v", h, err)
+		log.Printf("Error incrementing node identifier: %v", err)
 	}
 }
 
