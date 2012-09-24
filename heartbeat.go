@@ -367,6 +367,7 @@ func garbageCollectBlobsTask() error {
 			blobId := r.Key[0]
 			typeFlag := r.Key[1]
 			blobNode := r.Key[2]
+			startKey = blobId
 
 			switch typeFlag {
 			case "file":
@@ -388,7 +389,6 @@ func garbageCollectBlobsTask() error {
 				}
 			}
 		}
-		startKey = lastBlob
 
 		if !relockTask("garbageCollectBlobs") {
 			log.Printf("We lost the lock for garbage collecting.")
