@@ -697,7 +697,13 @@ func doListDocs(w http.ResponseWriter, req *http.Request,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(mustEncode(fl))
+	w.WriteHeader(200)
+
+	e := json.NewEncoder(w)
+	err = e.Encode(fl)
+	if err != nil {
+		log.Printf("Error writing json stream: %v", err)
+	}
 }
 
 func doGet(w http.ResponseWriter, req *http.Request) {
