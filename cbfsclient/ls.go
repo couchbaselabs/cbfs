@@ -27,7 +27,7 @@ type cbfsDir struct {
 type prevMeta struct {
 	Headers  http.Header `json:"headers"`
 	OID      string      `json:"oid"`
-	Length   int64       `json:"length"`
+	Length   float64     `json:"length"`
 	Modified time.Time   `json:"modified"`
 	Revno    int         `json:"revno"`
 }
@@ -35,7 +35,7 @@ type prevMeta struct {
 type fileMeta struct {
 	Headers  http.Header      `json:"headers"`
 	OID      string           `json:"oid"`
-	Length   int64            `json:"length"`
+	Length   float64          `json:"length"`
 	Userdata *json.RawMessage `json:"userdata,omitempty"`
 	Modified time.Time        `json:"modified"`
 	Previous []prevMeta       `json:"older"`
