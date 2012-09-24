@@ -6,7 +6,9 @@ import (
 	"strings"
 )
 
-func listFiles(path string, includeMeta bool) (map[string]interface{}, error) {
+func listFiles(path string, includeMeta bool,
+	depth int) (map[string]interface{}, error) {
+
 	viewRes := struct {
 		Rows []struct {
 			Key   []string
@@ -22,7 +24,7 @@ func listFiles(path string, includeMeta bool) (map[string]interface{}, error) {
 	endKey := make([]string, len(startKey)+1, len(startKey)+1)
 	copy(endKey, startKey)
 	endKey[len(startKey)] = "ZZZZZZ" // FIXME use {} instead
-	groupLevel := len(startKey) + 1
+	groupLevel := len(startKey) + depth
 
 	// query the view
 	err := couchbase.ViewCustom("cbfs", "file_browse",
@@ -49,6 +51,7 @@ func listFiles(path string, includeMeta bool) (map[string]interface{}, error) {
 	dirs := map[string]interface{}{}
 	for _, r := range viewRes.Rows {
 		key := strings.Join(r.Key, "/")
+		name := strings.Join(r.Key[len(r.Key)-depth:], "/")
 		res, ok := bulkResult[key]
 		if ok == true {
 			// this means we have a file
@@ -58,14 +61,14 @@ func listFiles(path string, includeMeta bool) (map[string]interface{}, error) {
 				log.Printf("Error deserializing json, ignoring: %v", err)
 			} else {
 				if includeMeta {
-					files[r.Key[len(r.Key)-1]] = rv
+					files[name] = rv
 				} else {
-					files[r.Key[len(r.Key)-1]] = map[string]interface{}{}
+					files[name] = map[string]interface{}{}
 				}
 			}
 		} else {
 			// no record in the multi-get metans this is a directory
-			dirs[r.Key[len(r.Key)-1]] = map[string]interface{}{
+			dirs[name] = map[string]interface{}{
 				"children": r.Value["count"],
 				"size":     r.Value["sum"],
 				"smallest": r.Value["min"],

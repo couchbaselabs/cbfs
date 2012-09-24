@@ -676,8 +676,19 @@ func doListDocs(w http.ResponseWriter, req *http.Request,
 	}
 
 	includeMeta := req.FormValue("includeMeta")
+	depthString := req.FormValue("depth")
+	depth := 1
+	if depthString != "" {
+		i, err := strconv.Atoi(depthString)
+		if err != nil {
+			w.WriteHeader(400)
+			fmt.Fprintf(w, "Error processing depth parameter: %v", err)
+			return
+		}
+		depth = i
+	}
 
-	fl, err := listFiles(path, includeMeta == "true")
+	fl, err := listFiles(path, includeMeta == "true", depth)
 	if err != nil {
 		log.Printf("Error executing file browse view: %v", err)
 		w.WriteHeader(500)
