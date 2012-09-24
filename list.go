@@ -51,7 +51,11 @@ func listFiles(path string, includeMeta bool,
 	dirs := map[string]interface{}{}
 	for _, r := range viewRes.Rows {
 		key := strings.Join(r.Key, "/")
-		name := strings.Join(r.Key[len(r.Key)-depth:], "/")
+		subkey := r.Key
+		if len(r.Key) > depth {
+			subkey = r.Key[len(r.Key)-depth:]
+		}
+		name := strings.Join(subkey, "/")
 		res, ok := bulkResult[key]
 		if ok == true {
 			// this means we have a file
