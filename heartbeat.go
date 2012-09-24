@@ -333,51 +333,64 @@ func garbageCollectBlobsTask() error {
 		}
 	}{}
 
-	// we hit this view descending because we want file sorted before blob
-	// the fact that we walk the list backwards hopefully not too awkward
-	err := couchbase.ViewCustom("cbfs", "file_blobs",
-		map[string]interface{}{
-			"stale":      false,
-			"descending": true,
-			"limit":      globalConfig.GCLimit,
-		}, &viewRes)
-	if err != nil {
-		return err
-	}
-
-	if len(viewRes.Errors) > 0 {
-		return fmt.Errorf("View errors: %v", viewRes.Errors)
-	}
-
 	nm, err := findNodeMap()
 	if err != nil {
 		return err
 	}
 
-	lastBlob := ""
 	count := 0
-	for _, r := range viewRes.Rows {
-		blobId := r.Key[0]
-		typeFlag := r.Key[1]
-		blobNode := r.Key[2]
+	startKey := ""
+	done := false
+	for !done {
+		log.Printf("  gc loop at %#v", startKey)
+		// we hit this view descending because we want file sorted
+		// before blob the fact that we walk the list backwards
+		// hopefully not too awkward
+		err := couchbase.ViewCustom("cbfs", "file_blobs",
+			map[string]interface{}{
+				"stale":      false,
+				"descending": true,
+				"limit":      globalConfig.GCLimit + 1,
+			}, &viewRes)
+		if err != nil {
+			return err
+		}
+		done = len(viewRes.Rows) < globalConfig.GCLimit+1
 
-		switch typeFlag {
-		case "file":
-			lastBlob = blobId
-		case "blob":
-			if blobId != lastBlob {
-				n, ok := nm[blobNode]
-				if ok {
-					queueBlobRemoval(n, blobId)
-					count++
-				} else {
-					log.Printf("No nodemap entry for %v",
-						blobNode)
+		if len(viewRes.Errors) > 0 {
+			return fmt.Errorf("View errors: %v", viewRes.Errors)
+		}
+
+		lastBlob := ""
+		for _, r := range viewRes.Rows {
+			blobId := r.Key[0]
+			typeFlag := r.Key[1]
+			blobNode := r.Key[2]
+
+			switch typeFlag {
+			case "file":
+				lastBlob = blobId
+			case "blob":
+				if blobId != lastBlob {
+					n, ok := nm[blobNode]
+					if ok {
+						queueBlobRemoval(n, blobId)
+						count++
+					} else {
+						log.Printf("No nodemap entry for %v",
+							blobNode)
+					}
 				}
 			}
 		}
+		startKey = lastBlob
 
+		if !relockTask("garbageCollectBlobs") {
+			log.Printf("We lost the lock for garbage collecting.")
+			return errors.New("Lost lock")
+		}
 	}
+
 	log.Printf("Scheduled %d blobs for deletion", count)
 	return nil
 }
