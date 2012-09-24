@@ -332,6 +332,8 @@ func internodeTaskWorker() {
 				log.Printf("Error acquiring %v from %v: %v",
 					c.oid, c.node.name, err)
 			}
+		case fetchObjectCmd:
+			performFetch(c.oid)
 		default:
 			log.Fatalf("Unhandled worker task: %v", c)
 		}
