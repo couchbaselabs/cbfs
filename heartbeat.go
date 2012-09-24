@@ -339,7 +339,7 @@ func garbageCollectBlobsTask() error {
 	}
 
 	count := 0
-	startKey := ""
+	startKey := "g"
 	done := false
 	for !done {
 		log.Printf("  gc loop at %#v", startKey)
