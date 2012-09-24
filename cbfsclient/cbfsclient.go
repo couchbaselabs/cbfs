@@ -32,6 +32,7 @@ var commands = map[string]struct {
 	argstr string
 }{
 	"upload":  {2, uploadCommand, "/src/dir http://cbfs:8484/path/"},
+	"ls":      {1, lsCommand, "http://cbfs:8484/some/path"},
 	"getconf": {0, getConfCommand, ""},
 	"setconf": {2, setConfCommand, "prop value"},
 }
