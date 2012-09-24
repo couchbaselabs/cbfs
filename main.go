@@ -117,6 +117,11 @@ func hashFilename(base, hstr string) string {
 func main() {
 	flag.Parse()
 
+	http.DefaultTransport = &http.Transport{
+		Proxy:             http.ProxyFromEnvironment,
+		DisableKeepAlives: true,
+	}
+
 	if getHash() == nil {
 		fmt.Fprintf(os.Stderr,
 			"Unsupported hash specified: %v.  Supported hashes:\n",

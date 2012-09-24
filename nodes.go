@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
@@ -104,7 +102,6 @@ func (n StorageNode) deleteBlob(oid string) error {
 		return err
 	}
 	defer resp.Body.Close()
-	io.Copy(ioutil.Discard, resp.Body)
 
 	// 204 or 404 is considered successfully having the blob be
 	// deleted.
