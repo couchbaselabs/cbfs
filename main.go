@@ -168,8 +168,9 @@ func main() {
 	go runPeriodicJobs()
 
 	s := &http.Server{
-		Addr:    *bindAddr,
-		Handler: http.HandlerFunc(httpHandler),
+		Addr:        *bindAddr,
+		Handler:     http.HandlerFunc(httpHandler),
+		ReadTimeout: 30 * time.Second,
 	}
 	log.Printf("Listening to web requests on %s as server %s",
 		*bindAddr, serverId)
