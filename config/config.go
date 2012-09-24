@@ -76,7 +76,7 @@ func (conf CBFSConfig) Dump(w io.Writer) {
 
 // Update this config within a bucket.
 func (conf CBFSConfig) StoreConfig(db *couchbase.Bucket) error {
-	return db.Set(dbKey, &conf)
+	return db.Set(dbKey, 0, &conf)
 }
 
 // Update this config from the db.

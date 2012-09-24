@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -34,31 +36,35 @@ type PeriodicJob struct {
 	f      func() error
 }
 
-var periodicJobs = map[string]*PeriodicJob{
-	"checkStaleNodes": &PeriodicJob{
-		func() time.Duration {
-			return globalConfig.StaleNodeCheckFreq
+var periodicJobs = map[string]*PeriodicJob{}
+
+func init() {
+	periodicJobs = map[string]*PeriodicJob{
+		"checkStaleNodes": &PeriodicJob{
+			func() time.Duration {
+				return globalConfig.StaleNodeCheckFreq
+			},
+			checkStaleNodes,
 		},
-		checkStaleNodes,
-	},
-	"garbageCollectBlobs": &PeriodicJob{
-		func() time.Duration {
-			return globalConfig.GCFreq
+		"garbageCollectBlobs": &PeriodicJob{
+			func() time.Duration {
+				return globalConfig.GCFreq
+			},
+			garbageCollectBlobs,
 		},
-		garbageCollectBlobs,
-	},
-	"ensureMinReplCount": &PeriodicJob{
-		func() time.Duration {
-			return globalConfig.UnderReplicaCheckFreq
+		"ensureMinReplCount": &PeriodicJob{
+			func() time.Duration {
+				return globalConfig.UnderReplicaCheckFreq
+			},
+			ensureMinimumReplicaCount,
 		},
-		ensureMinimumReplicaCount,
-	},
-	"pruneExcessiveReplicas": &PeriodicJob{
-		func() time.Duration {
-			return globalConfig.OverReplicaCheckFreq
+		"pruneExcessiveReplicas": &PeriodicJob{
+			func() time.Duration {
+				return globalConfig.OverReplicaCheckFreq
+			},
+			pruneExcessiveReplicas,
 		},
-		pruneExcessiveReplicas,
-	},
+	}
 }
 
 type JobMarker struct {
@@ -135,7 +141,7 @@ func heartbeat() {
 			Free:     freeSpace,
 		}
 
-		err = couchbase.Set("/"+serverId, aboutMe)
+		err = couchbase.Set("/"+serverId, 0, aboutMe)
 		if err != nil {
 			log.Printf("Failed to record a heartbeat: %v", err)
 		}
@@ -241,15 +247,67 @@ func taskRunning(taskName string) bool {
 	return err == nil
 }
 
+func relockTask(taskName string) bool {
+	k := "/@" + taskName
+	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
+		resp, err := mc.Get(vb, k)
+		switch {
+		case err != nil:
+			return err
+		case resp.Status != gomemcached.SUCCESS:
+			return resp
+		}
+
+		jm := JobMarker{}
+		err = json.Unmarshal(resp.Body, &jm)
+		if err != nil {
+			return err
+		}
+		if jm.Node != serverId {
+			return errors.New("Lost lock")
+		}
+		jm.Started = time.Now().UTC()
+		req := &gomemcached.MCRequest{
+			Opcode:  gomemcached.SET,
+			VBucket: vb,
+			Key:     []byte(k),
+			Cas:     resp.Cas,
+			Opaque:  0,
+			Extras:  []byte{0, 0, 0, 0, 0, 0, 0, 0},
+			Body:    mustEncode(&jm),
+		}
+		exp := periodicJobs[taskName].period().Seconds()
+		binary.BigEndian.PutUint64(req.Extras, uint64(exp))
+
+		resp, err = mc.Send(req)
+		switch {
+		case err != nil:
+			return err
+		case resp.Status != gomemcached.SUCCESS:
+			return resp
+		}
+		return nil
+	})
+
+	return err == nil
+}
+
 func runMarkedTask(name, excl string, f func() error) error {
 	for taskRunning(excl) {
 		time.Sleep(5 * time.Second)
 	}
+
+	if !relockTask(name) {
+		log.Printf("We lost the lock for %v", name)
+		return nil
+	}
+
 	taskKey := "/@" + name + "/running"
-	err := couchbase.Set(taskKey, map[string]interface{}{
-		"node": serverId,
-		"time": time.Now().UTC(),
-	})
+	err := couchbase.Set(taskKey, 3600,
+		map[string]interface{}{
+			"node": serverId,
+			"time": time.Now().UTC(),
+		})
 	if err != nil {
 		return err
 	}
