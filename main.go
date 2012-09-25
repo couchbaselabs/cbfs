@@ -23,6 +23,8 @@ var cachePercentage = flag.Int("cachePercent", 100,
 var enableViewProxy = flag.Bool("viewProxy", false,
 	"Enable the view proxy")
 var verbose = flag.Bool("verbose", false, "Show some more stuff")
+var readTimeout = flag.Duration("serverTimeout", 5*time.Minute,
+	"Web server read timeout")
 
 var globalConfig *cbfsconfig.CBFSConfig
 
@@ -170,7 +172,7 @@ func main() {
 	s := &http.Server{
 		Addr:        *bindAddr,
 		Handler:     http.HandlerFunc(httpHandler),
-		ReadTimeout: 30 * time.Second,
+		ReadTimeout: *readTimeout,
 	}
 	log.Printf("Listening to web requests on %s as server %s",
 		*bindAddr, serverId)
