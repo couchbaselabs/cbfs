@@ -58,7 +58,7 @@ func setConfCommand(u string, args []string) {
 		log.Fatalf("Can't marshal config: %v", err)
 	}
 
-	req, err := http.NewRequest("PUT", getConfURL(args[0]),
+	req, err := http.NewRequest("PUT", getConfURL(u),
 		bytes.NewBuffer(data))
 	if err != nil {
 		log.Fatalf("Can't build request: %v", err)
