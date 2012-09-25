@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -41,6 +42,9 @@ type fileMeta struct {
 	Previous []prevMeta       `json:"older"`
 	Revno    int              `json:"revno"`
 }
+
+var lsFlags = flag.NewFlagSet("ls", flag.ExitOnError)
+var lsDashL = lsFlags.Bool("l", false, "Display detailed listing")
 
 type listResult struct {
 	Dirs  map[string]cbfsDir
@@ -84,8 +88,10 @@ func listStuff(ustr string) (listResult, error) {
 }
 
 func lsCommand(u string, args []string) {
-	if len(args) > 0 {
-		u = relativeUrl(u, args[0])
+	lsFlags.Parse(args)
+
+	if lsFlags.NArg() > 0 {
+		u = relativeUrl(u, lsFlags.Arg(0))
 	}
 
 	result, err := listStuff(u)
@@ -104,20 +110,34 @@ func lsCommand(u string, args []string) {
 	dirnames.Sort()
 	filenames.Sort()
 
-	tw := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
-	for i := range dirnames {
-		dn := dirnames[i]
-		di := result.Dirs[dn]
-		fmt.Fprintf(tw, "d %8s\t%s\t(%s descendants)\n",
-			humanize.Bytes(uint64(di.Size)), dn,
-			humanize.Comma(int64(di.Descendants)))
+	if *lsDashL {
+		tw := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
+		for i := range dirnames {
+			dn := dirnames[i]
+			di := result.Dirs[dn]
+			fmt.Fprintf(tw, "d %8s\t%s\t(%s descendants)\n",
+				humanize.Bytes(uint64(di.Size)), dn,
+				humanize.Comma(int64(di.Descendants)))
+		}
+		for i := range filenames {
+			fn := filenames[i]
+			fi := result.Files[fn]
+			fmt.Fprintf(tw, "f %8s\t%s\t%s\n",
+				humanize.Bytes(uint64(fi.Length)), fn,
+				fi.Headers.Get("Content-Type"))
+		}
+		tw.Flush()
+	} else {
+		allnames := sort.StringSlice{}
+		for i := range dirnames {
+			allnames = append(allnames, dirnames[i])
+		}
+		for i := range filenames {
+			allnames = append(allnames, filenames[i])
+		}
+		allnames.Sort()
+		for _, a := range allnames {
+			fmt.Println(a)
+		}
 	}
-	for i := range filenames {
-		fn := filenames[i]
-		fi := result.Files[fn]
-		fmt.Fprintf(tw, "f %8s\t%s\t%s\n",
-			humanize.Bytes(uint64(fi.Length)), fn,
-			fi.Headers.Get("Content-Type"))
-	}
-	tw.Flush()
 }

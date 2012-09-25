@@ -16,7 +16,7 @@ var commands = map[string]struct {
 	argstr string
 }{
 	"upload":  {-1, uploadCommand, "/src/dir /dest/dir"},
-	"ls":      {0, lsCommand, ""},
+	"ls":      {0, lsCommand, "[path]"},
 	"rm":      {0, rmCommand, "path"},
 	"getconf": {0, getConfCommand, ""},
 	"setconf": {2, setConfCommand, "prop value"},
@@ -38,6 +38,8 @@ func init() {
 
 		fmt.Fprintf(os.Stderr, "\n---- Subcommannd Options ----\n")
 
+		fmt.Fprintf(os.Stderr, "\nls:\n")
+		lsFlags.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nrm:\n")
 		rmFlags.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nupload:\n")
