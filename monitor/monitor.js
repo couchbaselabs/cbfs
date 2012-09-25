@@ -183,7 +183,7 @@ function monitorInit() {
     }, refreshInterval);
 }
 
-function showFileTreeMap(w, h, json1, json2) {
+function showFileTreeMap(w, h, json1) {
     function cell() {
         this.style("left", function(d) { return d.x + "px"; })
             .style("top", function(d) { return d.y + "px"; })
@@ -212,18 +212,6 @@ function showFileTreeMap(w, h, json1, json2) {
     var color = d3.scale.category20c();
 
     var d3data = {name: json1.path, "children": []};
-
-    for (k in json2.dirs) {
-        var s = k.split('/');
-        s.pop();
-        var p = s.pop();
-
-        var ob = json2.dirs[k];
-        ob.path = pathJoin(json2.path, k);
-        var a = json1.dirs[p].children || [];
-        a.push(ob);
-        json1.dirs[p].children = a;
-    }
 
     for (k in json1.dirs) {
         d3data.children.push({
@@ -259,9 +247,7 @@ function showFileTreeMap(w, h, json1, json2) {
 
 function updateFileMap(w, h, path) {
     d3.json("/.cbfs/list" + path, function(j1) {
-        d3.json("/.cbfs/list" + path + "?depth=2", function(j2) {
-            showFileTreeMap(w, h, j1, j2);
-        });
+        showFileTreeMap(w, h, j1);
     });
 }
 
