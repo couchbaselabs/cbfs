@@ -18,15 +18,18 @@ import (
 
 	"github.com/dustin/gomemcached"
 	"github.com/dustin/gomemcached/client"
+
+	"github.com/couchbaselabs/cbfs/config"
 )
 
 const (
-	blobPrefix  = "/.cbfs/blob/"
-	nodePrefix  = "/.cbfs/nodes/"
-	metaPrefix  = "/.cbfs/meta/"
-	proxyPrefix = "/.cbfs/viewproxy/"
-	fetchPrefix = "/.cbfs/fetch/"
-	listPrefix  = "/.cbfs/list/"
+	blobPrefix   = "/.cbfs/blob/"
+	nodePrefix   = "/.cbfs/nodes/"
+	metaPrefix   = "/.cbfs/meta/"
+	proxyPrefix  = "/.cbfs/viewproxy/"
+	fetchPrefix  = "/.cbfs/fetch/"
+	listPrefix   = "/.cbfs/list/"
+	configPrefix = "/.cbfs/config/"
 )
 
 type storInfo struct {
@@ -235,8 +238,36 @@ func putRawHash(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(201)
 }
 
+func putConfig(w http.ResponseWriter, req *http.Request) {
+	d := json.NewDecoder(req.Body)
+	conf := cbfsconfig.CBFSConfig{}
+
+	err := d.Decode(&conf)
+	if err != nil {
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Error reading config: %v", err)
+		return
+	}
+
+	err = conf.StoreConfig(couchbase)
+	if err != nil {
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Error writing config: %v", err)
+		return
+	}
+
+	err = updateConfig()
+	if err != nil {
+		log.Printf("Error fetching newly stored config: %v", err)
+	}
+
+	w.WriteHeader(204)
+}
+
 func doPut(w http.ResponseWriter, req *http.Request) {
 	switch {
+	case req.URL.Path == configPrefix:
+		putConfig(w, req)
 	case strings.HasPrefix(req.URL.Path, blobPrefix):
 		putRawHash(w, req)
 	case strings.HasPrefix(req.URL.Path, metaPrefix):
@@ -693,12 +724,32 @@ func doListDocs(w http.ResponseWriter, req *http.Request,
 	}
 }
 
+func doGetConfig(w http.ResponseWriter, req *http.Request) {
+	err := updateConfig()
+	if err != nil {
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Error updating config: %v", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	e := json.NewEncoder(w)
+	err = e.Encode(&globalConfig)
+	if err != nil {
+		log.Printf("Error sending config: %v", err)
+	}
+}
+
 func doGet(w http.ResponseWriter, req *http.Request) {
 	switch {
 	case req.URL.Path == blobPrefix:
 		doList(w, req)
 	case req.URL.Path == nodePrefix:
 		doListNodes(w, req)
+	case req.URL.Path == configPrefix:
+		doGetConfig(w, req)
 	case strings.HasPrefix(req.URL.Path, fetchPrefix):
 		doFetchDoc(w, req,
 			minusPrefix(req.URL.Path, fetchPrefix))
