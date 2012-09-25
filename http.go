@@ -127,6 +127,13 @@ func doPostRawBlob(w http.ResponseWriter, req *http.Request) {
 }
 
 func putUserFile(w http.ResponseWriter, req *http.Request) {
+	if strings.Contains(req.URL.Path, "//") {
+		w.WriteHeader(400)
+		fmt.Fprintf(w, "Too many slashes in the path name: %v",
+			req.URL.Path)
+		return
+	}
+
 	f, err := NewHashRecord(*root, "")
 	if err != nil {
 		log.Printf("Error writing tmp file: %v", err)
