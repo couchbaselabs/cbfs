@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -15,11 +18,26 @@ import (
 	"sync"
 )
 
-var wg = sync.WaitGroup{}
+var uploadWg = sync.WaitGroup{}
+
+var uploadFlags = flag.NewFlagSet("upload", flag.ExitOnError)
+var uploadVerbose = uploadFlags.Bool("v", false, "Verbose")
+var uploadDelete = uploadFlags.Bool("delete", false,
+	"Delete locally missing items")
+
+type uploadOpType uint8
+
+const (
+	uploadFileOp = uploadOpType(iota)
+	removeFileOp
+	removeRecurseOp
+)
 
 type uploadReq struct {
-	src  string
-	dest string
+	src        string
+	dest       string
+	op         uploadOpType
+	remoteHash string
 }
 
 func recognizeTypeByName(n, def string) string {
@@ -34,6 +52,10 @@ func recognizeTypeByName(n, def string) string {
 }
 
 func uploadFile(src, dest string) error {
+	if *uploadVerbose {
+		log.Printf("Uploading %v -> %v", src, dest)
+	}
+
 	f, err := os.Open(src)
 	if err != nil {
 		return err
@@ -76,14 +98,72 @@ func uploadFile(src, dest string) error {
 	return nil
 }
 
-func uploader(ch chan uploadReq) {
-	defer wg.Done()
+// This is very similar to rm's version, but uses different channel
+// signaling.
+func uploadRmDashR(baseUrl string, ch chan uploadReq) error {
+	for strings.HasSuffix(baseUrl, "/") {
+		baseUrl = baseUrl[:len(baseUrl)-1]
+	}
+
+	listing, err := listStuff(baseUrl)
+	for err != nil {
+		return err
+	}
+	for fn := range listing.Files {
+		ch <- uploadReq{"", baseUrl + "/" + fn, removeFileOp, ""}
+	}
+	for dn := range listing.Dirs {
+		return uploadRmDashR(baseUrl+"/"+dn, ch)
+	}
+	return nil
+}
+
+func localHash(fn string) string {
+	f, err := os.Open(fn)
+	if err != nil {
+		return "unknown"
+	}
+	defer f.Close()
+
+	h := sha1.New()
+	_, err = io.Copy(h, f)
+	if err != nil {
+		return "unknown"
+	}
+
+	return hex.EncodeToString(h.Sum([]byte{}))
+}
+
+func uploadWorker(ch chan uploadReq) {
+	defer uploadWg.Done()
 	for req := range ch {
-		log.Printf("%v -> %v", req.src, req.dest)
 		retries := 0
 		done := false
 		for !done {
-			err := uploadFile(req.src, req.dest)
+			var err error
+			switch req.op {
+			case uploadFileOp:
+				if req.remoteHash == "" {
+					err = uploadFile(req.src, req.dest)
+				} else {
+					if localHash(req.src) != req.remoteHash {
+						if *uploadVerbose {
+							log.Printf("%v has changed, reupping",
+								req.src)
+						}
+						err = uploadFile(req.src, req.dest)
+					}
+				}
+			case removeFileOp:
+				if *uploadVerbose {
+					log.Printf("Removing file %v", req.dest)
+				}
+				err = rmFile(req.dest)
+			case removeRecurseOp:
+				err = uploadRmDashR(req.dest, ch)
+			default:
+				log.Fatalf("Unhandled case")
+			}
 			if err != nil {
 				if retries < 3 {
 					retries++
@@ -100,22 +180,96 @@ func uploader(ch chan uploadReq) {
 	}
 }
 
+func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	children, err := f.Readdir(0)
+	if err != nil {
+		return err
+	}
+
+	retries := 3
+	serverListing, err := listStuff(dest)
+	for err != nil && retries > 0 {
+		serverListing, err = listStuff(dest)
+		retries--
+	}
+	if err != nil {
+		return err
+	}
+
+	localNames := map[string]os.FileInfo{}
+	for _, c := range children {
+		switch c.Mode() & os.ModeType {
+		case os.ModeCharDevice, os.ModeDevice,
+			os.ModeNamedPipe, os.ModeSocket, os.ModeSymlink:
+			if *uploadVerbose {
+				log.Printf("Ignoring special file: %v", path)
+			}
+		default:
+			localNames[c.Name()] = c
+		}
+	}
+
+	remoteNames := map[string]bool{}
+	for n := range serverListing.Files {
+		remoteNames[n] = true
+	}
+	for n := range serverListing.Dirs {
+		remoteNames[n] = true
+	}
+
+	missingUpstream := []string{}
+	for n, fi := range localNames {
+		if !(fi.IsDir() || remoteNames[n]) {
+			missingUpstream = append(missingUpstream, n)
+		} else if !fi.IsDir() {
+			if ri, ok := serverListing.Files[n]; ok {
+				ch <- uploadReq{filepath.Join(path, n),
+					dest + "/" + n, uploadFileOp, ri.OID}
+			}
+		}
+	}
+
+	toRm := []string{}
+	for n := range remoteNames {
+		if _, ok := localNames[n]; !ok {
+			toRm = append(toRm, n)
+		}
+	}
+
+	if len(missingUpstream) > 0 {
+		for _, m := range missingUpstream {
+			ch <- uploadReq{filepath.Join(path, m),
+				dest + "/" + m, uploadFileOp, ""}
+		}
+	}
+
+	if *uploadDelete && len(toRm) > 0 {
+		for _, m := range toRm {
+			ch <- uploadReq{"", dest + "/" + m, removeFileOp, ""}
+			ch <- uploadReq{"", dest + "/" + m, removeRecurseOp, ""}
+		}
+	}
+
+	return nil
+}
+
 func syncUp(src, u string, ch chan<- uploadReq) {
+	for strings.HasSuffix(u, "/") {
+		u = u[:len(u)-1]
+	}
+	for strings.HasSuffix(src, "/") {
+		src = src[:len(src)-1]
+	}
+
 	err := filepath.Walk(src,
 		func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			switch info.Mode() & os.ModeType {
-			case os.ModeDir:
-				// ignoring quietly
-			case os.ModeCharDevice, os.ModeDevice,
-				os.ModeNamedPipe, os.ModeSocket, os.ModeSymlink:
-
-				log.Printf("Ignoring special file: %v", path)
-			default:
+			if err == nil && info.IsDir() {
 				shortPath := path[len(src):]
-				ch <- uploadReq{path, u + shortPath}
+				err = syncPath(path, u+shortPath, info, ch)
 			}
 			return err
 		})
@@ -125,15 +279,36 @@ func syncUp(src, u string, ch chan<- uploadReq) {
 }
 
 func uploadCommand(args []string) {
-	ch := make(chan uploadReq)
+	uploadFlags.Parse(args)
 
-	for i := 0; i < *workers; i++ {
-		wg.Add(1)
-		go uploader(ch)
+	if uploadFlags.NArg() < 2 {
+		log.Fatalf("src and dest required")
 	}
 
-	syncUp(args[0], args[1], ch)
+	fi, err := os.Stat(uploadFlags.Arg(0))
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	close(ch)
-	wg.Wait()
+	if fi.IsDir() {
+		ch := make(chan uploadReq, 1000)
+
+		for i := 0; i < *workers; i++ {
+			uploadWg.Add(1)
+			go uploadWorker(ch)
+		}
+
+		start := time.Now()
+		syncUp(uploadFlags.Arg(0), uploadFlags.Arg(1), ch)
+
+		close(ch)
+		log.Printf("Finished traversal in %v", time.Since(start))
+		uploadWg.Wait()
+		log.Printf("Finished sync in %v", time.Since(start))
+	} else {
+		err = uploadFile(uploadFlags.Arg(0), uploadFlags.Arg(1))
+		if err != nil {
+			log.Fatalf("Error uploading file: %v", err)
+		}
+	}
 }

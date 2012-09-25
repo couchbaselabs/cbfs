@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -34,6 +35,23 @@ func rmDashR(baseUrl string) {
 	}
 }
 
+func rmFile(u string) error {
+	req, err := http.NewRequest("DELETE", u, nil)
+	if err != nil {
+		return err
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	res.Body.Close()
+	if res.StatusCode != 204 && res.StatusCode != 404 {
+		return fmt.Errorf("Unexpected status deleting %v: %v",
+			u, err)
+	}
+	return nil
+}
+
 func rmWorker() {
 	defer rmWg.Done()
 
@@ -42,18 +60,9 @@ func rmWorker() {
 			log.Printf("Deleting %v", u)
 		}
 
-		req, err := http.NewRequest("DELETE", u, nil)
+		err := rmFile(u)
 		if err != nil {
-			log.Fatalf("Error making new request: %v", err)
-		}
-		res, err := http.DefaultClient.Do(req)
-		if err != nil {
-			log.Fatalf("Error issuing delete request: %v", err)
-		}
-		res.Body.Close()
-		if res.StatusCode != 204 && res.StatusCode != 404 {
-			log.Fatalf("Unexpected status deleting %v: %v",
-				u, err)
+			log.Fatalf("Error removing %v: %v", u, err)
 		}
 	}
 }

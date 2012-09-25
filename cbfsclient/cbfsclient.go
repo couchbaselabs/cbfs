@@ -25,7 +25,7 @@ var commands = map[string]struct {
 	f      func(args []string)
 	argstr string
 }{
-	"upload":  {2, uploadCommand, "/src/dir http://cbfs:8484/path/"},
+	"upload":  {-2, uploadCommand, "[opts] /src/dir http://cbfs:8484/path/"},
 	"ls":      {1, lsCommand, "http://cbfs:8484/some/path"},
 	"rm":      {-1, rmCommand, "[-r] [-v] http://cbfs:8484/some/path"},
 	"getconf": {0, getConfCommand, ""},
