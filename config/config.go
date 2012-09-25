@@ -59,6 +59,14 @@ func DefaultConfig() CBFSConfig {
 	}
 }
 
+func jsonFieldName(sf reflect.StructField) string {
+	fieldName := sf.Tag.Get("json")
+	if fieldName == "" {
+		fieldName = sf.Name
+	}
+	return fieldName
+}
+
 // Basically, vanilla marshaling, but return the durations in their
 // string forms.
 func (conf CBFSConfig) MarshalJSON() ([]byte, error) {
@@ -66,18 +74,12 @@ func (conf CBFSConfig) MarshalJSON() ([]byte, error) {
 
 	val := reflect.ValueOf(conf)
 	for i := 0; i < val.NumField(); i++ {
-		sf := val.Type().Field(i)
-		fieldName := sf.Tag.Get("json")
-		if fieldName == "" {
-			fieldName = sf.Name
+		v := (interface{})(val.Field(i).Interface())
+		if x, ok := v.(time.Duration); ok {
+			v = x.String()
 		}
 
-		val := (interface{})(val.Field(i).Interface())
-		if x, ok := val.(time.Duration); ok {
-			val = x.String()
-		}
-
-		m[fieldName] = val
+		m[jsonFieldName(val.Type().Field(i))] = v
 	}
 
 	return json.Marshal(m)
@@ -95,10 +97,7 @@ func (conf *CBFSConfig) UnmarshalJSON(data []byte) error {
 	val := reflect.Indirect(valptr)
 	for i := 0; i < val.NumField(); i++ {
 		sf := val.Type().Field(i)
-		fieldName := sf.Tag.Get("json")
-		if fieldName == "" {
-			fieldName = sf.Name
-		}
+		fieldName := jsonFieldName(sf)
 
 		switch {
 		case sf.Type == reflect.TypeOf(time.Duration(0)):
@@ -124,13 +123,8 @@ func (conf CBFSConfig) Dump(w io.Writer) {
 	tw := tabwriter.NewWriter(w, 2, 4, 1, ' ', 0)
 	val := reflect.ValueOf(conf)
 	for i := 0; i < val.NumField(); i++ {
-		sf := val.Type().Field(i)
-		fieldName := sf.Tag.Get("json")
-		if fieldName == "" {
-			fieldName = sf.Name
-		}
-
-		fmt.Fprintf(tw, "%v:\t%v\n", fieldName, val.Field(i).Interface())
+		fmt.Fprintf(tw, "%v:\t%v\n", jsonFieldName(val.Type().Field(i)),
+			val.Field(i).Interface())
 	}
 	tw.Flush()
 }
