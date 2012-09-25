@@ -171,7 +171,8 @@ func uploadWorker(ch chan uploadReq) {
 						err)
 					time.Sleep(time.Duration(retries) * time.Second)
 				} else {
-					log.Fatalf("Error uploading file: %v", err)
+					log.Printf("Error uploading file %v: %v",
+						req.src, err)
 				}
 			} else {
 				done = true
