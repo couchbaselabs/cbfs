@@ -1,6 +1,7 @@
 package cbfsconfig
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
@@ -56,6 +57,66 @@ func DefaultConfig() CBFSConfig {
 		UnderReplicaCheckFreq: time.Minute * 5,
 		OverReplicaCheckFreq:  time.Minute * 10,
 	}
+}
+
+// Basically, vanilla marshaling, but return the durations in their
+// string forms.
+func (conf CBFSConfig) MarshalJSON() ([]byte, error) {
+	m := map[string]interface{}{}
+
+	val := reflect.ValueOf(conf)
+	for i := 0; i < val.NumField(); i++ {
+		sf := val.Type().Field(i)
+		fieldName := sf.Tag.Get("json")
+		if fieldName == "" {
+			fieldName = sf.Name
+		}
+
+		val := (interface{})(val.Field(i).Interface())
+		if x, ok := val.(time.Duration); ok {
+			val = x.String()
+		}
+
+		m[fieldName] = val
+	}
+
+	return json.Marshal(m)
+}
+
+// And here's how you undo the above.
+func (conf *CBFSConfig) UnmarshalJSON(data []byte) error {
+	m := map[string]interface{}{}
+	err := json.Unmarshal(data, &m)
+	if err != nil {
+		return err
+	}
+
+	valptr := reflect.Indirect(reflect.ValueOf(conf))
+	val := reflect.Indirect(valptr)
+	for i := 0; i < val.NumField(); i++ {
+		sf := val.Type().Field(i)
+		fieldName := sf.Tag.Get("json")
+		if fieldName == "" {
+			fieldName = sf.Name
+		}
+
+		switch {
+		case sf.Type == reflect.TypeOf(time.Duration(0)):
+			d, e := time.ParseDuration(m[fieldName].(string))
+			if e != nil {
+				return e
+			}
+			val.Field(i).SetInt(int64(d))
+		case sf.Type.Kind() == reflect.String:
+			val.Field(i).SetString(m[fieldName].(string))
+		case sf.Type.Kind() == reflect.Int:
+			val.Field(i).SetInt(int64(m[fieldName].(float64)))
+		default:
+			return fmt.Errorf("Unhandled type in field %v", fieldName)
+		}
+	}
+
+	return nil
 }
 
 // Dump a text representation of this config to the given writer.
