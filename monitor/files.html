@@ -1,0 +1,47 @@
+<html>
+  <head>
+    <title>cbfs files</title>
+    <script type="text/javascript" src="jquery.min.js"></script>
+    <script type="text/javascript" src="d3.v2.min.js"></script>
+    <script type="text/javascript" src="monitor.js"></script>
+
+    <style type="text/css">
+.cell {
+  border: solid 1px white;
+  font: 10px sans-serif;
+  line-height: 12px;
+  overflow: hidden;
+  position: absolute;
+  text-indent: 2px;
+}
+    </style>
+  </head>
+
+  <body>
+    <div id="files"></div>
+  </body>
+
+  <script type="text/javascript">
+    $(function() {
+      var w = window.innerWidth,
+          h = window.innerHeight;
+
+      $(window).bind("popstate", function(e) {
+  	    var state = event.state;
+  	    if (state) {
+          updateFileMap(w, h, state.path);
+        } else {
+          updateFileMap(w, h, "/");
+        }
+      });
+
+      var selected = window.location.hash.substring(1);
+      if (window.location.hash.substring(1) === "") {
+        selected = "/";
+      }
+
+      fileInit(w, h, selected);
+  });
+  </script>
+
+</html>
