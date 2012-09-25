@@ -2,9 +2,11 @@ package cbfsconfig
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
+	"strconv"
 	"text/tabwriter"
 	"time"
 
@@ -12,6 +14,8 @@ import (
 )
 
 const dbKey = "/@globalConfig"
+
+var unhandledValue = errors.New("Unsupported parameter")
 
 // Cluster-wide configuration
 type CBFSConfig struct {
@@ -93,17 +97,32 @@ func (conf *CBFSConfig) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	for k, v := range m {
+		err = conf.SetParameter(k, v)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Set a parameter by name.
+func (conf *CBFSConfig) SetParameter(name string, inval interface{}) error {
+	var err error
 	d := time.Duration(0)
 
-	valptr := reflect.Indirect(reflect.ValueOf(conf))
-	val := reflect.Indirect(valptr)
+	val := reflect.Indirect(reflect.ValueOf(conf))
+
 	for i := 0; i < val.NumField(); i++ {
 		sf := val.Type().Field(i)
-		fieldName := jsonFieldName(sf)
+		if jsonFieldName(sf) != name {
+			continue
+		}
 
 		switch {
 		case sf.Type == reflect.TypeOf(d):
-			switch i := m[fieldName].(type) {
+			switch i := inval.(type) {
 			case string:
 				d, err = time.ParseDuration(i)
 				if err != nil {
@@ -113,16 +132,29 @@ func (conf *CBFSConfig) UnmarshalJSON(data []byte) error {
 				d = time.Duration(i)
 			}
 			val.Field(i).SetInt(int64(d))
+			return nil
 		case sf.Type.Kind() == reflect.String:
-			val.Field(i).SetString(m[fieldName].(string))
+			val.Field(i).SetString(inval.(string))
+			return nil
 		case sf.Type.Kind() == reflect.Int:
-			val.Field(i).SetInt(int64(m[fieldName].(float64)))
+			v := int64(0)
+			switch i := inval.(type) {
+			case string:
+				v, err = strconv.ParseInt(i, 10, 64)
+				if err != nil {
+					return err
+				}
+
+			case float64:
+				v = int64(i)
+			}
+			val.Field(i).SetInt(v)
+			return nil
 		default:
-			return fmt.Errorf("Unhandled type in field %v", fieldName)
+			return fmt.Errorf("Unhandled type in field %v", name)
 		}
 	}
-
-	return nil
+	return unhandledValue
 }
 
 // Dump a text representation of this config to the given writer.
