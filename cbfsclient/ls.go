@@ -16,10 +16,10 @@ import (
 )
 
 type cbfsDir struct {
-	Children int
-	Largest  int64
-	Size     int64
-	Smallest int64
+	Descendants int
+	Largest     int64
+	Size        int64
+	Smallest    int64
 }
 
 // XXX: I probably should make this usable from the cbfs project
@@ -106,7 +106,7 @@ func lsCommand(args []string) {
 		di := result.Dirs[dn]
 		fmt.Fprintf(tw, "d %8s\t%s\t(%s descendants)\n",
 			humanize.Bytes(uint64(di.Size)), dn,
-			humanize.Comma(int64(di.Children)))
+			humanize.Comma(int64(di.Descendants)))
 	}
 	for i := range filenames {
 		fn := filenames[i]

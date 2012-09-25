@@ -73,10 +73,10 @@ func listFiles(path string, includeMeta bool,
 		} else {
 			// no record in the multi-get metans this is a directory
 			dirs[name] = map[string]interface{}{
-				"children": r.Value["count"],
-				"size":     int64(r.Value["sum"].(float64)),
-				"smallest": int64(r.Value["min"].(float64)),
-				"largest":  int64(r.Value["max"].(float64)),
+				"descendants": r.Value["count"],
+				"size":        int64(r.Value["sum"].(float64)),
+				"smallest":    int64(r.Value["min"].(float64)),
+				"largest":     int64(r.Value["max"].(float64)),
 			}
 		}
 	}
