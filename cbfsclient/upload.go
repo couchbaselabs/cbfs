@@ -230,7 +230,9 @@ func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
 		remoteNames[n] = true
 	}
 	for n := range serverListing.Dirs {
-		remoteNames[n] = true
+		if n != "" {
+			remoteNames[n] = true
+		}
 	}
 
 	missingUpstream := []string{}
