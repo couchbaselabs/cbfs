@@ -100,22 +100,26 @@ func uploadFile(src, dest string) error {
 
 // This is very similar to rm's version, but uses different channel
 // signaling.
-func uploadRmDashR(baseUrl string, ch chan uploadReq) error {
+func uploadRmDashR(baseUrl string, ch chan uploadReq) ([]string, error) {
 	for strings.HasSuffix(baseUrl, "/") {
 		baseUrl = baseUrl[:len(baseUrl)-1]
 	}
 
 	listing, err := listStuff(baseUrl)
 	for err != nil {
-		return err
+		return []string{}, err
 	}
 	for fn := range listing.Files {
-		ch <- uploadReq{"", baseUrl + "/" + fn, removeFileOp, ""}
+		err = rmFile(baseUrl + "/" + fn)
+		if err != nil {
+			return []string{}, err
+		}
 	}
+	children := make([]string, 0, len(listing.Dirs))
 	for dn := range listing.Dirs {
-		return uploadRmDashR(baseUrl+"/"+dn, ch)
+		children = append(children, baseUrl+"/"+dn)
 	}
-	return nil
+	return children, nil
 }
 
 func localHash(fn string) string {
@@ -160,7 +164,10 @@ func uploadWorker(ch chan uploadReq) {
 				}
 				err = rmFile(req.dest)
 			case removeRecurseOp:
-				err = uploadRmDashR(req.dest, ch)
+				todo := []string{req.dest}
+				for err == nil && len(todo) > 0 {
+					todo, err = uploadRmDashR(req.dest, ch)
+				}
 			default:
 				log.Fatalf("Unhandled case")
 			}
@@ -199,7 +206,8 @@ func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
 		retries--
 	}
 	if err != nil {
-		return err
+		// XXX: Stick an error somewhere
+		return nil
 	}
 
 	localNames := map[string]os.FileInfo{}
@@ -208,9 +216,9 @@ func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
 		case os.ModeCharDevice, os.ModeDevice,
 			os.ModeNamedPipe, os.ModeSocket, os.ModeSymlink:
 			if *uploadVerbose {
-				log.Printf("Ignoring special file: %v", path)
+				log.Printf("Ignoring special file: %v - %v",
+					filepath.Join(path, c.Name()), c.Mode())
 			}
-			return nil
 		default:
 			localNames[c.Name()] = c
 		}
