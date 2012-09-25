@@ -7,18 +7,10 @@ import (
 	"os"
 	"strconv"
 	"time"
-
-	"github.com/couchbaselabs/go-couchbase"
-
-	"github.com/couchbaselabs/cbfs/config"
 )
 
 var workers = flag.Int("workers", 4, "Number of upload workers")
-var couchbaseServer = flag.String("couchbase", "", "Couchbase URL")
-var couchbaseBucket = flag.String("bucket", "default", "Couchbase bucket")
 var revs = flag.Int("revs", 0, "Number of old revisions to keep (-1 == all)")
-
-var cb *couchbase.Bucket
 
 var commands = map[string]struct {
 	nargs  int
@@ -28,8 +20,8 @@ var commands = map[string]struct {
 	"upload":  {-2, uploadCommand, "[opts] /src/dir http://cbfs:8484/path/"},
 	"ls":      {1, lsCommand, "http://cbfs:8484/some/path"},
 	"rm":      {-1, rmCommand, "[-r] [-v] http://cbfs:8484/some/path"},
-	"getconf": {0, getConfCommand, ""},
-	"setconf": {2, setConfCommand, "prop value"},
+	"getconf": {1, getConfCommand, "http://cbfs:8484/"},
+	"setconf": {3, setConfCommand, "http://cbfs:8484/ prop value"},
 }
 
 func init() {
@@ -53,20 +45,6 @@ func init() {
 
 }
 
-func getConfCommand(args []string) {
-	if cb == nil {
-		log.Fatalf("No couchbase bucket specified")
-	}
-	conf := cbfsconfig.DefaultConfig()
-	err := conf.RetrieveConfig(cb)
-	if err != nil {
-		log.Printf("Error getting config: %v", err)
-		log.Printf("Using default, as shown below:")
-	}
-
-	conf.Dump(os.Stdout)
-}
-
 func parseDuration(s string) time.Duration {
 	d, err := time.ParseDuration(s)
 	if err != nil {
@@ -83,66 +61,11 @@ func parseInt(s string) int {
 	return i
 }
 
-func setConfCommand(args []string) {
-	if cb == nil {
-		log.Fatalf("No couchbase bucket specified")
-	}
-	conf := cbfsconfig.DefaultConfig()
-	err := conf.RetrieveConfig(cb)
-	if err != nil {
-		log.Printf("Error getting config: %v, using default", err)
-	}
-
-	switch args[0] {
-	default:
-		log.Fatalf("Unhandled property: %v (try running getconf)",
-			args[0])
-	case "gcfreq":
-		conf.GCFreq = parseDuration(args[1])
-	case "gclimit":
-		conf.GCLimit = parseInt(args[1])
-	case "hash":
-		conf.Hash = args[1]
-	case "hbfreq":
-		conf.HeartbeatFreq = parseDuration(args[1])
-	case "minrepl":
-		conf.MinReplicas = parseInt(args[1])
-	case "maxrepl":
-		conf.MaxReplicas = parseInt(args[1])
-	case "cleanCount":
-		conf.NodeCleanCount = parseInt(args[1])
-	case "reconcileFreq":
-		conf.ReconcileFreq = parseDuration(args[1])
-	case "nodeCheckFreq":
-		conf.StaleNodeCheckFreq = parseDuration(args[1])
-	case "staleLimit":
-		conf.StaleNodeLimit = parseDuration(args[1])
-	case "underReplicaCheckFreq":
-		conf.UnderReplicaCheckFreq = parseDuration(args[1])
-	case "overReplicaCheckFreq":
-		conf.OverReplicaCheckFreq = parseDuration(args[1])
-	}
-
-	err = conf.StoreConfig(cb)
-	if err != nil {
-		log.Fatalf("Error updating config: %v", err)
-	}
-}
-
 func main() {
 	flag.Parse()
 
 	if flag.NArg() < 1 {
 		flag.Usage()
-	}
-
-	if *couchbaseServer != "" {
-		var err error
-		cb, err = couchbase.GetBucket(*couchbaseServer,
-			"default", *couchbaseBucket)
-		if err != nil {
-			log.Fatalf("Error connecting to couchbase: %v", err)
-		}
 	}
 
 	cmdName := flag.Arg(0)
