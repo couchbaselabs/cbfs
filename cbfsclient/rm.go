@@ -12,6 +12,7 @@ import (
 var rmFlags = flag.NewFlagSet("rm", flag.ExitOnError)
 var rmRecurse = rmFlags.Bool("r", false, "Recursively delete")
 var rmVerbose = rmFlags.Bool("v", false, "Verbose")
+var rmNoop = rmFlags.Bool("n", false, "Dry run")
 var rmWg = sync.WaitGroup{}
 var rmCh = make(chan string, 100)
 
@@ -36,6 +37,9 @@ func rmDashR(baseUrl string) {
 }
 
 func rmFile(u string) error {
+	if *rmNoop {
+		return nil
+	}
 	req, err := http.NewRequest("DELETE", u, nil)
 	if err != nil {
 		return err
