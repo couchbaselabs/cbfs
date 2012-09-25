@@ -24,6 +24,9 @@ var uploadFlags = flag.NewFlagSet("upload", flag.ExitOnError)
 var uploadVerbose = uploadFlags.Bool("v", false, "Verbose")
 var uploadDelete = uploadFlags.Bool("delete", false,
 	"Delete locally missing items")
+var uploadWorkers = uploadFlags.Int("workers", 4, "Number of upload workers")
+var uploadRevs = uploadFlags.Int("revs", 0,
+	"Number of old revisions to keep (-1 == all)")
 
 type uploadOpType uint8
 
@@ -77,7 +80,7 @@ func uploadFile(src, dest string) error {
 	if err != nil {
 		return err
 	}
-	preq.Header.Set("X-CBFS-KeepRevs", strconv.Itoa(*revs))
+	preq.Header.Set("X-CBFS-KeepRevs", strconv.Itoa(*uploadRevs))
 
 	ctype := http.DetectContentType(someBytes)
 	if strings.HasPrefix(ctype, "text/plain") ||
@@ -294,12 +297,14 @@ func syncUp(src, u string, ch chan<- uploadReq) {
 	}
 }
 
-func uploadCommand(args []string) {
+func uploadCommand(u string, args []string) {
 	uploadFlags.Parse(args)
 
-	if uploadFlags.NArg() < 2 {
-		log.Fatalf("src and dest required")
+	if uploadFlags.NArg() < 1 {
+		log.Fatalf("dest required")
 	}
+
+	du := relativeUrl(u, uploadFlags.Arg(1))
 
 	fi, err := os.Stat(uploadFlags.Arg(0))
 	if err != nil {
@@ -309,20 +314,20 @@ func uploadCommand(args []string) {
 	if fi.IsDir() {
 		ch := make(chan uploadReq, 1000)
 
-		for i := 0; i < *workers; i++ {
+		for i := 0; i < *uploadWorkers; i++ {
 			uploadWg.Add(1)
 			go uploadWorker(ch)
 		}
 
 		start := time.Now()
-		syncUp(uploadFlags.Arg(0), uploadFlags.Arg(1), ch)
+		syncUp(uploadFlags.Arg(0), du, ch)
 
 		close(ch)
 		log.Printf("Finished traversal in %v", time.Since(start))
 		uploadWg.Wait()
 		log.Printf("Finished sync in %v", time.Since(start))
 	} else {
-		err = uploadFile(uploadFlags.Arg(0), uploadFlags.Arg(1))
+		err = uploadFile(uploadFlags.Arg(0), du)
 		if err != nil {
 			log.Fatalf("Error uploading file: %v", err)
 		}

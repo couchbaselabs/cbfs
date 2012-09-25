@@ -83,8 +83,12 @@ func listStuff(ustr string) (listResult, error) {
 	return result, nil
 }
 
-func lsCommand(args []string) {
-	result, err := listStuff(args[0])
+func lsCommand(u string, args []string) {
+	if len(args) > 0 {
+		u = relativeUrl(u, args[0])
+	}
+
+	result, err := listStuff(u)
 	if err != nil {
 		log.Fatalf("Error listing directory: %v", err)
 	}

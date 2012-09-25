@@ -4,24 +4,22 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
 )
 
-var workers = flag.Int("workers", 4, "Number of upload workers")
-var revs = flag.Int("revs", 0, "Number of old revisions to keep (-1 == all)")
-
 var commands = map[string]struct {
 	nargs  int
-	f      func(args []string)
+	f      func(url string, args []string)
 	argstr string
 }{
-	"upload":  {-2, uploadCommand, "[opts] /src/dir http://cbfs:8484/path/"},
-	"ls":      {1, lsCommand, "http://cbfs:8484/some/path"},
-	"rm":      {-1, rmCommand, "[-r] [-v] http://cbfs:8484/some/path"},
-	"getconf": {1, getConfCommand, "http://cbfs:8484/"},
-	"setconf": {3, setConfCommand, "http://cbfs:8484/ prop value"},
+	"upload":  {-1, uploadCommand, "/src/dir /dest/dir"},
+	"ls":      {0, lsCommand, ""},
+	"rm":      {0, rmCommand, "path"},
+	"getconf": {0, getConfCommand, ""},
+	"setconf": {2, setConfCommand, "prop value"},
 }
 
 func init() {
@@ -29,7 +27,7 @@ func init() {
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr,
-			"Usage of %s [-flags] cmd cmdargs\n",
+			"Usage of %s cmd http://cbfs:8484/ [-opts] cmdargs\n",
 			os.Args[0])
 
 		fmt.Fprintf(os.Stderr, "\nCommands:\n")
@@ -38,11 +36,29 @@ func init() {
 			fmt.Fprintf(os.Stderr, "  %s %s\n", k, v.argstr)
 		}
 
-		fmt.Fprintf(os.Stderr, "\nFlags:\n")
-		flag.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "\n---- Subcommannd Options ----\n")
+
+		fmt.Fprintf(os.Stderr, "\nrm:\n")
+		rmFlags.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "\nupload:\n")
+		uploadFlags.PrintDefaults()
 		os.Exit(1)
 	}
 
+}
+
+func relativeUrl(u, path string) string {
+	du, err := url.Parse(u)
+	if err != nil {
+		log.Fatalf("Error parsing url: %v", err)
+	}
+
+	du.Path = path
+	if du.Path[0] != '/' {
+		du.Path = "/" + du.Path
+	}
+
+	return du.String()
 }
 
 func parseDuration(s string) time.Duration {
@@ -64,28 +80,31 @@ func parseInt(s string) int {
 func main() {
 	flag.Parse()
 
-	if flag.NArg() < 1 {
+	if flag.NArg() < 2 {
 		flag.Usage()
 	}
 
-	cmdName := flag.Arg(0)
+	u := flag.Arg(0)
+
+	cmdName := flag.Arg(1)
 	cmd, ok := commands[cmdName]
 	if !ok {
 		fmt.Fprintf(os.Stderr, "Unknown command: %v\n", cmdName)
 		flag.Usage()
 	}
-	if cmd.nargs < 0 {
+	if cmd.nargs == 0 {
+	} else if cmd.nargs < 0 {
 		reqargs := -cmd.nargs
-		if flag.NArg()-1 < reqargs {
+		if flag.NArg()-2 < reqargs {
 			fmt.Fprintf(os.Stderr, "Incorrect arguments for %v\n", cmdName)
 			flag.Usage()
 		}
 	} else {
-		if flag.NArg()-1 != cmd.nargs {
+		if flag.NArg()-2 != cmd.nargs {
 			fmt.Fprintf(os.Stderr, "Incorrect arguments for %v\n", cmdName)
 			flag.Usage()
 		}
 	}
 
-	cmd.f(flag.Args()[1:])
+	cmd.f(u, flag.Args()[2:])
 }

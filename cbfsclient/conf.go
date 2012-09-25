@@ -38,14 +38,14 @@ func getConfig(u string) cbfsconfig.CBFSConfig {
 	return conf
 }
 
-func getConfCommand(args []string) {
-	getConfig(args[0]).Dump(os.Stdout)
+func getConfCommand(u string, args []string) {
+	getConfig(u).Dump(os.Stdout)
 }
 
-func setConfCommand(args []string) {
-	conf := getConfig(args[0])
+func setConfCommand(u string, args []string) {
+	conf := getConfig(u)
 
-	key, val := args[1], args[2]
+	key, val := args[0], args[1]
 
 	err := conf.SetParameter(key, val)
 	if err != nil {

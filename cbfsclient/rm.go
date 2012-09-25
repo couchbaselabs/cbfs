@@ -67,11 +67,11 @@ func rmWorker() {
 	}
 }
 
-func rmCommand(args []string) {
+func rmCommand(u string, args []string) {
 	rmFlags.Parse(args)
 
 	if rmFlags.NArg() < 1 {
-		log.Fatalf("URL is required")
+		log.Fatalf("Filename is required")
 	}
 
 	for i := 0; i < 4; i++ {
@@ -79,10 +79,13 @@ func rmCommand(args []string) {
 		go rmWorker()
 	}
 
-	if *rmRecurse {
-		rmDashR(rmFlags.Arg(0))
-	} else {
-		rmCh <- rmFlags.Arg(0)
+	for _, path := range rmFlags.Args() {
+		ru := relativeUrl(u, path)
+		if *rmRecurse {
+			rmDashR(ru)
+		} else {
+			rmCh <- ru
+		}
 	}
 	close(rmCh)
 
