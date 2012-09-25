@@ -36,7 +36,7 @@ func init() {
 			fmt.Fprintf(os.Stderr, "  %s %s\n", k, v.argstr)
 		}
 
-		fmt.Fprintf(os.Stderr, "\n---- Subcommannd Options ----\n")
+		fmt.Fprintf(os.Stderr, "\n---- Subcommand Options ----\n")
 
 		fmt.Fprintf(os.Stderr, "\nls:\n")
 		lsFlags.PrintDefaults()
