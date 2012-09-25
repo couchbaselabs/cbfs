@@ -186,6 +186,7 @@ func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 	children, err := f.Readdir(0)
 	if err != nil {
 		return err
