@@ -203,6 +203,7 @@ func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
 	serverListing, err := listStuff(dest)
 	for err != nil && retries > 0 {
 		serverListing, err = listStuff(dest)
+		time.Sleep(time.Second)
 		retries--
 	}
 	if err != nil {
