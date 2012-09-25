@@ -47,34 +47,10 @@ func setConfCommand(args []string) {
 
 	key, val := args[1], args[2]
 
-	switch key {
-	default:
+	err := conf.SetParameter(key, val)
+	if err != nil {
 		log.Fatalf("Unhandled property: %v (try running getconf)",
 			key)
-	case "gcfreq":
-		conf.GCFreq = parseDuration(val)
-	case "gclimit":
-		conf.GCLimit = parseInt(val)
-	case "hash":
-		conf.Hash = val
-	case "hbfreq":
-		conf.HeartbeatFreq = parseDuration(val)
-	case "minrepl":
-		conf.MinReplicas = parseInt(val)
-	case "maxrepl":
-		conf.MaxReplicas = parseInt(val)
-	case "cleanCount":
-		conf.NodeCleanCount = parseInt(val)
-	case "reconcileFreq":
-		conf.ReconcileFreq = parseDuration(val)
-	case "nodeCheckFreq":
-		conf.StaleNodeCheckFreq = parseDuration(val)
-	case "staleLimit":
-		conf.StaleNodeLimit = parseDuration(val)
-	case "underReplicaCheckFreq":
-		conf.UnderReplicaCheckFreq = parseDuration(val)
-	case "overReplicaCheckFreq":
-		conf.OverReplicaCheckFreq = parseDuration(val)
 	}
 
 	data, err := json.Marshal(&conf)
