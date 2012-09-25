@@ -227,7 +227,9 @@ func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
 
 	remoteNames := map[string]bool{}
 	for n := range serverListing.Files {
-		remoteNames[n] = true
+		if n != "" {
+			remoteNames[n] = true
+		}
 	}
 	for n := range serverListing.Dirs {
 		if n != "" {
