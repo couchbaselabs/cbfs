@@ -93,6 +93,8 @@ func (conf *CBFSConfig) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	d := time.Duration(0)
+
 	valptr := reflect.Indirect(reflect.ValueOf(conf))
 	val := reflect.Indirect(valptr)
 	for i := 0; i < val.NumField(); i++ {
@@ -100,10 +102,15 @@ func (conf *CBFSConfig) UnmarshalJSON(data []byte) error {
 		fieldName := jsonFieldName(sf)
 
 		switch {
-		case sf.Type == reflect.TypeOf(time.Duration(0)):
-			d, e := time.ParseDuration(m[fieldName].(string))
-			if e != nil {
-				return e
+		case sf.Type == reflect.TypeOf(d):
+			switch i := m[fieldName].(type) {
+			case string:
+				d, err = time.ParseDuration(i)
+				if err != nil {
+					return err
+				}
+			case float64:
+				d = time.Duration(i)
 			}
 			val.Field(i).SetInt(int64(d))
 		case sf.Type.Kind() == reflect.String:
