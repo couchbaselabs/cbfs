@@ -27,7 +27,7 @@ func init() {
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr,
-			"Usage of %s cmd http://cbfs:8484/ [-opts] cmdargs\n",
+			"Usage:\n  %s http://cbfs:8484/ cmd [-opts] cmdargs\n",
 			os.Args[0])
 
 		fmt.Fprintf(os.Stderr, "\nCommands:\n")
