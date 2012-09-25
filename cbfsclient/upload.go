@@ -208,6 +208,7 @@ func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
 			if *uploadVerbose {
 				log.Printf("Ignoring special file: %v", path)
 			}
+			return nil
 		default:
 			localNames[c.Name()] = c
 		}
