@@ -746,6 +746,11 @@ func doListDocs(w http.ResponseWriter, req *http.Request,
 		return
 	}
 
+	if len(fl.Dirs) == 0 && len(fl.Files) == 0 {
+		w.WriteHeader(404)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 

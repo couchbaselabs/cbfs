@@ -6,8 +6,14 @@ import (
 	"strings"
 )
 
+type fileListing struct {
+	Files map[string]interface{} `json:"files"`
+	Dirs  map[string]interface{} `json:"dirs"`
+	Path  string                 `json:"path"`
+}
+
 func listFiles(path string, includeMeta bool,
-	depth int) (map[string]interface{}, error) {
+	depth int) (fileListing, error) {
 
 	viewRes := struct {
 		Rows []struct {
@@ -34,7 +40,7 @@ func listFiles(path string, includeMeta bool,
 			"end_key":     endKey,
 		}, &viewRes)
 	if err != nil {
-		return nil, err
+		return fileListing{}, err
 	}
 
 	// use the view result to build a list of keys
@@ -81,8 +87,11 @@ func listFiles(path string, includeMeta bool,
 		}
 	}
 
-	// assemble the final return value
-	rv := map[string]interface{}{"path": "/" + path, "dirs": dirs, "files": files}
+	rv := fileListing{
+		Path:  "/" + path,
+		Dirs:  dirs,
+		Files: files,
+	}
 
 	return rv, nil
 }
