@@ -493,17 +493,13 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 		writeTo := io.Writer(w)
 		var hw *hashRecord
 
-		if cachePerc > rand.Intn(100) {
-			if availableSpace() > uint64(ownership.Length) {
-				log.Printf("Storing remotely proxied request")
-				hw, err = NewHashRecord(*root, oid)
-				if err == nil {
-					writeTo = io.MultiWriter(hw, w)
-				} else {
-					hw = nil
-				}
+		if cachePerc == 100 || (cachePerc > rand.Intn(100) &&
+			availableSpace() > uint64(ownership.Length)) {
+			log.Printf("Storing remotely proxied request")
+			hw, err = NewHashRecord(*root, oid)
+			if err == nil {
+				writeTo = io.MultiWriter(hw, w)
 			} else {
-				log.Printf("No space to store remote object")
 				hw = nil
 			}
 		}
@@ -698,7 +694,18 @@ func (c *captureResponseWriter) WriteHeader(code int) {
 func doFetchDoc(w http.ResponseWriter, req *http.Request,
 	path string) {
 
-	if availableSpace() == 0 {
+	ownership := BlobOwnership{}
+	oidkey := "/" + path
+	err := couchbase.Get(oidkey, &ownership)
+	if err != nil {
+		log.Printf("Missing ownership record for OID: %v",
+			path)
+		// Not sure 404 is the right response here
+		w.WriteHeader(404)
+		return
+	}
+
+	if availableSpace() < uint64(ownership.Length) {
 		w.WriteHeader(500)
 		w.Write([]byte("No free space available."))
 		log.Printf("Someone asked me to get %v, but I'm out of space",
