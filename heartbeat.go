@@ -493,6 +493,8 @@ func grabSomeData() {
 		return
 	}
 
+	log.Printf("Going to fetch %v startup objects", len(viewRes.Rows))
+
 	nl, err := findRemoteNodes()
 	if err != nil {
 		log.Printf("Error finding nodes: %v", err)

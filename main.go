@@ -25,6 +25,10 @@ var enableViewProxy = flag.Bool("viewProxy", false,
 var verbose = flag.Bool("verbose", false, "Show some more stuff")
 var readTimeout = flag.Duration("serverTimeout", 5*time.Minute,
 	"Web server read timeout")
+var viewTimeout = flag.Duration("viewTimeout", 5*time.Second,
+	"Couchbase view client read timeout")
+var internodeTimeout = flag.Duration("internodeTimeout", 5*time.Second,
+	"Internode client read timeout")
 
 var globalConfig *cbfsconfig.CBFSConfig
 
@@ -119,10 +123,7 @@ func hashFilename(base, hstr string) string {
 func main() {
 	flag.Parse()
 
-	http.DefaultTransport = &http.Transport{
-		Proxy:             http.ProxyFromEnvironment,
-		DisableKeepAlives: true,
-	}
+	http.DefaultTransport = TimeoutTransport(*internodeTimeout)
 
 	if getHash() == nil {
 		fmt.Fprintf(os.Stderr,
