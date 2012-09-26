@@ -494,11 +494,16 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 		var hw *hashRecord
 
 		if cachePerc > rand.Intn(100) {
-			log.Printf("Storing remotely proxied request")
-			hw, err = NewHashRecord(*root, oid)
-			if err == nil {
-				writeTo = io.MultiWriter(hw, w)
+			if availableSpace() > uint64(ownership.Length) {
+				log.Printf("Storing remotely proxied request")
+				hw, err = NewHashRecord(*root, oid)
+				if err == nil {
+					writeTo = io.MultiWriter(hw, w)
+				} else {
+					hw = nil
+				}
 			} else {
+				log.Printf("No space to store remote object")
 				hw = nil
 			}
 		}
@@ -692,6 +697,14 @@ func (c *captureResponseWriter) WriteHeader(code int) {
 
 func doFetchDoc(w http.ResponseWriter, req *http.Request,
 	path string) {
+
+	if availableSpace() == 0 {
+		w.WriteHeader(500)
+		w.Write([]byte("No free space available."))
+		log.Printf("Someone asked me to get %v, but I'm out of space",
+			path)
+		return
+	}
 
 	queueBlobFetch(path)
 	w.WriteHeader(202)
