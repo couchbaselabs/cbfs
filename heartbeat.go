@@ -175,13 +175,20 @@ func salvageBlob(oid, deadNode string, nl NodeList) {
 }
 
 func cleanupNode(node string) {
+	if globalConfig.NodeCleanCount < 1 {
+		log.Printf("Misconfigured cleaner (on %v): %v",
+			node, globalConfig)
+		return
+	}
+
 	nodes, err := findAllNodes()
 	if err != nil {
 		log.Printf("Error finding node list, aborting clean: %v", err)
 		return
 	}
 
-	log.Printf("Cleaning up node %v", node)
+	log.Printf("Cleaning up node %v with count %v",
+		node, globalConfig.NodeCleanCount)
 	vres, err := couchbase.View("cbfs", "node_blobs",
 		map[string]interface{}{
 			"key":    node,
@@ -202,6 +209,7 @@ func cleanupNode(node string) {
 			salvageBlob(r.ID[1:], node, nodes)
 		}
 	}
+	log.Printf("Removed %v blobs from %v", foundRows, node)
 	if foundRows == 0 && len(vres.Errors) == 0 {
 		log.Printf("Removing node record: %v", node)
 		err = couchbase.Delete("/" + node)
