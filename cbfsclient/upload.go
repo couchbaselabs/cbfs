@@ -110,7 +110,7 @@ func uploadRmDashR(baseUrl string, ch chan uploadReq) ([]string, error) {
 		baseUrl = baseUrl[:len(baseUrl)-1]
 	}
 
-	listing, err := listStuff(baseUrl)
+	listing, err := listOrEmpty(baseUrl)
 	for err != nil {
 		return []string{}, err
 	}
@@ -205,9 +205,9 @@ func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
 	}
 
 	retries := 3
-	serverListing, err := listStuff(dest)
+	serverListing, err := listOrEmpty(dest)
 	for err != nil && retries > 0 {
-		serverListing, err = listStuff(dest)
+		serverListing, err = listOrEmpty(dest)
 		time.Sleep(time.Second)
 		retries--
 	}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -43,12 +44,24 @@ type fileMeta struct {
 	Revno    int              `json:"revno"`
 }
 
+var fourOhFour = errors.New("not found")
+
 var lsFlags = flag.NewFlagSet("ls", flag.ExitOnError)
 var lsDashL = lsFlags.Bool("l", false, "Display detailed listing")
 
 type listResult struct {
 	Dirs  map[string]cbfsDir
 	Files map[string]fileMeta
+}
+
+// 404 is OK here
+func listOrEmpty(ustr string) (listResult, error) {
+	listing, err := listStuff(ustr)
+	if err == fourOhFour {
+		err = nil
+	}
+
+	return listing, err
 }
 
 func listStuff(ustr string) (listResult, error) {
@@ -73,7 +86,12 @@ func listStuff(ustr string) (listResult, error) {
 		return result, err
 	}
 	defer res.Body.Close()
-	if res.StatusCode != 200 {
+	switch res.StatusCode {
+	case 404:
+		return result, fourOhFour
+	case 200:
+		// ok
+	default:
 		return result, fmt.Errorf("Error in request to %v: %v",
 			inputUrl.String(), res.Status)
 	}
