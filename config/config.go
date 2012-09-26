@@ -43,6 +43,8 @@ type CBFSConfig struct {
 	UnderReplicaCheckFreq time.Duration `json:"underReplicaCheckFreq"`
 	// How long to check for overreplication
 	OverReplicaCheckFreq time.Duration `json:"overReplicaCheckFreq"`
+	// How many objects to move when doing a replication check
+	ReplicationCheckLimit int `json:"replicaCheckLimit"`
 }
 
 // Get the default configuration
@@ -60,6 +62,7 @@ func DefaultConfig() CBFSConfig {
 		StaleNodeLimit:        time.Minute * 10,
 		UnderReplicaCheckFreq: time.Minute * 5,
 		OverReplicaCheckFreq:  time.Minute * 10,
+		ReplicationCheckLimit: 10000,
 	}
 }
 

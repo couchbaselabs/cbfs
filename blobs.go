@@ -204,7 +204,7 @@ func ensureMinimumReplicaCountTask() error {
 	err = couchbase.ViewCustom("cbfs", "repcounts",
 		map[string]interface{}{
 			"reduce":   false,
-			"limit":    1000,
+			"limit":    globalConfig.ReplicationCheckLimit,
 			"startkey": 1,
 			"endkey":   endKey,
 			"stale":    false,
@@ -274,7 +274,7 @@ func pruneExcessiveReplicas() error {
 			"descending":   true,
 			"reduce":       false,
 			"include_docs": true,
-			"limit":        1000,
+			"limit":        globalConfig.ReplicationCheckLimit,
 			"endkey":       globalConfig.MaxReplicas + 1,
 			"stale":        false,
 		},
