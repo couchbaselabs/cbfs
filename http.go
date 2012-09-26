@@ -64,6 +64,7 @@ func altStoreFile(r io.Reader) (io.Reader, <-chan storInfo) {
 				nodes[0].Address() + blobPrefix
 			log.Printf("Piping secondary storage to %v",
 				nodes[0].Address())
+
 			preq, err := http.NewRequest("POST", rurl, r1)
 			if err != nil {
 				rv.err = err
@@ -71,7 +72,11 @@ func altStoreFile(r io.Reader) (io.Reader, <-chan storInfo) {
 				return
 			}
 
-			presp, err := http.DefaultClient.Do(preq)
+			client := http.Client{
+				Transport: TimeoutTransport(time.Hour),
+			}
+
+			presp, err := client.Do(preq)
 			if err == nil {
 				if presp.StatusCode != 201 {
 					rv.err = errors.New(presp.Status)
