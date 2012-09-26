@@ -179,6 +179,8 @@ func salvageBlob(oid, deadNode string, nl NodeList) {
 	if len(candidates) == 0 {
 		log.Printf("Couldn't find a candidate for blob!")
 	} else {
+		log.Printf("Recommending %v get a copy of %v",
+			candidates[0], oid)
 		queueBlobAcquire(candidates[0], oid)
 	}
 }
