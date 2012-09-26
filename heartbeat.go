@@ -113,6 +113,24 @@ func runNamedGlobalTask(name string, t time.Duration, f func() error) bool {
 	return false
 }
 
+func availableSpace() uint64 {
+	freeSpace, err := filesystemFree()
+	if err != nil && err != noFSFree {
+		log.Printf("Error getting filesystem info: %v", err)
+	}
+
+	if maxStorage > 0 {
+		avail := int64(maxStorage) - spaceUsed
+		if avail < 0 {
+			avail = 0
+		}
+		if int64(freeSpace) > avail {
+			freeSpace = uint64(avail)
+		}
+	}
+	return freeSpace
+}
+
 func heartbeat() {
 	for {
 		u, err := url.Parse(*couchbaseServer)
@@ -123,22 +141,13 @@ func heartbeat() {
 			c.Close()
 		}
 
-		freeSpace, err := filesystemFree()
-		if err != nil && err != noFSFree {
-			log.Printf("Error getting filesystem info: %v", err)
-		}
-
-		if maxStorage > 0 && freeSpace > maxStorage {
-			freeSpace = maxStorage
-		}
-
 		aboutMe := StorageNode{
 			Addr:     localAddr,
 			Type:     "node",
 			Time:     time.Now().UTC(),
 			BindAddr: *bindAddr,
 			Used:     spaceUsed,
-			Free:     freeSpace,
+			Free:     availableSpace(),
 		}
 
 		err = couchbase.Set("/"+serverId, 0, aboutMe)
