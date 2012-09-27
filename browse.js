@@ -81,7 +81,6 @@ function computeNodesLinks(rows) {
                 model = toTitleCase(model);
             }
             prevmodel = model;
-            console.log("Model at", section, "is", model);
 
             rv.nodes.push({name: model, size: sizes[model], type: "make"});
             rv.links.push({source: j, target: base, value: 1});
