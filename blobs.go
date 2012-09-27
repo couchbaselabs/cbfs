@@ -150,6 +150,9 @@ func removeBlobOwnershipRecord(h, node string) int {
 		log.Printf("Error cleaning %v from %v: %v", node, h, err)
 		numOwners = -1
 	}
+	if numOwners == 0 {
+		couchbase.Delete(k + "/r")
+	}
 
 	return numOwners
 }
