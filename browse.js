@@ -67,7 +67,7 @@ function computeNodesLinks(rows) {
     for (var i = 0; i < rows.length; i++) {
         var r = rows[i];
         var section = r.key[0];
-        var model = r.key[1];
+        var model = section == 'Picture' ? toTitleCase(r.key[1]) : r.key[1];
 
         if (section != prevsection) {
             prevsection = section;
@@ -77,9 +77,6 @@ function computeNodesLinks(rows) {
         }
 
         if (model != prevmodel) {
-            if (section == 'Picture') {
-                model = toTitleCase(model);
-            }
             prevmodel = model;
 
             rv.nodes.push({name: model, size: sizes[model], type: "make"});
