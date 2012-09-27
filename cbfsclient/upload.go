@@ -1,21 +1,25 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
-	"sync"
+	"github.com/dustin/go-id3"
 )
 
 var uploadWg = sync.WaitGroup{}
@@ -24,6 +28,8 @@ var uploadFlags = flag.NewFlagSet("upload", flag.ExitOnError)
 var uploadVerbose = uploadFlags.Bool("v", false, "Verbose")
 var uploadDelete = uploadFlags.Bool("delete", false,
 	"Delete locally missing items")
+var uploadMeta = uploadFlags.Bool("meta", false,
+	"Store meta info in userData for items")
 var uploadWorkers = uploadFlags.Int("workers", 4, "Number of upload workers")
 var uploadRevs = uploadFlags.Int("revs", 0,
 	"Number of old revisions to keep (-1 == all)")
@@ -54,6 +60,60 @@ func recognizeTypeByName(n, def string) string {
 		return "text/css"
 	}
 	return def
+}
+
+func processMP3Meta(src, dest string) (interface{}, error) {
+	f, err := os.Open(src)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	ifile := id3.Read(f)
+	return ifile, nil
+}
+
+func processMeta(src, dest string) error {
+	var data interface{}
+	var err error
+
+	switch {
+	case strings.HasSuffix(src, ".mp3"):
+		data, err = processMP3Meta(src, dest)
+	}
+
+	if err != nil || data == nil {
+		return err
+	}
+
+	b, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	udest, err := url.Parse(dest)
+	if err != nil {
+		return err
+	}
+	udest.Path = "/.cbfs/meta" + udest.Path
+
+	preq, err := http.NewRequest("PUT", udest.String(), bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+
+	preq.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(preq)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 201 {
+		return fmt.Errorf("HTTP Error:  %v", resp.Status)
+	}
+
+	return nil
 }
 
 func uploadFile(src, dest string) error {
@@ -100,6 +160,14 @@ func uploadFile(src, dest string) error {
 	if resp.StatusCode != 201 {
 		return fmt.Errorf("HTTP Error:  %v", resp.Status)
 	}
+
+	if *uploadMeta {
+		err = processMeta(src, dest)
+		if err != nil {
+			log.Printf("Error processing meta info: %v", err)
+		}
+	}
+
 	return nil
 }
 
