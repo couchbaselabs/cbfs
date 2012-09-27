@@ -665,7 +665,11 @@ func proxyViewRequest(w http.ResponseWriter, req *http.Request,
 	u.Path = "/" + path
 	u.RawQuery = req.URL.RawQuery
 
-	res, err := http.Get(u.String())
+	client := &http.Client{
+		Transport: TimeoutTransport(*viewTimeout),
+	}
+
+	res, err := client.Get(u.String())
 	if err != nil {
 		w.WriteHeader(http.StatusBadGateway)
 		return
