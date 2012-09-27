@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+    <title>D3.js</title>
+    <script type="text/javascript" src="d3.v2.js"></script>
+    <script type="text/javascript" src="jquery.min.js"></script>
+    <script type="text/javascript" src="monitor.js"></script>
+    <link type="text/css" rel="stylesheet" href="style.css"/>
+    <style type="text/css">
+#bubbles {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 400px;
+  padding-right: 140px;
+  padding-top: 80px;
+  font-size: 10px;
+}
+    </style>
+  </head>
+  <body>
+    <div id="body">
+      <div id="header">
+        <h1>Limitless</h1>
+
+        <ul>
+          <li>Number of nodes</li>
+          <li>Number of files</li>
+          <li>Number of replicas of content</li>
+          <li>Size of files</li>
+          <li>Mix of OS Make, Model, Version</li>
+          <li>etc...</li>
+        </ul>
+
+      </div>
+      <div id="bubbles"></div>
+    </div>
+
+    <script type="text/javascript">
+      $(function() {
+        detectCBFS(function() {
+          d3.json("/.cbfs/nodes/", function(d) {
+            drawBubbles(d, 400);
+          } )
+        });
+      });
+    </script>
+
+  </body>
+</html>
