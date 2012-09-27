@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-id3"
+	"github.com/dustin/goexif/exif"
 )
 
 var uploadWg = sync.WaitGroup{}
@@ -73,13 +74,28 @@ func processMP3Meta(src, dest string) (interface{}, error) {
 	return ifile, nil
 }
 
+func processEXIFMeta(src, dest string) (interface{}, error) {
+	f, err := os.Open(src)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	return exif.Decode(f)
+}
+
 func processMeta(src, dest string) error {
 	var data interface{}
 	var err error
 
-	switch {
-	case strings.HasSuffix(src, ".mp3"):
+	switch filepath.Ext(strings.ToLower(src)) {
+	case ".mp3":
 		data, err = processMP3Meta(src, dest)
+	case ".jpg", ".jpeg":
+		data, err = processEXIFMeta(src, dest)
+	default:
+		log.Printf("No meta info for %#v",
+			filepath.Ext(strings.ToLower(src)))
 	}
 
 	if err != nil || data == nil {
@@ -103,6 +119,10 @@ func processMeta(src, dest string) error {
 	}
 
 	preq.Header.Set("Content-Type", "application/json")
+
+	if *uploadVerbose {
+		log.Printf("Uploading meta info to %v", udest.String())
+	}
 
 	resp, err := http.DefaultClient.Do(preq)
 	if err != nil {
