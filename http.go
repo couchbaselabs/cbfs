@@ -1,6 +1,7 @@
 package main
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -646,6 +647,11 @@ func doListNodes(w http.ResponseWriter, req *http.Request) {
 	w.Write(mustEncode(respob))
 }
 
+func canGzip(req *http.Request) bool {
+	acceptable := req.Header.Get("accept-encoding")
+	return strings.Contains(acceptable, "gzip")
+}
+
 func proxyViewRequest(w http.ResponseWriter, req *http.Request,
 	path string) {
 
@@ -669,9 +675,18 @@ func proxyViewRequest(w http.ResponseWriter, req *http.Request,
 	for k, vs := range res.Header {
 		w.Header()[k] = vs
 	}
+
+	output := io.Writer(w)
+
+	if canGzip(req) {
+		w.Header().Set("Content-Encoding", "gzip")
+		gz := gzip.NewWriter(w)
+		defer gz.Close()
+		output = gz
+	}
 	w.WriteHeader(res.StatusCode)
 
-	io.Copy(w, res.Body)
+	io.Copy(output, res.Body)
 }
 
 type captureResponseWriter struct {
