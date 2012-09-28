@@ -325,7 +325,10 @@ func internodeTaskWorker() {
 	for c := range internodeTaskQueue {
 		switch c.cmd {
 		case removeObjectCmd:
-			removeBlobFromNode(c.oid, c.node)
+			if err := c.node.deleteBlob(c.oid); err != nil {
+				log.Printf("Error deleting %v from %v: %v",
+					c.oid, c.node.name, err)
+			}
 		case acquireObjectCmd:
 			if err := c.node.acquireBlob(c.oid); err != nil {
 				log.Printf("Error acquiring %v from %v: %v",

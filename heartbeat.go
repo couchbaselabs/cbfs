@@ -419,24 +419,6 @@ func garbageCollectBlobsTask() error {
 	return nil
 }
 
-func removeBlobFromNode(oid string, node StorageNode) {
-	if node.name == serverId {
-		//local delete
-		err := removeObject(oid)
-		if err != nil {
-			log.Printf("Error removing blob, already deleted? %v", err)
-		}
-	} else {
-		//remote
-		err := node.deleteBlob(oid)
-		if err != nil {
-			log.Printf("Error GCing blob: %v", err)
-			return
-		}
-	}
-	log.Printf("Removed blob: %v from node %v", oid, node.name)
-}
-
 type fetchSpec struct {
 	oid  string
 	node string

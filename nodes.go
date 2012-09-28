@@ -97,22 +97,27 @@ func (n StorageNode) acquireBlob(oid string) error {
 
 // Ask a node to delete a blob.
 func (n StorageNode) deleteBlob(oid string) error {
-	req, err := http.NewRequest("DELETE", n.BlobURL(oid), nil)
-	if err != nil {
-		return err
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
+	if n.IsLocal() {
+		return removeObject(oid)
+	} else {
+		req, err := http.NewRequest("DELETE", n.BlobURL(oid), nil)
+		if err != nil {
+			return err
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
 
-	// 204 or 404 is considered successfully having the blob be
-	// deleted.
-	if resp.StatusCode != 204 && resp.StatusCode != 404 {
-		return fmt.Errorf("Unexpected status %v deleting %v from %s",
-			resp.Status, oid, n)
+		// 204 or 404 is considered successfully having the blob be
+		// deleted.
+		if resp.StatusCode != 204 && resp.StatusCode != 404 {
+			return fmt.Errorf("Unexpected status %v deleting %v from %s",
+				resp.Status, oid, n)
+		}
 	}
+	log.Printf("Removed %v from %v", oid, n.name)
 	return nil
 }
 
