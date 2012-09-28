@@ -78,15 +78,19 @@ func (a NodeList) Swap(i, j int) {
 
 // Ask a node to acquire a blob.
 func (n StorageNode) acquireBlob(oid string) error {
-	resp, err := http.Get(n.fetchURL(oid))
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
+	if n.IsLocal() {
+		queueBlobFetch(oid)
+	} else {
+		resp, err := http.Get(n.fetchURL(oid))
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
 
-	if resp.StatusCode != 202 {
-		return fmt.Errorf("Error executing remote fetch: %v",
-			resp.Status)
+		if resp.StatusCode != 202 {
+			return fmt.Errorf("Error executing remote fetch: %v",
+				resp.Status)
+		}
 	}
 	return nil
 }
