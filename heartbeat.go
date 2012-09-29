@@ -64,6 +64,12 @@ func init() {
 			},
 			pruneExcessiveReplicas,
 		},
+		"updateNodeSizes": &PeriodicJob{
+			func() time.Duration {
+				return 15 * time.Second
+			},
+			updateNodeSizes,
+		},
 	}
 }
 
@@ -230,6 +236,10 @@ func cleanupNode(node string) {
 		err = couchbase.Delete("/" + node + "/r")
 		if err != nil {
 			log.Printf("Error deleting %v node counter: %v", node, err)
+		}
+		err = removeFromNodeRegistry(node)
+		if err != nil {
+			log.Printf("Error deleting %v from registry: %v", node, err)
 		}
 	}
 }

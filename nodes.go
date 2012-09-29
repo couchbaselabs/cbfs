@@ -122,29 +122,18 @@ func (n StorageNode) deleteBlob(oid string) error {
 }
 
 func findAllNodes() (NodeList, error) {
-	viewRes := struct {
-		Rows []struct {
-			Key   string
-			Value float64
-		}
-	}{}
-
-	err := couchbase.ViewCustom("cbfs", "node_size",
-		map[string]interface{}{
-			"group_level": 1,
-		}, &viewRes)
+	nodeReg, err := retrieveNodeRegistry()
 	if err != nil {
 		return NodeList{}, err
 	}
 
-	nodeSizes := map[string]float64{}
+	nodeSizes := nodeReg.Nodes
 	nodeKeys := []string{}
-	for _, r := range viewRes.Rows {
-		nodeSizes[r.Key] = r.Value
-		nodeKeys = append(nodeKeys, "/"+r.Key)
+	for k := range nodeSizes {
+		nodeKeys = append(nodeKeys, "/"+k)
 	}
 
-	rv := make(NodeList, 0, len(viewRes.Rows))
+	rv := make(NodeList, 0, len(nodeSizes))
 
 	for nid, mcresp := range couchbase.GetBulk(nodeKeys) {
 		if mcresp.Status != gomemcached.SUCCESS {
@@ -169,6 +158,31 @@ func findAllNodes() (NodeList, error) {
 	sort.Sort(rv)
 
 	return rv, nil
+}
+
+func updateNodeSizes() error {
+	viewRes := struct {
+		Rows []struct {
+			Key   string
+			Value float64
+		}
+	}{}
+
+	err := couchbase.ViewCustom("cbfs", "node_size",
+		map[string]interface{}{
+			"group_level": 1,
+		}, &viewRes)
+	if err != nil {
+		return err
+	}
+
+	for _, r := range viewRes.Rows {
+		err = setInNodeRegistry(r.Key, int64(r.Value))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func findNodeMap() (map[string]StorageNode, error) {
