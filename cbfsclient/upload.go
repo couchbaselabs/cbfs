@@ -34,6 +34,7 @@ var uploadMeta = uploadFlags.Bool("meta", false,
 var uploadWorkers = uploadFlags.Int("workers", 4, "Number of upload workers")
 var uploadRevs = uploadFlags.Int("revs", 0,
 	"Number of old revisions to keep (-1 == all)")
+var uploadRevsSet = false
 
 type uploadOpType uint8
 
@@ -162,7 +163,9 @@ func uploadFile(src, dest string) error {
 	if err != nil {
 		return err
 	}
-	preq.Header.Set("X-CBFS-KeepRevs", strconv.Itoa(*uploadRevs))
+	if uploadRevsSet {
+		preq.Header.Set("X-CBFS-KeepRevs", strconv.Itoa(*uploadRevs))
+	}
 
 	ctype := http.DetectContentType(someBytes)
 	if strings.HasPrefix(ctype, "text/plain") ||
@@ -390,8 +393,14 @@ func syncUp(src, u string, ch chan<- uploadReq) {
 func uploadCommand(u string, args []string) {
 	uploadFlags.Parse(args)
 
-	if uploadFlags.NArg() < 1 {
-		log.Fatalf("dest required")
+	uploadFlags.Visit(func(f *flag.Flag) {
+		if f.Name == "revs" {
+			uploadRevsSet = true
+		}
+	})
+
+	if uploadFlags.NArg() < 2 {
+		log.Fatalf("src and dest required")
 	}
 
 	du := relativeUrl(u, uploadFlags.Arg(1))
