@@ -164,7 +164,7 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		Headers:  req.Header,
 		OID:      h,
 		Length:   length,
-		Modified: time.Now(),
+		Modified: time.Now().UTC(),
 	}
 
 	err = recordBlobOwnership(h, length)
