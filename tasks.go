@@ -475,7 +475,11 @@ func runPeriodicJob(name string, job *PeriodicJob) {
 
 func runPeriodicJobs() {
 	for n, j := range periodicJobs {
-		go runPeriodicJob(n, j)
+		if j.period() == 0 {
+			log.Printf("%v is misconfigured, ignoring", n)
+		} else {
+			go runPeriodicJob(n, j)
+		}
 	}
 }
 
