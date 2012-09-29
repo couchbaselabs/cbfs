@@ -153,6 +153,10 @@ func main() {
 		log.Fatalf("Can't connect to couchbase: %v", err)
 	}
 
+	if err = os.MkdirAll(*root, 0777); err != nil {
+		log.Fatalf("Couldn't create storage dir: %v", err)
+	}
+
 	err = updateConfig()
 	if err != nil {
 		log.Printf("Error updating initial config, using default: %v",
