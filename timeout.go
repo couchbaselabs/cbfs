@@ -48,11 +48,15 @@ func (tc *timeoutConn) SetWriteDeadline(t time.Time) error {
 }
 
 func TimeoutTransport(timeout time.Duration) *http.Transport {
+	dt := timeout
+	if dt > time.Minute {
+		dt = time.Minute
+	}
 	return &http.Transport{
 		Proxy:             http.ProxyFromEnvironment,
 		DisableKeepAlives: true,
 		Dial: func(n, addr string) (net.Conn, error) {
-			conn, err := net.Dial(n, addr)
+			conn, err := net.DialTimeout(n, addr, dt)
 			return &timeoutConn{conn, timeout}, err
 		},
 	}
