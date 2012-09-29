@@ -324,6 +324,19 @@ func performFetch(oid string) {
 	}
 }
 
+func salvageBlob(oid, deadNode string, nl NodeList) {
+	candidates := nl.candidatesFor(oid,
+		NodeList{nl.named(deadNode)})
+
+	if len(candidates) == 0 {
+		log.Printf("Couldn't find a candidate for blob!")
+	} else {
+		log.Printf("Recommending %v get a copy of %v",
+			candidates[0], oid)
+		queueBlobAcquire(candidates[0], oid)
+	}
+}
+
 var internodeTaskQueue = make(chan internodeTask, 1000)
 
 func internodeTaskWorker() {
