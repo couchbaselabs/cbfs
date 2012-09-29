@@ -186,7 +186,7 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	revs := 0
+	revs := globalConfig.DefaultVersionCount
 	rheader := req.Header.Get("X-CBFS-KeepRevs")
 	if rheader != "" {
 		i, err := strconv.Atoi(rheader)

@@ -45,6 +45,8 @@ type CBFSConfig struct {
 	OverReplicaCheckFreq time.Duration `json:"overReplicaCheckFreq"`
 	// How many objects to move when doing a replication check
 	ReplicationCheckLimit int `json:"replicaCheckLimit"`
+	// Default number of versions of a file to keep.
+	DefaultVersionCount int `json:"defaultVersionCount"`
 }
 
 // Get the default configuration
@@ -63,6 +65,7 @@ func DefaultConfig() CBFSConfig {
 		UnderReplicaCheckFreq: time.Minute * 5,
 		OverReplicaCheckFreq:  time.Minute * 10,
 		ReplicationCheckLimit: 10000,
+		DefaultVersionCount:   0,
 	}
 }
 
