@@ -167,8 +167,10 @@ func heartbeat() {
 
 func reconcileLoop() {
 	if globalConfig.ReconcileFreq == 0 {
+		log.Printf("Reconciliation is misconfigured")
 		return
 	}
+	time.Sleep(time.Second * time.Duration(5+rand.Intn(60)))
 	for {
 		err := reconcile()
 		if err != nil {
@@ -224,7 +226,12 @@ func validateLocal() error {
 	return nil
 }
 
-func validateLocalLoop() error {
+func validateLocalLoop() {
+	if globalConfig.LocalValidationFreq == 0 {
+		log.Printf("Local validation is misconfigured")
+		return
+	}
+	time.Sleep(time.Second * time.Duration(5+rand.Intn(60)))
 	for {
 		err := validateLocal()
 		if err != nil {
