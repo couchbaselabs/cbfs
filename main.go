@@ -168,6 +168,8 @@ func main() {
 	}
 	go reloadConfig()
 
+	go cleanupTmpFilesLoop()
+
 	initTaskQueueWorkers()
 
 	go heartbeat()

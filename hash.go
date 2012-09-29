@@ -13,6 +13,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 )
 
 var hashBuilders = map[string]func() hash.Hash{
@@ -113,4 +115,40 @@ func (h *hashRecord) Close() error {
 		return h.tmpf.Close()
 	}
 	return nil
+}
+
+func cleanTmpFiles() error {
+	d, err := os.Open(*root)
+	if err != nil {
+		return err
+	}
+	fi, err := d.Readdir(0)
+	if err != nil {
+		return err
+	}
+	now := time.Now()
+	for _, fn := range fi {
+		cutoff := fn.ModTime().Add(1 * time.Hour)
+		if strings.HasPrefix(fn.Name(), "tmp") &&
+			cutoff.Before(now) {
+
+			log.Printf("Removing tmp file: %v", fn.Name())
+			err = os.Remove(filepath.Join(*root, fn.Name()))
+			if err != nil {
+				log.Printf("Error cleaning %v: %v",
+					fn.Name(), err)
+			}
+		}
+	}
+	return nil
+}
+
+func cleanupTmpFilesLoop() {
+	for {
+		err := cleanTmpFiles()
+		if err != nil {
+			log.Printf("Error cleaning tmp files: %v", err)
+		}
+		time.Sleep(time.Hour)
+	}
 }
