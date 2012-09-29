@@ -59,7 +59,7 @@ func init() {
 		},
 		"updateNodeSizes": &PeriodicJob{
 			func() time.Duration {
-				return 15 * time.Second
+				return globalConfig.UpdateNodeSizesFreq
 			},
 			updateNodeSizes,
 		},

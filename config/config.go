@@ -49,6 +49,8 @@ type CBFSConfig struct {
 	ReplicationCheckLimit int `json:"replicaCheckLimit"`
 	// Default number of versions of a file to keep.
 	DefaultVersionCount int `json:"defaultVersionCount"`
+	// How often to update the node sizes
+	UpdateNodeSizesFreq time.Duration `json:"updateSizesFreq"`
 }
 
 // Get the default configuration
@@ -69,6 +71,7 @@ func DefaultConfig() CBFSConfig {
 		OverReplicaCheckFreq:  time.Minute * 10,
 		ReplicationCheckLimit: 10000,
 		DefaultVersionCount:   0,
+		UpdateNodeSizesFreq:   time.Second * 5,
 	}
 }
 
