@@ -6,11 +6,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"log"
 	"math/rand"
-	"net/http"
 	"time"
 
 	cb "github.com/couchbaselabs/go-couchbase"
@@ -431,52 +428,6 @@ func garbageCollectBlobsTask() error {
 	return nil
 }
 
-type fetchSpec struct {
-	oid  string
-	node string
-}
-
-func dataInitFetchOne(h, u string) error {
-	f, err := NewHashRecord(*root, h)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	resp, err := http.Get(u)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		io.Copy(ioutil.Discard, resp.Body)
-		return fmt.Errorf("Unexpected status fetching %v from %v: %v",
-			h, u, resp.Status)
-	}
-
-	h, l, err := f.Process(resp.Body)
-	if err != nil {
-		return err
-	}
-	return recordBlobOwnership(h, l)
-}
-
-func dataInitFetcher(nm map[string]StorageNode, ch <-chan fetchSpec) {
-	for fs := range ch {
-		node, found := nm[fs.node]
-		if !found {
-			log.Printf("couldn't find %v", fs.node)
-			continue
-		}
-		log.Printf("Fetching %v from %v", fs.oid, node.BlobURL(fs.oid))
-		err := dataInitFetchOne(fs.oid, node.BlobURL(fs.oid))
-		if err != nil {
-			log.Printf("Error fetching %v: %v", fs.oid, err)
-		}
-	}
-}
-
 func grabSomeData() {
 	viewRes := struct {
 		Rows []struct {
@@ -492,12 +443,11 @@ func grabSomeData() {
 	// Find some less replicated docs to suck in.
 	err := couchbase.ViewCustom("cbfs", "repcounts",
 		map[string]interface{}{
-			"reduce":       false,
-			"include_docs": true,
-			"limit":        *maxStartupObjects,
-			"startkey":     1,
-			"endkey":       *maxStartupRepls - 1,
-			"stale":        false,
+			"reduce":   false,
+			"limit":    *maxStartupObjects,
+			"startkey": 1,
+			"endkey":   *maxStartupRepls - 1,
+			"stale":    false,
 		},
 		&viewRes)
 
@@ -508,31 +458,9 @@ func grabSomeData() {
 
 	log.Printf("Going to fetch %v startup objects", len(viewRes.Rows))
 
-	nl, err := findRemoteNodes()
-	if err != nil {
-		log.Printf("Error finding nodes: %v", err)
-		return
-	}
-	nm := map[string]StorageNode{}
-
-	for _, n := range nl {
-		nm[n.name] = n
-	}
-
-	ch := make(chan fetchSpec, 1000)
-	defer close(ch)
-
-	for i := 0; i < 4; i++ {
-		go dataInitFetcher(nm, ch)
-	}
-
 	for _, r := range viewRes.Rows {
-		if _, ok := r.Doc.Json.Nodes[serverId]; !ok {
-			for n := range r.Doc.Json.Nodes {
-				if n != serverId {
-					ch <- fetchSpec{r.Id[1:], n}
-				}
-			}
+		if !hasBlob(r.Id[1:]) {
+			queueBlobFetch(r.Id[1:])
 		}
 	}
 }
@@ -540,9 +468,7 @@ func grabSomeData() {
 func runPeriodicJob(name string, job *PeriodicJob) {
 	time.Sleep(time.Second * time.Duration(5+rand.Intn(60)))
 	for {
-		if runNamedGlobalTask(name, job.period(), job.f) {
-			log.Printf("Ran job %v", name)
-		}
+		runNamedGlobalTask(name, job.period(), job.f)
 		time.Sleep(job.period() + time.Second)
 	}
 }
