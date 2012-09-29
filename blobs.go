@@ -301,6 +301,11 @@ func pruneExcessiveReplicas() error {
 	return nil
 }
 
+func hasBlob(oid string) bool {
+	_, err := os.Stat(hashFilename(*root, oid))
+	return err == nil
+}
+
 func performFetch(oid string) {
 	c := captureResponseWriter{}
 

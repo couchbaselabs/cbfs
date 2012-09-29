@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	cb "github.com/couchbaselabs/go-couchbase"
 	"github.com/dustin/gomemcached"
 	"github.com/dustin/gomemcached/client"
 
@@ -175,6 +176,61 @@ func reconcileLoop() {
 		}
 		grabSomeData()
 		time.Sleep(globalConfig.ReconcileFreq)
+	}
+}
+
+func validateLocal() error {
+	log.Printf("Validating Local Blobs")
+
+	viewRes := struct {
+		Rows []struct {
+			Id string
+		}
+	}{}
+
+	count := 0
+	startDocId := ""
+	done := false
+	for !done {
+		log.Printf("  local reconcile loop at %v", startDocId)
+		params := map[string]interface{}{
+			"key":    serverId,
+			"reduce": false,
+			"limit":  globalConfig.GCLimit + 1,
+		}
+		if startDocId != "" {
+			params["startkey_docid"] = cb.DocId(startDocId)
+		}
+		err := couchbase.ViewCustom("cbfs", "node_blobs", params,
+			&viewRes)
+		if err != nil {
+			return err
+		}
+		done = len(viewRes.Rows) < globalConfig.GCLimit
+
+		for _, r := range viewRes.Rows {
+			startDocId = r.Id
+
+			hash := startDocId[1:]
+			if !hasBlob(hash) {
+				log.Printf("Mistakenly registered with %v",
+					hash)
+				removeBlobOwnershipRecord(hash, serverId)
+			}
+		}
+	}
+
+	log.Printf("Validated %v files", count)
+	return nil
+}
+
+func validateLocalLoop() error {
+	for {
+		err := validateLocal()
+		if err != nil {
+			log.Printf("Error validating local store: %v", err)
+		}
+		time.Sleep(globalConfig.LocalValidationFreq)
 	}
 }
 

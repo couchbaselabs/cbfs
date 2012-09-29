@@ -174,6 +174,7 @@ func main() {
 
 	go heartbeat()
 	go reconcileLoop()
+	go validateLocalLoop()
 	go runPeriodicJobs()
 
 	s := &http.Server{
