@@ -193,6 +193,7 @@ func validateLocal() error {
 	count := 0
 	startDocId := ""
 	done := false
+	start := time.Now()
 	for !done {
 		log.Printf("  local reconcile loop at %v", startDocId)
 		params := map[string]interface{}{
@@ -219,10 +220,11 @@ func validateLocal() error {
 					hash)
 				removeBlobOwnershipRecord(hash, serverId)
 			}
+			count++
 		}
 	}
 
-	log.Printf("Validated %v files", count)
+	log.Printf("Validated %v files in %v", count, time.Since(start))
 	return nil
 }
 
