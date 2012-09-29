@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"reflect"
 	"testing"
+	"testing/iotest"
+	"time"
 )
 
 const expSize = 64 * 1024
@@ -40,5 +42,35 @@ func TestMultiReader(t *testing.T) {
 
 	if !reflect.DeepEqual(b1, b2) {
 		t.Fatalf("Didn't read the same data from the two things")
+	}
+}
+
+func TestMultiReaderSourceError(t *testing.T) {
+	t.Parallel()
+
+	// This test fails if it doesn't complete quickly.
+	timer := time.AfterFunc(2*time.Second, func() {
+		t.Fatalf("Test seems to have hung.")
+	})
+	defer timer.Stop()
+
+	randomSrc := randomDataMaker{rand.NewSource(1028890720402726901)}
+	tordr := iotest.TimeoutReader(&randomSrc)
+
+	lr := io.LimitReader(tordr, expSize)
+
+	r1, _ := newMultiReaderTimeout(lr, time.Second)
+
+	b1 := &bytes.Buffer{}
+
+	rs := make(chan copyRes, 2)
+
+	go bgCopy(b1, r1, rs)
+
+	res1 := <-rs
+
+	if res1.e != Timeout {
+		t.Errorf("Expected a timeout, got %v", res1.e)
+		t.Fail()
 	}
 }
