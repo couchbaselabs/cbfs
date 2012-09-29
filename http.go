@@ -68,6 +68,7 @@ func altStoreFile(r io.Reader) (io.Reader, <-chan storInfo) {
 
 			preq, err := http.NewRequest("POST", rurl, r1)
 			if err != nil {
+				r1.CloseWithError(err)
 				rv.err = err
 				bgch <- rv
 				return
@@ -81,6 +82,7 @@ func altStoreFile(r io.Reader) (io.Reader, <-chan storInfo) {
 			if err == nil {
 				if presp.StatusCode != 201 {
 					rv.err = errors.New(presp.Status)
+					r1.CloseWithError(rv.err)
 					bgch <- rv
 				}
 				_, err := io.Copy(ioutil.Discard, presp.Body)
