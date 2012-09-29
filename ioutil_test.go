@@ -59,7 +59,7 @@ func TestMultiReaderSourceError(t *testing.T) {
 
 	lr := io.LimitReader(tordr, expSize)
 
-	r1, _ := newMultiReaderTimeout(lr, time.Second)
+	r1, _ := newMultiReaderTimeout(lr, 10*time.Millisecond)
 
 	b1 := &bytes.Buffer{}
 
