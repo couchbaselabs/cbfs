@@ -280,6 +280,7 @@ func uploadWorker(ch chan uploadReq) {
 				} else {
 					log.Printf("Error uploading file %v: %v",
 						req.src, err)
+					done = true
 				}
 			} else {
 				done = true
