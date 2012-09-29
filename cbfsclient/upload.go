@@ -303,8 +303,7 @@ func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
 		retries--
 	}
 	if err != nil {
-		// XXX: Stick an error somewhere
-		return nil
+		return err
 	}
 
 	localNames := map[string]os.FileInfo{}
