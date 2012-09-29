@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"mime"
 	"net/http"
@@ -137,9 +138,9 @@ func processMeta(src, dest string) error {
 	return nil
 }
 
-func uploadFile(src, dest string) error {
+func uploadFile(src, dest, localHash string) error {
 	if *uploadVerbose {
-		log.Printf("Uploading %v -> %v", src, dest)
+		log.Printf("Uploading %v -> %v (%v)", src, dest, localHash)
 	}
 
 	f, err := os.Open(src)
@@ -174,6 +175,7 @@ func uploadFile(src, dest string) error {
 	}
 
 	preq.Header.Set("Content-Type", ctype)
+	preq.Header.Set("X-CBFS-Hash", localHash)
 
 	resp, err := http.DefaultClient.Do(preq)
 	if err != nil {
@@ -181,7 +183,8 @@ func uploadFile(src, dest string) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 201 {
-		return fmt.Errorf("HTTP Error:  %v", resp.Status)
+		r, _ := ioutil.ReadAll(resp.Body)
+		return fmt.Errorf("HTTP Error:  %v: %s", resp.Status, r)
 	}
 
 	if *uploadMeta {
@@ -243,15 +246,16 @@ func uploadWorker(ch chan uploadReq) {
 			var err error
 			switch req.op {
 			case uploadFileOp:
+				lh := localHash(req.src)
 				if req.remoteHash == "" {
-					err = uploadFile(req.src, req.dest)
+					err = uploadFile(req.src, req.dest, lh)
 				} else {
-					if localHash(req.src) != req.remoteHash {
+					if lh != req.remoteHash {
 						if *uploadVerbose {
 							log.Printf("%v has changed, reupping",
 								req.src)
 						}
-						err = uploadFile(req.src, req.dest)
+						err = uploadFile(req.src, req.dest, lh)
 					}
 				}
 			case removeFileOp:
@@ -425,7 +429,8 @@ func uploadCommand(u string, args []string) {
 		uploadWg.Wait()
 		log.Printf("Finished sync in %v", time.Since(start))
 	} else {
-		err = uploadFile(uploadFlags.Arg(0), du)
+		err = uploadFile(uploadFlags.Arg(0), du,
+			localHash(uploadFlags.Arg(0)))
 		if err != nil {
 			log.Fatalf("Error uploading file: %v", err)
 		}

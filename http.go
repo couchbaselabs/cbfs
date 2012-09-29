@@ -140,7 +140,7 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	f, err := NewHashRecord(*root, "")
+	f, err := NewHashRecord(*root, req.Header.Get("X-CBFS-Hash"))
 	if err != nil {
 		log.Printf("Error writing tmp file: %v", err)
 		w.WriteHeader(500)
