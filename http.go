@@ -496,7 +496,6 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 
 		if cachePerc == 100 || (cachePerc > rand.Intn(100) &&
 			availableSpace() > uint64(ownership.Length)) {
-			log.Printf("Storing remotely proxied request")
 			hw, err = NewHashRecord(*root, oid)
 			if err == nil {
 				writeTo = io.MultiWriter(hw, w)
