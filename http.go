@@ -85,7 +85,7 @@ func altStoreFile(r io.Reader) (io.Reader, <-chan storInfo) {
 				}
 				_, err := io.Copy(ioutil.Discard, presp.Body)
 				if err == nil {
-					rv.hs = presp.Header.Get("X-Hash")
+					rv.hs = presp.Header.Get("X-CBFS-Hash")
 				}
 				presp.Body.Close()
 			} else {
@@ -127,7 +127,7 @@ func doPostRawBlob(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Header().Set("X-Hash", sh)
+	w.Header().Set("X-CBFS-Hash", sh)
 
 	w.WriteHeader(201)
 }
@@ -246,7 +246,7 @@ func putRawHash(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Header().Set("X-Hash", sh)
+	w.Header().Set("X-CBFS-Hash", sh)
 
 	w.WriteHeader(201)
 }
