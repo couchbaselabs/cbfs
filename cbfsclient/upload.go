@@ -300,6 +300,9 @@ func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
 		return err
 	}
 
+	r := strings.NewReplacer("%", "%25", "?", "%3f", " ", "%20")
+	dest = r.Replace(dest)
+
 	retries := 3
 	serverListing, err := listOrEmpty(dest)
 	for err != nil && retries > 0 {
