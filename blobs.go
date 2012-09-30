@@ -3,6 +3,9 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -64,6 +67,26 @@ func (b BlobOwnership) ResolveNodes() NodeList {
 
 func (b BlobOwnership) ResolveRemoteNodes() NodeList {
 	return b.ResolveNodes().minusLocal()
+}
+
+func copyBlob(w io.Writer, oid string) error {
+	f, err := os.Open(hashFilename(*root, oid))
+	if err == nil {
+		// Doing it locally
+		defer f.Close()
+		_, err = io.Copy(w, f)
+		return err
+	} else {
+		// Doing it remotely
+		c := captureResponseWriter{w: w}
+		getBlobFromRemote(&c, oid, http.Header{}, 0)
+		if c.statusCode != 200 {
+			return fmt.Errorf("Error grabbing remote object, got %v",
+				c.statusCode)
+		}
+		return nil
+	}
+	panic("unreachable")
 }
 
 func recordBlobOwnership(h string, l int64) error {
@@ -307,7 +330,7 @@ func hasBlob(oid string) bool {
 }
 
 func performFetch(oid string) {
-	c := captureResponseWriter{}
+	c := captureResponseWriter{w: ioutil.Discard}
 
 	// If we already have it, we don't need it more.
 	f, err := os.Open(hashFilename(*root, oid))

@@ -31,6 +31,7 @@ const (
 	fetchPrefix  = "/.cbfs/fetch/"
 	listPrefix   = "/.cbfs/list/"
 	configPrefix = "/.cbfs/config/"
+	zipPrefix    = "/.cbfs/zip/"
 )
 
 type storInfo struct {
@@ -695,6 +696,7 @@ func proxyViewRequest(w http.ResponseWriter, req *http.Request,
 }
 
 type captureResponseWriter struct {
+	w          io.Writer
 	hdr        http.Header
 	statusCode int
 }
@@ -704,7 +706,7 @@ func (c *captureResponseWriter) Header() http.Header {
 }
 
 func (c *captureResponseWriter) Write(b []byte) (int, error) {
-	return len(b), nil
+	return c.w.Write(b)
 }
 
 func (c *captureResponseWriter) WriteHeader(code int) {
@@ -819,6 +821,8 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 		proxyViewRequest(w, req, minusPrefix(req.URL.Path, proxyPrefix))
 	case strings.HasPrefix(req.URL.Path, listPrefix):
 		doListDocs(w, req, minusPrefix(req.URL.Path, listPrefix))
+	case strings.HasPrefix(req.URL.Path, zipPrefix):
+		doZipDocs(w, req, minusPrefix(req.URL.Path, zipPrefix))
 	case strings.HasPrefix(req.URL.Path, "/.cbfs/"):
 		w.WriteHeader(400)
 	default:
