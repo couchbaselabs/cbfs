@@ -347,7 +347,7 @@ func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
 		} else if !fi.IsDir() {
 			if ri, ok := serverListing.Files[n]; ok {
 				ch <- uploadReq{filepath.Join(path, n),
-					dest + "/" + n, uploadFileOp, ri.OID}
+					dest + "/" + r.Replace(n), uploadFileOp, ri.OID}
 			}
 		}
 	}
@@ -362,14 +362,14 @@ func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
 	if len(missingUpstream) > 0 {
 		for _, m := range missingUpstream {
 			ch <- uploadReq{filepath.Join(path, m),
-				dest + "/" + m, uploadFileOp, ""}
+				dest + "/" + r.Replace(m), uploadFileOp, ""}
 		}
 	}
 
 	if *uploadDelete && len(toRm) > 0 {
 		for _, m := range toRm {
-			ch <- uploadReq{"", dest + "/" + m, removeFileOp, ""}
-			ch <- uploadReq{"", dest + "/" + m, removeRecurseOp, ""}
+			ch <- uploadReq{"", dest + "/" + r.Replace(m), removeFileOp, ""}
+			ch <- uploadReq{"", dest + "/" + r.Replace(m), removeRecurseOp, ""}
 		}
 	}
 
