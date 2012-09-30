@@ -61,7 +61,8 @@ func pathGenerator(from string, ch chan *namedFile,
 		for _, r := range viewRes.Rows {
 			k := r.Id
 			if !strings.HasPrefix(k, from) {
-				return
+				done = true
+				break
 			}
 			startKey = r.Key
 
