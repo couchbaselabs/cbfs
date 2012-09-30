@@ -167,7 +167,7 @@ func increaseReplicaCount(oid string, length int64, by int) error {
 		onto = onto[:by]
 	}
 	for _, n := range onto {
-		log.Printf("Asking %v to acquire %v", n.name, oid)
+		log.Printf("Asking %v to acquire %v", n, oid)
 		queueBlobAcquire(n, oid)
 	}
 	return nil
@@ -345,12 +345,12 @@ func internodeTaskWorker() {
 		case removeObjectCmd:
 			if err := c.node.deleteBlob(c.oid); err != nil {
 				log.Printf("Error deleting %v from %v: %v",
-					c.oid, c.node.name, err)
+					c.oid, c.node, err)
 			}
 		case acquireObjectCmd:
 			if err := c.node.acquireBlob(c.oid); err != nil {
 				log.Printf("Error acquiring %v from %v: %v",
-					c.oid, c.node.name, err)
+					c.oid, c.node, err)
 			}
 		case fetchObjectCmd:
 			performFetch(c.oid)

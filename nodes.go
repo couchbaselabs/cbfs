@@ -29,6 +29,10 @@ type StorageNode struct {
 	storageSize int64
 }
 
+func (s StorageNode) String() string {
+	return fmt.Sprintf("{StorageNode %v/%v}", s.name, s.Addr)
+}
+
 func (a StorageNode) Address() string {
 	if strings.HasPrefix(a.BindAddr, ":") {
 		return a.Addr + a.BindAddr
@@ -117,7 +121,7 @@ func (n StorageNode) deleteBlob(oid string) error {
 				resp.Status, oid, n)
 		}
 	}
-	log.Printf("Removed %v from %v", oid, n.name)
+	log.Printf("Removed %v from %v", oid, n)
 	return nil
 }
 
