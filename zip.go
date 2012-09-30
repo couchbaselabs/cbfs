@@ -2,6 +2,8 @@ package main
 
 import (
 	"archive/zip"
+	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strings"
@@ -9,12 +11,15 @@ import (
 	cb "github.com/couchbaselabs/go-couchbase"
 )
 
+var missingFile = errors.New("missing file")
+
 type namedFile struct {
 	name string
 	meta fileMeta
+	err  error
 }
 
-func pathGenerator(from string, ch chan namedFile,
+func pathGenerator(from string, ch chan *namedFile,
 	errs chan cb.ViewError, quit chan bool) {
 	defer close(ch)
 	defer close(errs)
@@ -29,7 +34,7 @@ func pathGenerator(from string, ch chan namedFile,
 		Errors []cb.ViewError
 	}{}
 
-	limit := 100
+	limit := 1000
 	startKey := parts
 	done := false
 	for !done {
@@ -50,6 +55,9 @@ func pathGenerator(from string, ch chan namedFile,
 
 		done = len(viewRes.Rows) < limit
 
+		paths := map[string]*namedFile{}
+		keys := []string{}
+
 		for _, r := range viewRes.Rows {
 			k := r.Id
 			if !strings.HasPrefix(k, from) {
@@ -57,19 +65,22 @@ func pathGenerator(from string, ch chan namedFile,
 			}
 			startKey = r.Key
 
-			nf := namedFile{name: k}
+			nf := namedFile{name: k, err: missingFile}
 
-			err = couchbase.Get(k, &nf.meta)
-			if err != nil {
-				log.Printf("Error fetching details of %v: %v",
-					k, err)
-				continue
+			paths[k] = &nf
+			keys = append(keys, k)
+		}
+
+		for k, res := range couchbase.GetBulk(keys) {
+			ob := paths[k]
+			ob.err = json.Unmarshal(res.Body, &ob.meta)
+			if ob.err != nil {
+				log.Printf("Error unmarshaling %v: %v", k, ob.err)
 			}
-
 			select {
 			case <-quit:
 				return
-			case ch <- nf:
+			case ch <- ob:
 				// We sent one.
 			}
 		}
@@ -81,7 +92,7 @@ func doZipDocs(w http.ResponseWriter, req *http.Request,
 
 	quit := make(chan bool)
 	defer close(quit)
-	ch := make(chan namedFile)
+	ch := make(chan *namedFile)
 	cherr := make(chan cb.ViewError)
 
 	go pathGenerator(path, ch, cherr, quit)
@@ -97,6 +108,11 @@ func doZipDocs(w http.ResponseWriter, req *http.Request,
 
 	zw := zip.NewWriter(w)
 	for nf := range ch {
+		if nf.err != nil {
+			log.Printf("Error on %v: %v", nf.name, nf.err)
+			continue
+		}
+
 		fh := zip.FileHeader{
 			Name:               nf.name,
 			Method:             zip.Deflate,
@@ -114,7 +130,8 @@ func doZipDocs(w http.ResponseWriter, req *http.Request,
 
 		err = copyBlob(zf, nf.meta.OID)
 		if err != nil {
-			log.Printf("Error copying blob: %v", err)
+			log.Printf("Error copying blob for %v: %v",
+				nf.name, err)
 			// Client will get a broken zip file
 			return
 		}

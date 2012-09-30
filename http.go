@@ -32,6 +32,7 @@ const (
 	listPrefix   = "/.cbfs/list/"
 	configPrefix = "/.cbfs/config/"
 	zipPrefix    = "/.cbfs/zip/"
+	fsckPrefix   = "/.cbfs/fsck/"
 )
 
 type storInfo struct {
@@ -823,6 +824,8 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 		doListDocs(w, req, minusPrefix(req.URL.Path, listPrefix))
 	case strings.HasPrefix(req.URL.Path, zipPrefix):
 		doZipDocs(w, req, minusPrefix(req.URL.Path, zipPrefix))
+	case strings.HasPrefix(req.URL.Path, fsckPrefix):
+		dofsck(w, req, minusPrefix(req.URL.Path, fsckPrefix))
 	case strings.HasPrefix(req.URL.Path, "/.cbfs/"):
 		w.WriteHeader(400)
 	default:
