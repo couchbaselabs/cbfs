@@ -123,7 +123,7 @@ func doPostRawBlob(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = recordBlobOwnership(sh, length)
+	err = recordBlobOwnership(sh, length, true)
 	if err != nil {
 		log.Printf("Error recording blob ownership: %v", err)
 		w.WriteHeader(500)
@@ -171,7 +171,7 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		Modified: time.Now().UTC(),
 	}
 
-	err = recordBlobOwnership(h, length)
+	err = recordBlobOwnership(h, length, true)
 	if err != nil {
 		log.Printf("Error storing blob ownership: %v", err)
 		w.WriteHeader(500)
@@ -242,7 +242,7 @@ func putRawHash(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = recordBlobOwnership(inputhash, length)
+	err = recordBlobOwnership(inputhash, length, true)
 	if err != nil {
 		log.Printf("Error recording blob ownership: %v", err)
 		w.WriteHeader(500)
@@ -519,7 +519,8 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 			if hw != nil {
 				_, err = hw.Finish()
 				if err == nil {
-					go recordBlobOwnership(oid, length)
+					go recordBlobOwnership(oid, length,
+						true)
 				}
 			}
 		}
@@ -839,7 +840,18 @@ func minusPrefix(s, prefix string) string {
 
 func doDeleteOID(w http.ResponseWriter, req *http.Request) {
 	oid := minusPrefix(req.URL.Path, blobPrefix)
-	err := removeObject(oid)
+
+	ob, err := getBlobOwnership(oid)
+	if err == nil {
+		n, t := ob.mostRecent()
+		if time.Since(t) < time.Hour {
+			log.Printf("%v was referenced within the last hour by %v, ignoring",
+				oid, n)
+			w.WriteHeader(400)
+			return
+		}
+	}
+	err = removeObject(oid)
 	if err == nil {
 		w.WriteHeader(204)
 	} else {

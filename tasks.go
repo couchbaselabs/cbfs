@@ -363,6 +363,17 @@ func garbageCollectBlobs() error {
 		garbageCollectBlobsTask)
 }
 
+func okToClean(oid string) bool {
+	ob, err := getBlobOwnership(oid)
+	if err == nil {
+		_, t := ob.mostRecent()
+		if time.Since(t) < time.Hour {
+			return false
+		}
+	}
+	return true
+}
+
 func garbageCollectBlobsTask() error {
 	log.Printf("Garbage collecting blobs without any file references")
 
@@ -378,7 +389,7 @@ func garbageCollectBlobsTask() error {
 		return err
 	}
 
-	count := 0
+	count, skipped := 0, 0
 	startKey := "g"
 	done := false
 	for !done {
@@ -420,8 +431,14 @@ func garbageCollectBlobsTask() error {
 						removeBlobOwnershipRecord(blobId, serverId)
 						count++
 					case ok:
-						queueBlobRemoval(n, blobId)
-						count++
+						if okToClean(blobId) {
+							queueBlobRemoval(n, blobId)
+							count++
+						} else {
+							log.Printf("Not cleaning %v, recently used",
+								blobId)
+							skipped++
+						}
 					default:
 						log.Printf("No nodemap entry for %v",
 							blobNode)
@@ -436,7 +453,7 @@ func garbageCollectBlobsTask() error {
 		}
 	}
 
-	log.Printf("Scheduled %d blobs for deletion", count)
+	log.Printf("Scheduled %d blobs for deletion, skipped %d", count, skipped)
 	return nil
 }
 

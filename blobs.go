@@ -66,8 +66,30 @@ func (b BlobOwnership) ResolveNodes() NodeList {
 	return rv
 }
 
+// Get the most recent storer of a blob
+func (b BlobOwnership) mostRecent() (string, time.Time) {
+	rvnode := ""
+	rvt := time.Time{}
+
+	for node, t := range b.Nodes {
+		if t.After(rvt) {
+			rvnode = node
+			rvt = t
+		}
+	}
+
+	return rvnode, rvt
+}
+
 func (b BlobOwnership) ResolveRemoteNodes() NodeList {
 	return b.ResolveNodes().minusLocal()
+}
+
+func getBlobOwnership(oid string) (BlobOwnership, error) {
+	rv := BlobOwnership{}
+	oidkey := "/" + oid
+	err := couchbase.Get(oidkey, &rv)
+	return rv, err
 }
 
 func copyBlob(w io.Writer, oid string) error {
@@ -90,14 +112,14 @@ func copyBlob(w io.Writer, oid string) error {
 	panic("unreachable")
 }
 
-func recordBlobOwnership(h string, l int64) error {
+func recordBlobOwnership(h string, l int64, force bool) error {
 	k := "/" + h
 	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
 		_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
 			ownership := BlobOwnership{}
 			err := json.Unmarshal(in, &ownership)
 			if err == nil {
-				if _, ok := ownership.Nodes[serverId]; ok {
+				if _, ok := ownership.Nodes[serverId]; ok && !force {
 					// Skip it fast if it already knows us
 					return nil, memcached.CASQuit
 				}

@@ -70,7 +70,7 @@ func verifyWorker(ch chan os.FileInfo, first bool) {
 	for info := range ch {
 		err := verifyObjectHash(info.Name())
 		if err == nil {
-			recordBlobOwnership(info.Name(), info.Size())
+			recordBlobOwnership(info.Name(), info.Size(), false)
 			if first {
 				storedObject(info.Name(), info.Size())
 			}
