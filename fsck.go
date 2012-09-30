@@ -8,7 +8,8 @@ import (
 	cb "github.com/couchbaselabs/go-couchbase"
 )
 
-// Take a stream of 
+// Take a stream of namedFiles and clump them into batches of at most
+// the specified size
 func keyClumper(ch chan *namedFile, size int) chan []*namedFile {
 	outch := make(chan []*namedFile)
 	go func() {
@@ -20,9 +21,9 @@ func keyClumper(ch chan *namedFile, size int) chan []*namedFile {
 				outch <- res
 				res = make([]*namedFile, 0, size)
 			}
-			if len(res) > 0 {
-				outch <- res
-			}
+		}
+		if len(res) > 0 {
+			outch <- res
 		}
 	}()
 
