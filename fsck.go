@@ -62,7 +62,7 @@ func dofsck(w http.ResponseWriter, req *http.Request,
 	for nfc := range keyClumper(ch, 1000) {
 		keys := []string{}
 		fnmap := map[string]string{}
-		unprocessed := map[string]bool{}
+		unprocessed := map[string]string{}
 
 		for _, nf := range nfc {
 			if nf.err != nil {
@@ -77,7 +77,7 @@ func dofsck(w http.ResponseWriter, req *http.Request,
 				}
 			}
 			keys = append(keys, "/"+nf.meta.OID)
-			unprocessed[nf.name] = true
+			unprocessed[nf.name] = nf.meta.OID
 			fnmap[nf.meta.OID] = nf.name
 		}
 
@@ -111,9 +111,10 @@ func dofsck(w http.ResponseWriter, req *http.Request,
 			}
 		}
 
-		for k := range unprocessed {
+		for k, v := range unprocessed {
 			if err := e.Encode(status{
 				Path:  k,
+				OID:   v,
 				EType: "blob",
 				Error: "not found",
 			}); err != nil {
