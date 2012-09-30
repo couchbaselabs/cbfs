@@ -93,7 +93,7 @@ func listStuff(ustr string) (listResult, error) {
 		// ok
 	default:
 		return result, fmt.Errorf("Error in request to %v: %v",
-			inputUrl.String(), res.Status)
+			inputUrl, res.Status)
 	}
 
 	d := json.NewDecoder(res.Body)

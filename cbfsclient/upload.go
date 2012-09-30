@@ -123,7 +123,7 @@ func processMeta(src, dest string) error {
 	preq.Header.Set("Content-Type", "application/json")
 
 	if *uploadVerbose {
-		log.Printf("Uploading meta info to %v", udest.String())
+		log.Printf("Uploading meta info to %v", udest)
 	}
 
 	resp, err := http.DefaultClient.Do(preq)
