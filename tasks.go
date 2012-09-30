@@ -203,30 +203,45 @@ func cleanupNode(node string) {
 		return
 	}
 
+	viewRes := struct {
+		Rows []struct {
+			Id  string
+			Doc struct {
+				Json struct {
+					Nodes map[string]string
+				}
+			}
+		}
+		Errors []cb.ViewError
+	}{}
+
 	log.Printf("Cleaning up node %v with count %v",
 		node, globalConfig.NodeCleanCount)
-	vres, err := couchbase.View("cbfs", "node_blobs",
+	err = couchbase.ViewCustom("cbfs", "node_blobs",
 		map[string]interface{}{
-			"key":    node,
-			"limit":  globalConfig.NodeCleanCount,
-			"reduce": false,
-			"stale":  false,
-		})
+			"key":          node,
+			"limit":        globalConfig.NodeCleanCount,
+			"reduce":       false,
+			"include_docs": true,
+			"stale":        false,
+		}, &viewRes)
 	if err != nil {
 		log.Printf("Error executing node_blobs view: %v", err)
 		return
 	}
 	foundRows := 0
-	for _, r := range vres.Rows {
-		numOwners := removeBlobOwnershipRecord(r.ID[1:], node)
+	for _, r := range viewRes.Rows {
 		foundRows++
 
-		if numOwners < globalConfig.MinReplicas {
-			salvageBlob(r.ID[1:], node, nodes)
+		if len(r.Doc.Json.Nodes) < globalConfig.MinReplicas {
+			salvageBlob(r.Id[1:], node, nodes)
+		} else {
+			// There are enough copies, just remove this one.
+			removeBlobOwnershipRecord(r.Id[1:], node)
 		}
 	}
 	log.Printf("Removed %v blobs from %v", foundRows, node)
-	if foundRows == 0 && len(vres.Errors) == 0 {
+	if foundRows == 0 && len(viewRes.Errors) == 0 {
 		log.Printf("Removing node record: %v", node)
 		err = couchbase.Delete("/" + node)
 		if err != nil {
@@ -457,7 +472,7 @@ func grabSomeData() {
 
 	for _, r := range viewRes.Rows {
 		if !hasBlob(r.Id[1:]) {
-			queueBlobFetch(r.Id[1:])
+			queueBlobFetch(r.Id[1:], "")
 		}
 	}
 }

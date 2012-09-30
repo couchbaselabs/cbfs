@@ -81,11 +81,18 @@ func (a NodeList) Swap(i, j int) {
 }
 
 // Ask a node to acquire a blob.
-func (n StorageNode) acquireBlob(oid string) error {
+func (n StorageNode) acquireBlob(oid, prevNode string) error {
 	if n.IsLocal() {
-		queueBlobFetch(oid)
+		queueBlobFetch(oid, prevNode)
 	} else {
-		resp, err := http.Get(n.fetchURL(oid))
+		req, err := http.NewRequest("GET", n.fetchURL(oid), nil)
+		if err != nil {
+			return err
+		}
+
+		req.Header.Set("X-Prevnode", prevNode)
+
+		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			return err
 		}

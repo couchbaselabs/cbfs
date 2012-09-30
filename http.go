@@ -736,7 +736,7 @@ func doFetchDoc(w http.ResponseWriter, req *http.Request,
 		return
 	}
 
-	queueBlobFetch(path)
+	queueBlobFetch(path, req.Header.Get("X-Prevnode"))
 	w.WriteHeader(202)
 }
 

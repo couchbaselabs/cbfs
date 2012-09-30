@@ -32,9 +32,10 @@ const (
 )
 
 type internodeTask struct {
-	node StorageNode
-	cmd  internodeCommand
-	oid  string
+	node     StorageNode
+	cmd      internodeCommand
+	oid      string
+	prevNode string
 }
 
 var taskWorkers = flag.Int("taskWorkers", 4,
@@ -191,7 +192,7 @@ func increaseReplicaCount(oid string, length int64, by int) error {
 	}
 	for _, n := range onto {
 		log.Printf("Asking %v to acquire %v", n, oid)
-		queueBlobAcquire(n, oid)
+		queueBlobAcquire(n, oid, "")
 	}
 	return nil
 }
@@ -329,7 +330,7 @@ func hasBlob(oid string) bool {
 	return err == nil
 }
 
-func performFetch(oid string) {
+func performFetch(oid, prev string) {
 	c := captureResponseWriter{w: ioutil.Discard}
 
 	// If we already have it, we don't need it more.
@@ -341,7 +342,13 @@ func performFetch(oid string) {
 
 	getBlobFromRemote(&c, oid, http.Header{}, 100)
 
-	if c.statusCode != 200 {
+	if c.statusCode == 200 {
+		if prev != "" {
+			removeBlobOwnershipRecord(oid, prev)
+			log.Printf("Removing ownership of %v from %v after takeover",
+				oid, prev)
+		}
+	} else {
 		log.Printf("Error grabbing remote object, got %v",
 			c.statusCode)
 	}
@@ -356,7 +363,7 @@ func salvageBlob(oid, deadNode string, nl NodeList) {
 	} else {
 		log.Printf("Recommending %v get a copy of %v",
 			candidates[0], oid)
-		queueBlobAcquire(candidates[0], oid)
+		queueBlobAcquire(candidates[0], oid, deadNode)
 	}
 }
 
@@ -371,12 +378,12 @@ func internodeTaskWorker() {
 					c.oid, c.node, err)
 			}
 		case acquireObjectCmd:
-			if err := c.node.acquireBlob(c.oid); err != nil {
+			if err := c.node.acquireBlob(c.oid, c.prevNode); err != nil {
 				log.Printf("Error acquiring %v from %v: %v",
 					c.oid, c.node, err)
 			}
 		case fetchObjectCmd:
-			performFetch(c.oid)
+			performFetch(c.oid, c.prevNode)
 		default:
 			log.Fatalf("Unhandled worker task: %v", c)
 		}
@@ -398,18 +405,20 @@ func queueBlobRemoval(n StorageNode, oid string) {
 }
 
 // Ask a remote node to go get a blob
-func queueBlobAcquire(n StorageNode, oid string) {
+func queueBlobAcquire(n StorageNode, oid string, prev string) {
 	internodeTaskQueue <- internodeTask{
-		node: n,
-		cmd:  acquireObjectCmd,
-		oid:  oid,
+		node:     n,
+		cmd:      acquireObjectCmd,
+		oid:      oid,
+		prevNode: prev,
 	}
 }
 
 // Ask this node to go get a blob
-func queueBlobFetch(oid string) {
+func queueBlobFetch(oid, prev string) {
 	internodeTaskQueue <- internodeTask{
-		cmd: fetchObjectCmd,
-		oid: oid,
+		cmd:      fetchObjectCmd,
+		oid:      oid,
+		prevNode: prev,
 	}
 }
