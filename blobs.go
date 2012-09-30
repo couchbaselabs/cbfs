@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -102,12 +101,7 @@ func copyBlob(w io.Writer, oid string) error {
 	} else {
 		// Doing it remotely
 		c := captureResponseWriter{w: w}
-		getBlobFromRemote(&c, oid, http.Header{}, *cachePercentage)
-		if c.statusCode != 200 {
-			return fmt.Errorf("Error grabbing remote object, got %v",
-				c.statusCode)
-		}
-		return nil
+		return getBlobFromRemote(&c, oid, http.Header{}, *cachePercentage)
 	}
 	panic("unreachable")
 }

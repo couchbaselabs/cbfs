@@ -452,7 +452,7 @@ func doServeRawBlob(w http.ResponseWriter, req *http.Request, oid string) {
 }
 
 func getBlobFromRemote(w http.ResponseWriter, oid string,
-	respHeader http.Header, cachePerc int) {
+	respHeader http.Header, cachePerc int) error {
 
 	// Find the owners of this blob
 	ownership := BlobOwnership{}
@@ -462,7 +462,7 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 		log.Printf("Missing ownership record for OID: %v", oid)
 		// Not sure 404 is the right response here
 		w.WriteHeader(404)
-		return
+		return err
 	}
 
 	nl := ownership.ResolveRemoteNodes()
@@ -512,6 +512,7 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 
 		if err != nil {
 			log.Printf("Failed to write from remote stream %v", err)
+			return err
 		} else {
 			// A successful copy with a working hash
 			// record means we should link in and record
@@ -525,7 +526,7 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 			}
 		}
 
-		return
+		return nil
 	}
 
 	//if we got to this point, no node in the list actually had it
@@ -533,7 +534,7 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 		oid)
 	w.WriteHeader(500)
 	fmt.Fprintf(w, "Cannot locate blob %v", oid)
-	return
+	return fmt.Errorf("Can't locate blob %v", oid)
 }
 
 func doList(w http.ResponseWriter, req *http.Request) {
