@@ -62,7 +62,7 @@ func dofsck(w http.ResponseWriter, req *http.Request,
 
 	for nfc := range keyClumper(ch, 1000) {
 		keys := []string{}
-		fnmap := map[string]string{}
+		fnmap := map[string][]string{}
 		unprocessed := map[string]string{}
 
 		for _, nf := range nfc {
@@ -79,35 +79,48 @@ func dofsck(w http.ResponseWriter, req *http.Request,
 			}
 			keys = append(keys, "/"+nf.meta.OID)
 			unprocessed[nf.name] = nf.meta.OID
-			fnmap[nf.meta.OID] = nf.name
+
+			a, ok := fnmap[nf.meta.OID]
+			if ok {
+				a = append(a, nf.name)
+			} else {
+				a = []string{nf.name}
+			}
+			fnmap[nf.meta.OID] = a
 		}
 
 		for k, v := range couchbase.GetBulk(keys) {
-			name := fnmap[k[1:]]
-			delete(unprocessed, name)
+			names := fnmap[k[1:]]
+			for _, name := range names {
+				delete(unprocessed, name)
+			}
 
 			ownership := BlobOwnership{}
 			err := json.Unmarshal(v.Body, &ownership)
 			if err != nil {
-				if err = e.Encode(status{
-					Path:  name,
-					OID:   k[1:],
-					EType: "blob",
-					Error: err.Error(),
-				}); err != nil {
-					log.Printf("Error encoding: %v", err)
-					return
+				for _, name := range names {
+					if err = e.Encode(status{
+						Path:  name,
+						OID:   k[1:],
+						EType: "blob",
+						Error: err.Error(),
+					}); err != nil {
+						log.Printf("Error encoding: %v", err)
+						return
+					}
 				}
 			}
 
 			if !errsOnly {
-				if err := e.Encode(status{
-					Path: name,
-					OID:  k[1:],
-					Reps: len(ownership.Nodes),
-				}); err != nil {
-					log.Printf("Error encoding: %v", err)
-					return
+				for _, name := range names {
+					if err := e.Encode(status{
+						Path: name,
+						OID:  k[1:],
+						Reps: len(ownership.Nodes),
+					}); err != nil {
+						log.Printf("Error encoding: %v", err)
+						return
+					}
 				}
 			}
 		}
