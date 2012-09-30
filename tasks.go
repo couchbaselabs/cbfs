@@ -355,10 +355,7 @@ func garbageCollectBlobsTask() error {
 		Rows []struct {
 			Key []string
 		}
-		Errors []struct {
-			From   string
-			Reason string
-		}
+		Errors []cb.ViewError
 	}{}
 
 	nm, err := findNodeMap()
