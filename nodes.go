@@ -243,6 +243,17 @@ func (nl NodeList) named(name string) StorageNode {
 	return StorageNode{}
 }
 
+// Find a node with at least this many bytes free.
+func (nl NodeList) withAtLeast(free uint64) NodeList {
+	rv := NodeList{}
+	for _, node := range nl {
+		if node.Free > free {
+			rv = append(rv, node)
+		}
+	}
+	return rv
+}
+
 func (nl NodeList) candidatesFor(oid string, exclude NodeList) NodeList {
 	// Find the owners of this blob
 	ownership := BlobOwnership{}
@@ -255,15 +266,8 @@ func (nl NodeList) candidatesFor(oid string, exclude NodeList) NodeList {
 
 	owners := ownership.ResolveNodes()
 
-	rv := NodeList{}
 	// Find a good destination candidate.
-	for _, node := range nl.minus(owners) {
-		if node.Free > uint64(ownership.Length) {
-			rv = append(rv, node)
-		}
-	}
-
-	return rv
+	return nl.minus(owners).withAtLeast(uint64(ownership.Length))
 }
 
 func findRemoteNodes() (NodeList, error) {

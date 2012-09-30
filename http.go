@@ -50,10 +50,11 @@ type storInfo struct {
 // closed.  The returned channel may yield a storInfo struct before
 // it's closed.  If it's closed without yielding a storInfo, there are
 // no remote nodes available.
-func altStoreFile(r io.Reader) (io.Reader, <-chan storInfo) {
+func altStoreFile(r io.Reader, length uint64) (io.Reader, <-chan storInfo) {
 	bgch := make(chan storInfo, 1)
 
 	nodes, err := findRemoteNodes()
+	nodes = nodes.withAtLeast(length)
 	if err == nil && len(nodes) > 0 {
 		r1, r2 := newMultiReader(r)
 		r = r2
@@ -152,7 +153,12 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 	}
 	defer f.Close()
 
-	r, bgch := altStoreFile(req.Body)
+	l := req.ContentLength
+	if l < 1 {
+		// If we don't know, guess about a meg.
+		l = 1024 * 1024
+	}
+	r, bgch := altStoreFile(req.Body, uint64(l))
 
 	h, length, err := f.Process(r)
 	if err != nil {
