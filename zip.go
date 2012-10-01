@@ -115,10 +115,10 @@ func doZipDocs(w http.ResponseWriter, req *http.Request,
 		}
 
 		fh := zip.FileHeader{
-			Name:               nf.name,
-			Method:             zip.Deflate,
-			UncompressedSize64: uint64(nf.meta.Length),
-			Comment:            nf.meta.OID,
+			Name:             nf.name,
+			Method:           zip.Deflate,
+			UncompressedSize: uint32(nf.meta.Length),
+			Comment:          nf.meta.OID,
 		}
 		fh.SetModTime(nf.meta.Modified)
 
