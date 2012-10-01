@@ -128,49 +128,36 @@ func reconcileLoop() {
 	}
 }
 
+func logErrors(from string, errs <-chan error) {
+	for e := range errs {
+		log.Printf("%v - %v", from, e)
+	}
+}
+
 func validateLocal() error {
 	log.Printf("Validating Local Blobs")
 
-	viewRes := struct {
-		Rows []struct {
-			Id string
-		}
-	}{}
+	me := StorageNode{name: serverId}
 
-	count := 0
-	startDocId := ""
-	done := false
+	oids := make(chan string, 1000)
+	errs := make(chan error)
+	quit := make(chan bool)
+	defer close(quit)
+
+	go logErrors("local validation", errs)
+
+	go me.iterateBlobs(oids, nil, quit)
+
 	start := time.Now()
-	for !done {
-		log.Printf("  local reconcile loop at %v", startDocId)
-		params := map[string]interface{}{
-			"key":    serverId,
-			"reduce": false,
-			"limit":  globalConfig.GCLimit + 1,
+	count := 0
+	for hash := range oids {
+		if !hasBlob(hash) {
+			log.Printf("Mistakenly registered with %v",
+				hash)
+			removeBlobOwnershipRecord(hash, serverId)
 		}
-		if startDocId != "" {
-			params["startkey_docid"] = cb.DocId(startDocId)
-		}
-		err := couchbase.ViewCustom("cbfs", "node_blobs", params,
-			&viewRes)
-		if err != nil {
-			return err
-		}
-		done = len(viewRes.Rows) < globalConfig.GCLimit
-
-		for _, r := range viewRes.Rows {
-			startDocId = r.Id
-
-			hash := startDocId[1:]
-			if !hasBlob(hash) {
-				log.Printf("Mistakenly registered with %v",
-					hash)
-				removeBlobOwnershipRecord(hash, serverId)
-			}
-			count++
-		}
+		count++
 	}
-
 	log.Printf("Validated %v files in %v", count, time.Since(start))
 	return nil
 }

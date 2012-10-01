@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	cb "github.com/couchbaselabs/go-couchbase"
 	"github.com/dustin/gomemcached"
 )
 
@@ -130,6 +131,59 @@ func (n StorageNode) deleteBlob(oid string) error {
 	}
 	log.Printf("Removed %v from %v", oid, n)
 	return nil
+}
+
+// Iterate the list of blobs registered to this node and emit them
+// into the given channel.
+func (n StorageNode) iterateBlobs(ch chan<- string, cherr chan<- error,
+	quit <-chan bool) {
+
+	defer close(ch)
+	if cherr != nil {
+		defer close(cherr)
+	}
+
+	viewRes := struct {
+		Rows []struct {
+			Id string
+		}
+		Errors []cb.ViewError
+	}{}
+
+	startDocId := ""
+	done := false
+	limit := 1000
+	for !done {
+		params := map[string]interface{}{
+			"key":    n.name,
+			"reduce": false,
+			"limit":  limit,
+		}
+		if startDocId != "" {
+			params["startkey_docid"] = cb.DocId(startDocId)
+		}
+		err := couchbase.ViewCustom("cbfs", "node_blobs", params,
+			&viewRes)
+		if err != nil {
+			cherr <- err
+			return
+		}
+		for _, e := range viewRes.Errors {
+			cherr <- e
+		}
+
+		done = len(viewRes.Rows) < limit
+
+		for _, r := range viewRes.Rows {
+			startDocId = r.Id
+			select {
+			case <-quit:
+				return
+			case ch <- startDocId[1:]:
+				// We sent one.
+			}
+		}
+	}
 }
 
 func findAllNodes() (NodeList, error) {
