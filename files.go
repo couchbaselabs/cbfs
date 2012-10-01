@@ -19,6 +19,10 @@ var maxStorage uint64
 var spaceUsed int64
 var firstReconcile = true
 
+func hashFilename(base, hstr string) string {
+	return base + "/" + hstr[:2] + "/" + hstr
+}
+
 func storedObject(h string, l int64) {
 	atomic.AddInt64(&spaceUsed, l)
 }

@@ -116,10 +116,6 @@ func storeMeta(k string, fm fileMeta, revs int) error {
 	})
 }
 
-func hashFilename(base, hstr string) string {
-	return base + "/" + hstr[:2] + "/" + hstr
-}
-
 func main() {
 	flag.Parse()
 
