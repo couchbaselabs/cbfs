@@ -353,20 +353,30 @@ func performFetch(oid, prev string) {
 	f, err := os.Open(hashFilename(*root, oid))
 	if err == nil {
 		f.Close()
+		st, err := f.Stat()
+		if err != nil {
+			log.Printf("Error stating %v: %v", f, err)
+			return
+		}
+		err = recordBlobOwnership(oid, st.Size(), false)
+		if err != nil {
+			log.Printf("Error recording fetched blob: %v",
+				err)
+		}
 		return
 	}
 
-	getBlobFromRemote(&c, oid, http.Header{}, 100)
+	err = getBlobFromRemote(&c, oid, http.Header{}, 100)
 
-	if c.statusCode == 200 {
+	if err == nil && c.statusCode == 200 {
 		if prev != "" {
 			removeBlobOwnershipRecord(oid, prev)
 			log.Printf("Removing ownership of %v from %v after takeover",
 				oid, prev)
 		}
 	} else {
-		log.Printf("Error grabbing remote object, got %v",
-			c.statusCode)
+		log.Printf("Error grabbing remote object, got %v/%v",
+			c.statusCode, err)
 	}
 }
 
