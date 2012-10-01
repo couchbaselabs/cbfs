@@ -350,14 +350,8 @@ func performFetch(oid, prev string) {
 	c := captureResponseWriter{w: ioutil.Discard}
 
 	// If we already have it, we don't need it more.
-	f, err := os.Open(hashFilename(*root, oid))
+	st, err := os.Stat(hashFilename(*root, oid))
 	if err == nil {
-		f.Close()
-		st, err := f.Stat()
-		if err != nil {
-			log.Printf("Error stating %v: %v", f, err)
-			return
-		}
 		err = recordBlobOwnership(oid, st.Size(), false)
 		if err != nil {
 			log.Printf("Error recording fetched blob: %v",
