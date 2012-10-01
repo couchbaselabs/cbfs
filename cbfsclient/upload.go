@@ -155,6 +155,12 @@ func uploadFile(src, dest, localHash string) error {
 		return err
 	}
 	someBytes = someBytes[:n]
+
+	length, err := f.Seek(0, 2)
+	if err != nil {
+		return err
+	}
+
 	_, err = f.Seek(0, 0)
 	if err != nil {
 		return err
@@ -174,6 +180,7 @@ func uploadFile(src, dest, localHash string) error {
 		ctype = recognizeTypeByName(src, ctype)
 	}
 
+	preq.Header.Set("Content-Length", strconv.FormatInt(length, 10))
 	preq.Header.Set("Content-Type", ctype)
 	preq.Header.Set("X-CBFS-Hash", localHash)
 
