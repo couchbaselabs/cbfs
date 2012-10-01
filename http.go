@@ -363,6 +363,23 @@ func doHead(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(200)
 }
 
+type geezyWriter struct {
+	orig http.ResponseWriter
+	w    io.Writer
+}
+
+func (g *geezyWriter) Header() http.Header {
+	return g.orig.Header()
+}
+
+func (g *geezyWriter) Write(data []byte) (int, error) {
+	return g.w.Write(data)
+}
+
+func (g *geezyWriter) WriteHeader(status int) {
+	g.orig.WriteHeader(status)
+}
+
 func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 	path := resolvePath(req)
 	got := fileMeta{}
@@ -408,6 +425,13 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 			fmt.Fprintf(w, "Don't have this file with rev %v", revno)
 			return
 		}
+	}
+
+	if canGzip(req) {
+		w.Header().Set("Content-Encoding", "gzip")
+		gz := gzip.NewWriter(w)
+		defer gz.Close()
+		w = &geezyWriter{w, gz}
 	}
 
 	w.Header().Set("X-CBFS-Revno", strconv.Itoa(revno))
