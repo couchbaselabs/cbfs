@@ -51,7 +51,13 @@ function updateBubbles(bubble, vis, d) {
 
     vis.selectAll("g.node")
         .data(data, dKey)
-      .exit().remove();
+      .exit().transition()
+        .duration(1000)
+        .attr("transform", function(d) {
+            return "translate(" + d.x + "," + vis.attr("height") + ")";
+        })
+        .ease('quad')
+        .remove();
 
     node.append("title")
         .text(function(d) { return d.node + ": " + format(d.value); });
