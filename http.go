@@ -557,7 +557,7 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 			}
 		}
 
-		return nil
+		return err
 	}
 
 	//if we got to this point, no node in the list actually had it
