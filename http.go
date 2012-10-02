@@ -2,7 +2,6 @@ package main
 
 import (
 	"compress/gzip"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,17 +9,9 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	"net/url"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/dustin/gomemcached"
-	"github.com/dustin/gomemcached/client"
-
-	"github.com/couchbaselabs/cbfs/config"
 )
 
 const (
@@ -260,32 +251,6 @@ func putRawHash(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("X-CBFS-Hash", sh)
 
 	w.WriteHeader(201)
-}
-
-func putConfig(w http.ResponseWriter, req *http.Request) {
-	d := json.NewDecoder(req.Body)
-	conf := cbfsconfig.CBFSConfig{}
-
-	err := d.Decode(&conf)
-	if err != nil {
-		w.WriteHeader(500)
-		fmt.Fprintf(w, "Error reading config: %v", err)
-		return
-	}
-
-	err = conf.StoreConfig(couchbase)
-	if err != nil {
-		w.WriteHeader(500)
-		fmt.Fprintf(w, "Error writing config: %v", err)
-		return
-	}
-
-	err = updateConfig()
-	if err != nil {
-		log.Printf("Error fetching newly stored config: %v", err)
-	}
-
-	w.WriteHeader(204)
 }
 
 func doPut(w http.ResponseWriter, req *http.Request) {
@@ -568,165 +533,9 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 	return fmt.Errorf("Can't locate blob %v", oid)
 }
 
-func doList(w http.ResponseWriter, req *http.Request) {
-	w.WriteHeader(200)
-	explen := getHash().Size() * 2
-	filepath.Walk(*root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && !strings.HasPrefix(info.Name(), "tmp") &&
-			len(info.Name()) == explen {
-			_, e := w.Write([]byte(info.Name() + "\n"))
-			return e
-		}
-		return nil
-	})
-}
-
-func putMeta(w http.ResponseWriter, req *http.Request, path string) {
-	got := fileMeta{}
-	casid := uint64(0)
-	err := couchbase.Gets(path, &got, &casid)
-	if err != nil {
-		log.Printf("Error getting file %#v: %v", path, err)
-		w.WriteHeader(404)
-		w.Write([]byte(err.Error()))
-		return
-	}
-
-	r := json.RawMessage{}
-	err = json.NewDecoder(req.Body).Decode(&r)
-	if err != nil {
-		w.WriteHeader(400)
-		w.Write([]byte(err.Error()))
-		return
-	}
-
-	got.Userdata = &r
-	b := mustEncode(&got)
-
-	err = couchbase.Do(path, func(mc *memcached.Client, vb uint16) error {
-		req := &gomemcached.MCRequest{
-			Opcode:  gomemcached.SET,
-			VBucket: vb,
-			Key:     []byte(path),
-			Cas:     casid,
-			Opaque:  0,
-			Extras:  []byte{0, 0, 0, 0, 0, 0, 0, 0},
-			Body:    b}
-		resp, err := mc.Send(req)
-		if err != nil {
-			return err
-		}
-		if resp.Status != gomemcached.SUCCESS {
-			return resp
-		}
-		return nil
-	})
-
-	if err == nil {
-		w.WriteHeader(201)
-	} else {
-		w.WriteHeader(500)
-		w.Write([]byte(err.Error()))
-	}
-}
-
-func doGetMeta(w http.ResponseWriter, req *http.Request, path string) {
-	got := fileMeta{}
-	err := couchbase.Get(path, &got)
-	if err != nil {
-		log.Printf("Error getting file %#v: %v", path, err)
-		w.WriteHeader(404)
-		w.Write([]byte(err.Error()))
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	if got.Userdata == nil {
-		w.Write([]byte("{}"))
-	} else {
-		w.Write(*got.Userdata)
-	}
-}
-
-func doListNodes(w http.ResponseWriter, req *http.Request) {
-
-	nl, err := findAllNodes()
-	if err != nil {
-		log.Printf("Error executing nodes view: %v", err)
-		w.WriteHeader(500)
-		fmt.Fprintf(w, "Error generating node list: %v", err)
-		return
-	}
-
-	respob := map[string]interface{}{}
-	for _, node := range nl {
-		age := time.Since(node.Time)
-		respob[node.name] = map[string]interface{}{
-			"size":      node.storageSize,
-			"addr":      node.Address(),
-			"hbtime":    node.Time,
-			"hbage_ms":  age.Nanoseconds() / 1e6,
-			"hbage_str": age.String(),
-			"hash":      node.Hash,
-			"used":      node.Used,
-			"free":      node.Free,
-			"addr_raw":  node.Addr,
-			"bindaddr":  node.BindAddr,
-		}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(mustEncode(respob))
-}
-
 func canGzip(req *http.Request) bool {
 	acceptable := req.Header.Get("accept-encoding")
 	return strings.Contains(acceptable, "gzip")
-}
-
-func proxyViewRequest(w http.ResponseWriter, req *http.Request,
-	path string) {
-
-	node := couchbase.Nodes[rand.Intn(len(couchbase.Nodes))]
-	u, err := url.Parse(node.CouchAPIBase)
-	if err != nil {
-		w.WriteHeader(http.StatusBadGateway)
-		return
-	}
-
-	u.Path = "/" + path
-	u.RawQuery = req.URL.RawQuery
-
-	client := &http.Client{
-		Transport: TimeoutTransport(*viewTimeout),
-	}
-
-	res, err := client.Get(u.String())
-	if err != nil {
-		w.WriteHeader(http.StatusBadGateway)
-		return
-	}
-	defer res.Body.Close()
-
-	for k, vs := range res.Header {
-		w.Header()[k] = vs
-	}
-
-	output := io.Writer(w)
-
-	if canGzip(req) {
-		w.Header().Set("Content-Encoding", "gzip")
-		gz := gzip.NewWriter(w)
-		defer gz.Close()
-		output = gz
-	}
-	w.WriteHeader(res.StatusCode)
-
-	io.Copy(output, res.Body)
 }
 
 type captureResponseWriter struct {
@@ -771,68 +580,6 @@ func doFetchDoc(w http.ResponseWriter, req *http.Request,
 
 	queueBlobFetch(path, req.Header.Get("X-Prevnode"))
 	w.WriteHeader(202)
-}
-
-func doListDocs(w http.ResponseWriter, req *http.Request,
-	path string) {
-
-	// trim off trailing slash early so we handle them consistently
-	if strings.HasSuffix(path, "/") {
-		path = path[0 : len(path)-1]
-	}
-
-	includeMeta := req.FormValue("includeMeta")
-	depthString := req.FormValue("depth")
-	depth := 1
-	if depthString != "" {
-		i, err := strconv.Atoi(depthString)
-		if err != nil {
-			w.WriteHeader(400)
-			fmt.Fprintf(w, "Error processing depth parameter: %v", err)
-			return
-		}
-		depth = i
-	}
-
-	fl, err := listFiles(path, includeMeta == "true", depth)
-	if err != nil {
-		log.Printf("Error executing file browse view: %v", err)
-		w.WriteHeader(500)
-		fmt.Fprintf(w, "Error generating file list: %v", err)
-		return
-	}
-
-	if len(fl.Dirs) == 0 && len(fl.Files) == 0 {
-		w.WriteHeader(404)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	e := json.NewEncoder(w)
-	err = e.Encode(fl)
-	if err != nil {
-		log.Printf("Error writing json stream: %v", err)
-	}
-}
-
-func doGetConfig(w http.ResponseWriter, req *http.Request) {
-	err := updateConfig()
-	if err != nil {
-		w.WriteHeader(500)
-		fmt.Fprintf(w, "Error updating config: %v", err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	e := json.NewEncoder(w)
-	err = e.Encode(&globalConfig)
-	if err != nil {
-		log.Printf("Error sending config: %v", err)
-	}
 }
 
 func doGet(w http.ResponseWriter, req *http.Request) {
