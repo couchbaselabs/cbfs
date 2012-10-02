@@ -446,7 +446,7 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	f, err := os.Open(hashFilename(*root, oid))
+	f, err := openBlob(oid)
 	if err != nil {
 		getBlobFromRemote(w, oid, respHeaders, *cachePercentage)
 		return
@@ -466,7 +466,7 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 }
 
 func doServeRawBlob(w http.ResponseWriter, req *http.Request, oid string) {
-	f, err := os.Open(hashFilename(*root, oid))
+	f, err := openBlob(oid)
 	if err != nil {
 		w.WriteHeader(404)
 		fmt.Fprintf(w, "Error opening blob: %v", err)

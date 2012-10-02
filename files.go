@@ -23,6 +23,15 @@ func hashFilename(base, hstr string) string {
 	return base + "/" + hstr[:2] + "/" + hstr
 }
 
+type ReadSeekCloser interface {
+	io.ReadSeeker
+	io.Closer
+}
+
+func openBlob(hstr string) (ReadSeekCloser, error) {
+	return os.Open(hashFilename(*root, hstr))
+}
+
 func storedObject(h string, l int64) {
 	atomic.AddInt64(&spaceUsed, l)
 }
@@ -46,8 +55,7 @@ func removeObject(h string) error {
 }
 
 func verifyObjectHash(h string) error {
-	fn := hashFilename(*root, h)
-	f, err := os.Open(fn)
+	f, err := openBlob(h)
 	if err != nil {
 		return err
 	}

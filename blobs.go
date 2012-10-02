@@ -92,7 +92,7 @@ func getBlobOwnership(oid string) (BlobOwnership, error) {
 }
 
 func copyBlob(w io.Writer, oid string) error {
-	f, err := os.Open(hashFilename(*root, oid))
+	f, err := openBlob(oid)
 	if err == nil {
 		// Doing it locally
 		defer f.Close()
