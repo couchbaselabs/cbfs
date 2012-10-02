@@ -111,8 +111,6 @@ function drawBubbles(d, r) {
 }
 
 function drawRepcounts(d) {
-    console.log(d);
-
     var vals = [],
         names = [];
 
