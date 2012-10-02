@@ -49,7 +49,7 @@ func putConfig(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = conf.StoreConfig(couchbase)
+	err = StoreConfig(conf)
 	if err != nil {
 		w.WriteHeader(500)
 		fmt.Fprintf(w, "Error writing config: %v", err)

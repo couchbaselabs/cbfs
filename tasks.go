@@ -13,8 +13,6 @@ import (
 	cb "github.com/couchbaselabs/go-couchbase"
 	"github.com/dustin/gomemcached"
 	"github.com/dustin/gomemcached/client"
-
-	"github.com/couchbaselabs/cbfs/config"
 )
 
 var verifyWorkers = flag.Int("verifyWorkers", 4,
@@ -500,12 +498,11 @@ func runPeriodicJobs() {
 }
 
 func updateConfig() error {
-	conf := cbfsconfig.CBFSConfig{}
-	err := conf.RetrieveConfig(couchbase)
+	conf, err := RetrieveConfig()
 	if err != nil {
 		return err
 	}
-	globalConfig = &conf
+	globalConfig = conf
 	return nil
 }
 

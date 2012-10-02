@@ -9,11 +9,7 @@ import (
 	"strconv"
 	"text/tabwriter"
 	"time"
-
-	"github.com/couchbaselabs/go-couchbase"
 )
-
-const dbKey = "/@globalConfig"
 
 var unhandledValue = errors.New("Unsupported parameter")
 
@@ -178,14 +174,4 @@ func (conf CBFSConfig) Dump(w io.Writer) {
 			val.Field(i).Interface())
 	}
 	tw.Flush()
-}
-
-// Update this config within a bucket.
-func (conf CBFSConfig) StoreConfig(db *couchbase.Bucket) error {
-	return db.Set(dbKey, 0, &conf)
-}
-
-// Update this config from the db.
-func (conf *CBFSConfig) RetrieveConfig(db *couchbase.Bucket) error {
-	return db.Get(dbKey, conf)
 }
