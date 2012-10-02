@@ -20,7 +20,7 @@ type namedFile struct {
 }
 
 func pathGenerator(from string, ch chan *namedFile,
-	errs chan cb.ViewError, quit chan bool) {
+	errs chan error, quit chan bool) {
 	defer close(ch)
 	defer close(errs)
 
@@ -94,15 +94,10 @@ func doZipDocs(w http.ResponseWriter, req *http.Request,
 	quit := make(chan bool)
 	defer close(quit)
 	ch := make(chan *namedFile)
-	cherr := make(chan cb.ViewError)
+	cherr := make(chan error)
 
 	go pathGenerator(path, ch, cherr, quit)
-
-	go func() {
-		for e := range cherr {
-			log.Printf("View error: %v", e)
-		}
-	}()
+	go logErrors("zip", cherr)
 
 	w.Header().Set("Content-Type", "application/zip")
 	w.WriteHeader(200)

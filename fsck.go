@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-
-	cb "github.com/couchbaselabs/go-couchbase"
 )
 
 // Take a stream of namedFiles and clump them into batches of at most
@@ -38,7 +36,7 @@ func dofsck(w http.ResponseWriter, req *http.Request,
 	quit := make(chan bool)
 	defer close(quit)
 	ch := make(chan *namedFile)
-	cherr := make(chan cb.ViewError)
+	cherr := make(chan error)
 
 	go pathGenerator(path, ch, cherr, quit)
 
