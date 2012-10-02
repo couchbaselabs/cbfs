@@ -35,20 +35,22 @@ function updateBubbles(bubble, vis, d) {
     var data = bubble.nodes({children: children})
         .filter(function(d) { return !d.children; });
 
+    var dKey = function(d) { return d.node; };
+
     var node = vis.selectAll("g.node")
-        .data(data)
+        .data(data, dKey)
       .enter().append("g")
         .attr("class", "node")
         .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
 
     vis.selectAll("g.node")
-        .data(data)
+        .data(data, dKey)
       .transition()
         .duration(1000)
         .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
 
     vis.selectAll("g.node")
-        .data(data)
+        .data(data, dKey)
       .exit().remove();
 
     node.append("title")
@@ -64,13 +66,13 @@ function updateBubbles(bubble, vis, d) {
         .text(function(d) { return d.node.substring(0, d.r / 3); });
 
     vis.selectAll("g.node text")
-        .data(data)
+        .data(data, dKey)
         .text(function(d) {
             return d.node + " " + prettySize(d.value) + "/" + prettySize(d.avail);
         });
 
     vis.selectAll("g.node circle")
-        .data(data)
+        .data(data, dKey)
       .transition()
         .duration(1000)
         .style("fill", function(d) {
@@ -79,7 +81,7 @@ function updateBubbles(bubble, vis, d) {
         .attr("r", function(d) { return d.r; });
 
     vis.selectAll("g.node title")
-        .data(data)
+        .data(data, dKey)
         .text(function(d) {
             return "Last heartbeat from " + d.node + " " + d.hbs + " ago";
         });
@@ -131,8 +133,10 @@ function drawRepcounts(d) {
 
     var repChart = d3.select("#repcounts svg");
 
+    var dKey = function(d, i) { return names[i]; };
+
     repChart.selectAll("rect")
-        .data(vals)
+        .data(vals, dKey)
       .enter().append("rect")
         .attr("y", function(d, i) { return i * bh; })
         .attr("width", x)
@@ -140,11 +144,11 @@ function drawRepcounts(d) {
         .attr("height", bh);
 
     repChart.selectAll("rect")
-        .data(vals)
+        .data(vals, dKey)
       .exit().remove();
 
     repChart.selectAll("rect")
-        .data(vals)
+        .data(vals, dKey)
         .attr("class", function(d, i) {
             return parseInt(names[i]) < 2 ? "under" : null;
         })
@@ -153,15 +157,15 @@ function drawRepcounts(d) {
         .attr("x", 0);
 
     repChart.selectAll("text")
-        .data(vals)
+        .data(vals, dKey)
       .enter().append("text");
 
     repChart.selectAll("text")
-        .data(vals)
+        .data(vals, dKey)
       .exit().remove();
 
     repChart.selectAll("text")
-        .data(vals)
+        .data(vals, dKey)
         .attr("x", 10)
         .attr("y", function(d, i) { return bh * (1 + i);})
         .attr("dx", -3)
