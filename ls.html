@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+    <title>D3.js</title>
+    <script type="text/javascript" src="d3.v2.js"></script>
+    <link type="text/css" rel="stylesheet" href="style.css"/>
+  </head>
+  <body>
+    <div id="body">
+      <div id="header">
+        <h1>HOWTO:  See What's There</h1>
+
+        <pre>
+% cbfsclient http://mycbfscluster:8484/ ls -l
+d     41GB  bak      (12,104 descendants)
+d    1.3MB  browser  (81 descendants)
+d     17MB  dist     (15 descendants)
+d    2.5GB  dropbox  (1,171 descendants)
+d    212GB  dustin   (55,984 descendants)
+d    2.7GB  git      (2,959 descendants)
+d    362MB  go       (6,628 descendants)
+d    220KB  monitor  (5 descendants)
+d    249MB  pkg      (220 descendants)
+d    1.6GB  prague   (90,327 descendants)
+d    2.7GB  web      (17,606 descendants)
+----------------------------------------
+Tot: 263GB    187,100 files
+0.010u 0.003s 0:00.16 6.2%	0+0k 0+0io 0pf+0w
+        </pre>
+      </div>
+<p class="footnote">
+  (yes, it took under 200ms to tell me the size of everything)
+</p>
+    </div>
+  </body>
+</html>
