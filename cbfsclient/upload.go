@@ -37,6 +37,11 @@ var uploadRevs = uploadFlags.Int("revs", 0,
 	"Number of old revisions to keep (-1 == all)")
 var uploadRevsSet = false
 
+var quotingReplacer = strings.NewReplacer("%", "%25",
+	"?", "%3f",
+	" ", "%20",
+	"#", "%23")
+
 type uploadOpType uint8
 
 const (
@@ -307,8 +312,7 @@ func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
 		return err
 	}
 
-	r := strings.NewReplacer("%", "%25", "?", "%3f", " ", "%20")
-	dest = r.Replace(dest)
+	dest = quotingReplacer.Replace(dest)
 
 	retries := 3
 	serverListing, err := listOrEmpty(dest)
@@ -346,6 +350,9 @@ func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
 			remoteNames[n] = true
 		}
 	}
+
+	// Keeping it short
+	r := quotingReplacer
 
 	missingUpstream := []string{}
 	for n, fi := range localNames {

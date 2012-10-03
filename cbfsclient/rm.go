@@ -26,13 +26,13 @@ func rmDashR(baseUrl string) {
 		log.Fatalf("Error listing files: %v", err)
 	}
 	for fn := range listing.Files {
-		rmCh <- baseUrl + "/" + fn
+		rmCh <- baseUrl + "/" + quotingReplacer.Replace(fn)
 	}
 	for dn := range listing.Dirs {
 		if *rmVerbose {
 			log.Printf("Recursing into %v/%v", baseUrl, dn)
 		}
-		rmDashR(baseUrl + "/" + dn)
+		rmDashR(baseUrl + "/" + quotingReplacer.Replace(dn))
 	}
 }
 
