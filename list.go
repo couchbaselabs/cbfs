@@ -12,24 +12,35 @@ type fileListing struct {
 	Path  string                 `json:"path"`
 }
 
+func toStringJoin(in []interface{}, sep string) string {
+	s := []string{}
+	for _, a := range in {
+		s = append(s, a.(string))
+	}
+	return strings.Join(s, sep)
+}
+
 func listFiles(path string, includeMeta bool,
 	depth int) (fileListing, error) {
 
 	viewRes := struct {
 		Rows []struct {
-			Key   []string
+			Key   []interface{}
 			Value map[string]interface{}
 		}
 	}{}
 
 	// use the requested path to build our view query parameters
-	startKey := []string{}
+	startKey := []interface{}{}
 	if path != "" {
-		startKey = strings.Split(path, "/")
+		for _, k := range strings.Split(path, "/") {
+			startKey = append(startKey, k)
+		}
 	}
-	endKey := make([]string, len(startKey)+1, len(startKey)+1)
+	endKey := make([]interface{}, len(startKey)+1, len(startKey)+1)
 	copy(endKey, startKey)
-	endKey[len(startKey)] = "ZZZZZZ" // FIXME use {} instead
+	endMarker := json.RawMessage([]byte{'{', '}'})
+	endKey[len(startKey)] = &endMarker
 	groupLevel := len(startKey) + depth
 
 	// query the view
@@ -46,7 +57,7 @@ func listFiles(path string, includeMeta bool,
 	// use the view result to build a list of keys
 	keys := make([]string, len(viewRes.Rows), len(viewRes.Rows))
 	for i, r := range viewRes.Rows {
-		keys[i] = strings.Join(r.Key, "/")
+		keys[i] = toStringJoin(r.Key, "/")
 	}
 
 	// do a multi-get on the all the keys returned
@@ -56,12 +67,12 @@ func listFiles(path string, includeMeta bool,
 	files := map[string]interface{}{}
 	dirs := map[string]interface{}{}
 	for _, r := range viewRes.Rows {
-		key := strings.Join(r.Key, "/")
+		key := toStringJoin(r.Key, "/")
 		subkey := r.Key
 		if len(r.Key) > depth {
 			subkey = r.Key[len(r.Key)-depth:]
 		}
-		name := strings.Join(subkey, "/")
+		name := toStringJoin(subkey, "/")
 		res, ok := bulkResult[key]
 		if ok == true {
 			// this means we have a file
