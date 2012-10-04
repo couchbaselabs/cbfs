@@ -346,6 +346,16 @@ func (g *geezyWriter) WriteHeader(status int) {
 	g.orig.WriteHeader(status)
 }
 
+func shouldGzip(f fileMeta) bool {
+	ct := f.Headers.Get("Content-Type")
+	switch {
+	case strings.HasPrefix(ct, "text/"),
+		strings.HasPrefix(ct, "application/json"):
+		return true
+	}
+	return false
+}
+
 func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 	path := resolvePath(req)
 	got := fileMeta{}
@@ -393,7 +403,7 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	if canGzip(req) {
+	if canGzip(req) && shouldGzip(got) {
 		w.Header().Set("Content-Encoding", "gzip")
 		gz := gzip.NewWriter(w)
 		defer gz.Close()
