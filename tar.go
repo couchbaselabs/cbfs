@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"compress/gzip"
 	"log"
 	"net/http"
 )
@@ -18,6 +19,14 @@ func doTarDocs(w http.ResponseWriter, req *http.Request,
 	go logErrors("tar", cherr)
 
 	w.Header().Set("Content-Type", "application/x-tar")
+
+	if canGzip(req) {
+		w.Header().Set("Content-Encoding", "gzip")
+		gz := gzip.NewWriter(w)
+		defer gz.Close()
+		w = &geezyWriter{w, gz}
+	}
+
 	w.WriteHeader(200)
 
 	tw := tar.NewWriter(w)
