@@ -115,6 +115,9 @@ func (d dnsService) listHosts(w dns.ResponseWriter, r *dns.Msg) {
 	}
 
 	for _, n := range nl {
+		if time.Since(n.Time) > (3 * globalConfig.HeartbeatFreq) {
+			continue
+		}
 		rr := &dns.RR_A{
 			Hdr: dns.RR_Header{
 				Name:   *dnsZone,
