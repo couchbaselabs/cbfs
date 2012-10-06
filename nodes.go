@@ -51,6 +51,10 @@ func (a StorageNode) fetchURL(h string) string {
 		a.Address(), h)
 }
 
+func (n StorageNode) IsDead() bool {
+	return time.Now().Sub(n.Time) > globalConfig.StaleNodeLimit
+}
+
 func (n StorageNode) IsLocal() bool {
 	return n.name == serverId
 }

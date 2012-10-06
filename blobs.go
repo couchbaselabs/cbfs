@@ -396,6 +396,11 @@ func internodeTaskWorker() {
 			if err := c.node.deleteBlob(c.oid); err != nil {
 				log.Printf("Error deleting %v from %v: %v",
 					c.oid, c.node, err)
+				if c.node.IsDead() {
+					log.Printf("Node is dead, cleaning")
+					removeBlobOwnershipRecord(c.oid,
+						c.node.name)
+				}
 			}
 		case acquireObjectCmd:
 			if err := c.node.acquireBlob(c.oid, c.prevNode); err != nil {
