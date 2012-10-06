@@ -135,6 +135,9 @@ func (d dnsService) listHosts(w dns.ResponseWriter, r *dns.Msg) {
 }
 
 func (d dnsService) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
+	if *verbose {
+		log.Printf("Incoming DNS Query: %v", r)
+	}
 	q := dns.Question{}
 
 	if len(r.Question) == 1 &&
