@@ -164,6 +164,8 @@ func main() {
 	}
 	go reloadConfig()
 
+	go dnsServices()
+
 	go cleanupTmpFilesLoop()
 
 	initTaskQueueWorkers()

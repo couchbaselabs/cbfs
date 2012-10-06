@@ -225,6 +225,12 @@ func findAllNodes() (NodeList, error) {
 	return rv, nil
 }
 
+func findNode(name string) (StorageNode, error) {
+	sn := StorageNode{}
+	err := couchbase.Get("/"+name, &sn)
+	return sn, err
+}
+
 func updateNodeSizes() error {
 	viewRes := struct {
 		Rows []struct {
