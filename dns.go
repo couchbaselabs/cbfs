@@ -57,8 +57,20 @@ func (d dnsService) srvList(w dns.ResponseWriter, r *dns.Msg) {
 			Port:     uint16(port),
 			Target:   n.name + "." + *dnsZone,
 		}
-
 		msg.Answer = append(msg.Answer, rr)
+
+		arr := &dns.RR_A{
+			Hdr: dns.RR_Header{
+				Name:   n.name + "." + *dnsZone,
+				Rrtype: dns.TypeA,
+				Class:  dns.ClassINET,
+				Ttl:    60,
+			},
+			A: net.ParseIP(n.Addr),
+		}
+
+		msg.Extra = append(msg.Extra, arr)
+
 		if len(msg.Answer) > maxDnsResponses {
 			break
 		}
