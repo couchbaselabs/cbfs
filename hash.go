@@ -95,7 +95,6 @@ func (h *hashRecord) Finish() (string, error) {
 
 	h.tmpf = nil
 
-	storedObject(hs, h.written)
 	return hs, nil
 }
 
