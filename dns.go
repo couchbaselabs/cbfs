@@ -154,6 +154,10 @@ func (d dnsService) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		} else {
 			d.hostLookup(w, r)
 		}
+	case dns.TypeAAAA:
+		msg := &dns.Msg{}
+		msg.SetRcode(r, dns.RcodeNameError)
+		w.Write(msg)
 	default:
 		msg := &dns.Msg{}
 		msg.SetRcode(r, dns.RcodeNotImplemented)
