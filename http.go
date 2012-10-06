@@ -58,8 +58,7 @@ func altStoreFile(r io.Reader, length uint64) (io.Reader, <-chan storInfo) {
 
 			rurl := "http://" +
 				nodes[0].Address() + blobPrefix
-			log.Printf("Piping secondary storage to %v",
-				nodes[0].Address())
+			log.Printf("Piping secondary storage to %v", nodes[0])
 
 			preq, err := http.NewRequest("POST", rurl, r1)
 			if err != nil {
