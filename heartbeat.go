@@ -58,6 +58,13 @@ func updateSpaceUsed() error {
 }
 
 func updateSpaceUsedLoop() {
+	// Give it time to get its initial registry in and settle down
+	// some.  7s may be too much, or too little.  It doesn't much
+	// matter.  We know "right now" is always too soon, so just
+	// let the loop push out.  7 is arbitrary.  I could also
+	// attach it with a sync.Once to occur after the first
+	// heartbeat.  I would do that if accuracy mattered.
+	time.Sleep(time.Second * 7)
 	for {
 		err := updateSpaceUsed()
 		if err == nil {
