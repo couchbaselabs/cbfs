@@ -35,6 +35,8 @@ var uploadMeta = uploadFlags.Bool("meta", false,
 var uploadWorkers = uploadFlags.Int("workers", 4, "Number of upload workers")
 var uploadRevs = uploadFlags.Int("revs", 0,
 	"Number of old revisions to keep (-1 == all)")
+var uploadIgnore = uploadFlags.String("ignore", "",
+	"Path to ignore file")
 var uploadRevsSet = false
 
 var quotingReplacer = strings.NewReplacer("%", "%25",
@@ -336,7 +338,14 @@ func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
 					filepath.Join(path, c.Name()), c.Mode())
 			}
 		default:
-			localNames[c.Name()] = c
+			fullPath := filepath.Join(path, c.Name())
+			if !isIgnored(fullPath) {
+				localNames[c.Name()] = c
+			} else {
+				if *uploadVerbose {
+					log.Printf("Ignoring %v", fullPath)
+				}
+			}
 		}
 	}
 
@@ -423,6 +432,13 @@ func uploadCommand(u string, args []string) {
 
 	if uploadFlags.NArg() < 2 {
 		log.Fatalf("src and dest required")
+	}
+
+	if *uploadIgnore != "" {
+		err := loadIgnorePatternsFromFile(*uploadIgnore)
+		if err != nil {
+			log.Fatalf("Error loading ignores: %v", err)
+		}
 	}
 
 	du := relativeUrl(u, uploadFlags.Arg(1))
