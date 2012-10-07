@@ -411,6 +411,11 @@ func syncUp(src, u string, ch chan<- uploadReq) {
 	err := filepath.Walk(src,
 		func(path string, info os.FileInfo, err error) error {
 			if err == nil && info.IsDir() {
+				if isIgnored(path) {
+					log.Printf("Skipping directory %v",
+						path)
+					return filepath.SkipDir
+				}
 				shortPath := path[len(src):]
 				err = syncPath(path, u+shortPath, info, ch)
 			}
