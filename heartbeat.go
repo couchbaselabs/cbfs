@@ -17,8 +17,11 @@ var spaceUsed int64
 
 func availableSpace() uint64 {
 	freeSpace, err := filesystemFree()
-	if err != nil && err != noFSFree {
-		log.Printf("Error getting filesystem info: %v", err)
+	if err != nil {
+		if err != noFSFree {
+			log.Printf("Error getting filesystem info: %v", err)
+		}
+		freeSpace = maxStorage
 	}
 
 	if maxStorage > 0 {
