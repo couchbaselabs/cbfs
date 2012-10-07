@@ -212,6 +212,7 @@ func uploadFile(src, dest, localHash string) error {
 // This is very similar to rm's version, but uses different channel
 // signaling.
 func uploadRmDashR(baseUrl string, ch chan uploadReq) ([]string, error) {
+	r := quotingReplacer
 	for strings.HasSuffix(baseUrl, "/") {
 		baseUrl = baseUrl[:len(baseUrl)-1]
 	}
@@ -221,14 +222,14 @@ func uploadRmDashR(baseUrl string, ch chan uploadReq) ([]string, error) {
 		return []string{}, err
 	}
 	for fn := range listing.Files {
-		err = rmFile(baseUrl + "/" + fn)
+		err = rmFile(baseUrl + "/" + r.Replace(fn))
 		if err != nil {
 			return []string{}, err
 		}
 	}
 	children := make([]string, 0, len(listing.Dirs))
 	for dn := range listing.Dirs {
-		children = append(children, baseUrl+"/"+dn)
+		children = append(children, baseUrl+"/"+r.Replace(dn))
 	}
 	return children, nil
 }

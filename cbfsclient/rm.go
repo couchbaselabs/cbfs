@@ -51,7 +51,7 @@ func rmFile(u string) error {
 	res.Body.Close()
 	if res.StatusCode != 204 && res.StatusCode != 404 {
 		return fmt.Errorf("Unexpected status deleting %v: %v",
-			u, err)
+			u, res.Status)
 	}
 	return nil
 }
