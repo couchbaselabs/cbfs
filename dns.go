@@ -26,6 +26,13 @@ func (d dnsService) serviceDomain() string {
 	return cbfsSvc + "." + *dnsZone
 }
 
+func (d dnsService) writeLogErr(w dns.ResponseWriter, msg *dns.Msg) {
+	err := w.Write(msg)
+	if err != nil {
+		log.Printf("Error writing response: %v\n%v", err, msg)
+	}
+}
+
 func (d dnsService) srvList(w dns.ResponseWriter, r *dns.Msg) {
 	msg := &dns.Msg{}
 
@@ -77,7 +84,7 @@ func (d dnsService) srvList(w dns.ResponseWriter, r *dns.Msg) {
 	}
 
 	msg.SetReply(r)
-	w.Write(msg)
+	d.writeLogErr(w, msg)
 }
 
 func (d dnsService) hostLookup(w dns.ResponseWriter, r *dns.Msg) {
@@ -102,7 +109,7 @@ func (d dnsService) hostLookup(w dns.ResponseWriter, r *dns.Msg) {
 		msg.SetRcode(r, dns.RcodeNameError)
 	}
 
-	w.Write(msg)
+	d.writeLogErr(w, msg)
 }
 
 func (d dnsService) listHosts(w dns.ResponseWriter, r *dns.Msg) {
@@ -134,7 +141,7 @@ func (d dnsService) listHosts(w dns.ResponseWriter, r *dns.Msg) {
 	}
 
 	msg.SetReply(r)
-	w.Write(msg)
+	d.writeLogErr(w, msg)
 }
 
 func (d dnsService) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
@@ -160,11 +167,11 @@ func (d dnsService) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	case dns.TypeAAAA:
 		msg := &dns.Msg{}
 		msg.SetRcode(r, dns.RcodeNameError)
-		w.Write(msg)
+		d.writeLogErr(w, msg)
 	default:
 		msg := &dns.Msg{}
 		msg.SetRcode(r, dns.RcodeNotImplemented)
-		w.Write(msg)
+		d.writeLogErr(w, msg)
 	}
 }
 
