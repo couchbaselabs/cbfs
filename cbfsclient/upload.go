@@ -251,7 +251,6 @@ func uploadRmDir(baseUrl string) ([]string, error) {
 	for dn := range listing.Dirs {
 		children = append(children, baseUrl+"/"+r.Replace(dn))
 	}
-	log.Printf("Children: %v", children)
 	return children, nil
 }
 
@@ -442,8 +441,10 @@ func syncUp(src, u string, ch chan<- uploadReq) {
 		func(path string, info os.FileInfo, err error) error {
 			if err == nil && info.IsDir() {
 				if isIgnored(path) {
-					log.Printf("Skipping directory %v",
-						path)
+					if *uploadVerbose {
+						log.Printf("Skipping dir %v",
+							path)
+					}
 					return filepath.SkipDir
 				}
 				shortPath := path[len(src):]
