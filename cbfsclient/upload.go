@@ -253,10 +253,10 @@ func uploadRmDashR(d string) error {
 		log.Printf("Removing (recursively) %v", d)
 	}
 
-	todo, err := uploadRmDashRWorker(d)
-	for err == nil {
-		for _, d := range todo {
-			err = uploadRmDashR(d)
+	children, err := uploadRmDir(d)
+	if err == nil && len(children) > 0 {
+		for _, child := range children {
+			err = uploadRmDashR(child)
 		}
 	}
 	return err
