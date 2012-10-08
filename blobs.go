@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"io"
 	"io/ioutil"
@@ -35,7 +36,6 @@ type internodeTask struct {
 	cmd      internodeCommand
 	oid      string
 	prevNode string
-	force    bool
 }
 
 var taskWorkers = flag.Int("taskWorkers", 4,
@@ -196,6 +196,58 @@ func removeBlobOwnershipRecord(h, node string) int {
 	}
 
 	return numOwners
+}
+
+func maybeRemoveBlobOwnership(h string) (rv error) {
+	log.Printf("Conditionally removing %v", h)
+
+	k := "/" + h
+	removedLast := false
+	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
+		_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
+			ownership := BlobOwnership{}
+			removedLast = false
+
+			if len(in) == 0 {
+				return nil, memcached.CASQuit
+			}
+
+			err := json.Unmarshal(in, &ownership)
+			if err == nil {
+				if time.Since(ownership.Nodes[serverId]) < time.Hour {
+					rv = errors.New("too soon")
+					return nil, memcached.CASQuit
+				}
+				delete(ownership.Nodes, serverId)
+			} else {
+				log.Printf("Error unmarhaling blob removal from %s: %v",
+					in, err)
+				rv = err
+				return nil, memcached.CASQuit
+			}
+
+			var newv []byte
+			op := memcached.CASStore
+
+			if len(ownership.Nodes) == 0 {
+				removedLast = true
+				op = memcached.CASDelete
+			} else {
+				newv = mustEncode(&ownership)
+			}
+
+			return newv, op
+		}, 0)
+		return err
+	})
+	if err != nil && err != memcached.CASQuit {
+		log.Printf("Error cleaning %v: %v", h, err)
+	}
+	if removedLast {
+		couchbase.Delete(k + "/r")
+	}
+
+	return
 }
 
 func increaseReplicaCount(oid string, length int64, by int) error {
@@ -374,7 +426,7 @@ func performFetch(oid, prev string) {
 			} else {
 				log.Printf("Forcing post-move blob removal of %v from %v",
 					oid, n)
-				queueForceBlobRemoval(n, oid)
+				queueBlobRemoval(n, oid)
 			}
 		}
 	} else {
@@ -402,7 +454,7 @@ func internodeTaskWorker() {
 	for c := range internodeTaskQueue {
 		switch c.cmd {
 		case removeObjectCmd:
-			if err := c.node.deleteBlob(c.oid, c.force); err != nil {
+			if err := c.node.deleteBlob(c.oid); err != nil {
 				log.Printf("Error deleting %v from %v: %v",
 					c.oid, c.node, err)
 				if c.node.IsDead() {
@@ -435,15 +487,6 @@ func queueBlobRemoval(n StorageNode, oid string) {
 		node: n,
 		cmd:  removeObjectCmd,
 		oid:  oid,
-	}
-}
-
-func queueForceBlobRemoval(n StorageNode, oid string) {
-	internodeTaskQueue <- internodeTask{
-		node:  n,
-		cmd:   removeObjectCmd,
-		oid:   oid,
-		force: true,
 	}
 }
 

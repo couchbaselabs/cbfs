@@ -29,12 +29,16 @@ func openBlob(hstr string) (ReadSeekCloser, error) {
 }
 
 func removeObject(h string) error {
-	fn := hashFilename(*root, h)
-	err := os.Remove(fn)
+	err := maybeRemoveBlobOwnership(h)
 	if err == nil {
-		removeBlobOwnershipRecord(h, serverId)
+		err = os.Remove(hashFilename(*root, h))
 	}
 	return err
+}
+
+func forceRemoveObject(h string) error {
+	removeBlobOwnershipRecord(h, serverId)
+	return os.Remove(hashFilename(*root, h))
 }
 
 func verifyObjectHash(h string) error {
@@ -52,7 +56,7 @@ func verifyObjectHash(h string) error {
 
 	hstring := hex.EncodeToString(sh.Sum([]byte{}))
 	if h != hstring {
-		err = removeObject(h)
+		err = forceRemoveObject(h)
 		if err != nil {
 			log.Printf("Error removing corrupt file %v: %v", h, err)
 		}

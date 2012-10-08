@@ -417,7 +417,7 @@ func moveSomeOffOf(n StorageNode, nl NodeList) {
 		} else {
 			// There are enough, just trim it.
 			log.Printf("Just trimming %v from %v", oid, n)
-			queueForceBlobRemoval(n, oid)
+			queueBlobRemoval(n, oid)
 		}
 	}
 

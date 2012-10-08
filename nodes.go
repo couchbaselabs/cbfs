@@ -112,15 +112,11 @@ func (n StorageNode) acquireBlob(oid, prevNode string) error {
 }
 
 // Ask a node to delete a blob.
-func (n StorageNode) deleteBlob(oid string, force bool) error {
+func (n StorageNode) deleteBlob(oid string) error {
 	if n.IsLocal() {
 		return removeObject(oid)
 	} else {
-		opts := ""
-		if force {
-			opts = "?force=true"
-		}
-		req, err := http.NewRequest("DELETE", n.BlobURL(oid)+opts, nil)
+		req, err := http.NewRequest("DELETE", n.BlobURL(oid), nil)
 		if err != nil {
 			return err
 		}

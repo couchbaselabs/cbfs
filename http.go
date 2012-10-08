@@ -632,19 +632,7 @@ func minusPrefix(s, prefix string) string {
 func doDeleteOID(w http.ResponseWriter, req *http.Request) {
 	oid := minusPrefix(req.URL.Path, blobPrefix)
 
-	forced := req.FormValue("force") == "true"
-
-	ob, err := getBlobOwnership(oid)
-	if err == nil {
-		n, t := ob.mostRecent()
-		if time.Since(t) < time.Hour && !forced {
-			log.Printf("%v was referenced within the last hour by %v, ignoring",
-				oid, n)
-			w.WriteHeader(400)
-			return
-		}
-	}
-	err = removeObject(oid)
+	err := removeObject(oid)
 	if err == nil {
 		w.WriteHeader(204)
 	} else {
