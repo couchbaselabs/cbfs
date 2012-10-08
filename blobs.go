@@ -218,6 +218,10 @@ func maybeRemoveBlobOwnership(h string) (rv error) {
 					rv = errors.New("too soon")
 					return nil, memcached.CASQuit
 				}
+				if len(ownership.Nodes)-1 < globalConfig.MinReplicas {
+					rv = errors.New("Insufficient replicas")
+					return nil, memcached.CASQuit
+				}
 				delete(ownership.Nodes, serverId)
 			} else {
 				log.Printf("Error unmarhaling blob removal from %s: %v",
