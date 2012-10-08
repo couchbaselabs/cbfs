@@ -225,7 +225,7 @@ func uploadFile(src, dest, localHash string) error {
 
 // This is very similar to rm's version, but uses different channel
 // signaling.
-func uploadRmDashR(baseUrl string, ch chan uploadReq) ([]string, error) {
+func uploadRmDashRWorker(baseUrl string) ([]string, error) {
 	r := quotingReplacer
 	for strings.HasSuffix(baseUrl, "/") {
 		baseUrl = baseUrl[:len(baseUrl)-1]
@@ -246,6 +246,20 @@ func uploadRmDashR(baseUrl string, ch chan uploadReq) ([]string, error) {
 		children = append(children, baseUrl+"/"+r.Replace(dn))
 	}
 	return children, nil
+}
+
+func uploadRmDashR(d string) error {
+	if *uploadVerbose {
+		log.Printf("Removing (recursively) %v", d)
+	}
+
+	todo, err := uploadRmDashRWorker(d)
+	for err == nil {
+		for _, d := range todo {
+			err = uploadRmDashR(d)
+		}
+	}
+	return err
 }
 
 func localHash(fn string) string {
@@ -291,10 +305,7 @@ func uploadWorker(ch chan uploadReq) {
 				}
 				err = rmFile(req.dest)
 			case removeRecurseOp:
-				todo := []string{req.dest}
-				for err == nil && len(todo) > 0 {
-					todo, err = uploadRmDashR(req.dest, ch)
-				}
+				err = uploadRmDashR(req.dest)
 			default:
 				log.Fatalf("Unhandled case")
 			}
