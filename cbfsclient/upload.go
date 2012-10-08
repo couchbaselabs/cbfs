@@ -52,6 +52,18 @@ const (
 	removeRecurseOp
 )
 
+func (u uploadOpType) String() string {
+	switch u {
+	case uploadFileOp:
+		return "upload file"
+	case removeFileOp:
+		return "remove file"
+	case removeRecurseOp:
+		return "remove (recursive) file"
+	}
+	panic("unhandled op type")
+}
+
 type uploadReq struct {
 	src        string
 	dest       string
@@ -289,12 +301,12 @@ func uploadWorker(ch chan uploadReq) {
 			if err != nil {
 				if retries < 3 {
 					retries++
-					log.Printf("Error uploading file: %v... retrying",
-						err)
+					log.Printf("Error in %v: %v... retrying",
+						req.op, err)
 					time.Sleep(time.Duration(retries) * time.Second)
 				} else {
-					log.Printf("Error uploading file %v: %v",
-						req.src, err)
+					log.Printf("Error in %v %v: %v",
+						req.op, req.src, err)
 					done = true
 				}
 			} else {
