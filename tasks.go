@@ -362,7 +362,8 @@ func moveSomeOffOf(n StorageNode, nl NodeList) {
 			Id  string
 			Doc struct {
 				Json struct {
-					Nodes map[string]string
+					Nodes  map[string]string
+					Length int64
 				}
 			}
 		}
@@ -382,10 +383,18 @@ func moveSomeOffOf(n StorageNode, nl NodeList) {
 		return
 	}
 
+	removed := int64(0)
 	log.Printf("Moving %v blobs from %v", len(viewRes.Rows), n)
 	for _, row := range viewRes.Rows {
 		oid := row.Id[1:]
 		candidates := NodeList{}
+
+		removed += row.Doc.Json.Length
+
+		if removed > globalConfig.TrimFullNodesSpace {
+			log.Printf("Cleaned up enough from %v, cutting out", n)
+			return
+		}
 
 		if len(row.Doc.Json.Nodes)-1 < globalConfig.MinReplicas {
 			for _, n := range nl {
