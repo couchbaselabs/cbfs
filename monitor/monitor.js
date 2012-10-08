@@ -175,6 +175,9 @@ function drawRepcounts(d) {
         .attr("dx", -3)
         .attr("dy", "-5")
         .attr("text-anchor", "start")
+        .attr("class", function(d, i) {
+            return (parseInt(names[i]) < 2 && x(d,i) < 10) ? "under" : null;
+        })
         .text(textify);
 }
 
