@@ -1,6 +1,8 @@
 var repCountURL = '/.cbfs/viewproxy/cbfs/_design/cbfs/_view/repcounts?group_level=1';
 var refreshInterval = 2000;
 
+var cbfsConfig = {};
+
 function prettySize(s) {
     if (s < 10) {
         return s + "B";
@@ -154,7 +156,7 @@ function drawRepcounts(d) {
     repChart.selectAll("rect")
         .data(vals, dKey)
         .attr("class", function(d, i) {
-            return parseInt(names[i]) < 2 ? "under" : null;
+            return parseInt(names[i]) < (cbfsConfig.minrepl || 2) ? "under" : null;
         })
       .transition()
         .attr("width", x)
@@ -176,9 +178,17 @@ function drawRepcounts(d) {
         .attr("dy", "-5")
         .attr("text-anchor", "start")
         .attr("class", function(d, i) {
-            return (parseInt(names[i]) < 2 && x(d,i) < 10) ? "under" : null;
+            return (parseInt(names[i]) < (cbfsConfig.minrepl || 2) && x(d,i) < 10) ? "under" : null;
         })
         .text(textify);
+}
+
+function updateCBFSConfig() {
+    d3.json("/.cbfs/config/", function(d) {
+        if (d) {
+            cbfsConfig = d;
+        }
+    });
 }
 
 function monitorInit() {
@@ -187,6 +197,11 @@ function monitorInit() {
     var repChart = d3.select("#repcounts").append("svg")
         .attr("class", "chart")
         .attr("width", 200);
+
+    updateCBFSConfig();
+    setInterval(function() {
+        updateCBFSConfig();
+    }, 60000);
 
     d3.json("/.cbfs/nodes/", drawBubbles);
     setInterval(function() {
