@@ -35,6 +35,7 @@ type internodeTask struct {
 	cmd      internodeCommand
 	oid      string
 	prevNode string
+	force    bool
 }
 
 var taskWorkers = flag.Int("taskWorkers", 4,
@@ -364,9 +365,17 @@ func performFetch(oid, prev string) {
 
 	if err == nil && c.statusCode == 200 {
 		if prev != "" {
-			removeBlobOwnershipRecord(oid, prev)
 			log.Printf("Removing ownership of %v from %v after takeover",
 				oid, prev)
+			n, err := findNode(prev)
+			if err != nil {
+				log.Printf("Error finding old node: %v", err)
+				removeBlobOwnershipRecord(oid, prev)
+			} else {
+				log.Printf("Forcing post-move blob removal of %v from %v",
+					oid, n)
+				queueForceBlobRemoval(n, oid)
+			}
 		}
 	} else {
 		log.Printf("Error grabbing remote object, got %v/%v",
@@ -393,7 +402,7 @@ func internodeTaskWorker() {
 	for c := range internodeTaskQueue {
 		switch c.cmd {
 		case removeObjectCmd:
-			if err := c.node.deleteBlob(c.oid); err != nil {
+			if err := c.node.deleteBlob(c.oid, c.force); err != nil {
 				log.Printf("Error deleting %v from %v: %v",
 					c.oid, c.node, err)
 				if c.node.IsDead() {
@@ -426,6 +435,15 @@ func queueBlobRemoval(n StorageNode, oid string) {
 		node: n,
 		cmd:  removeObjectCmd,
 		oid:  oid,
+	}
+}
+
+func queueForceBlobRemoval(n StorageNode, oid string) {
+	internodeTaskQueue <- internodeTask{
+		node:  n,
+		cmd:   removeObjectCmd,
+		oid:   oid,
+		force: true,
 	}
 }
 
