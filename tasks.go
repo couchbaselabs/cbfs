@@ -420,7 +420,7 @@ func trimFullNodes() error {
 		return err
 	}
 
-	toRelieve := nl.withNoMoreThan(0)
+	toRelieve := nl.withNoMoreThan(uint64(globalConfig.TrimFullNodesSpace))
 	if len(toRelieve) == 0 {
 		log.Printf("No nodes need space freed")
 		return nil
