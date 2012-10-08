@@ -47,6 +47,12 @@ type CBFSConfig struct {
 	DefaultVersionCount int `json:"defaultVersionCount"`
 	// How often to update the node sizes
 	UpdateNodeSizesFreq time.Duration `json:"updateSizesFreq"`
+	// How frequently to free space from full nodes
+	TrimFullNodesFreq time.Duration `json:"trimFullFreq"`
+	// How many items to move from full nodes.
+	TrimFullNodesCount int `json:"trimFullCount"`
+	// How much space to keep free on nodes.
+	TrimFullNodesSpace int64 `json:"trimFullSize"`
 }
 
 // Get the default configuration
@@ -68,6 +74,9 @@ func DefaultConfig() CBFSConfig {
 		ReplicationCheckLimit: 10000,
 		DefaultVersionCount:   0,
 		UpdateNodeSizesFreq:   time.Second * 5,
+		TrimFullNodesFreq:     time.Hour,
+		TrimFullNodesCount:    1000,
+		TrimFullNodesSpace:    1 * 1024 * 1024 * 1024,
 	}
 }
 
@@ -144,7 +153,7 @@ func (conf *CBFSConfig) SetParameter(name string, inval interface{}) error {
 		case sf.Type.Kind() == reflect.String:
 			val.Field(i).SetString(inval.(string))
 			return nil
-		case sf.Type.Kind() == reflect.Int:
+		case sf.Type.Kind() == reflect.Int, sf.Type.Kind() == reflect.Int64:
 			v := int64(0)
 			switch i := inval.(type) {
 			case string:

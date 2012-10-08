@@ -318,6 +318,17 @@ func (nl NodeList) withAtLeast(free uint64) NodeList {
 	return rv
 }
 
+// Find nodes with no more than this much space free.
+func (nl NodeList) withNoMoreThan(free uint64) NodeList {
+	rv := NodeList{}
+	for _, node := range nl {
+		if node.Free <= free {
+			rv = append(rv, node)
+		}
+	}
+	return rv
+}
+
 func (nl NodeList) candidatesFor(oid string, exclude NodeList) NodeList {
 	// Find the owners of this blob
 	ownership := BlobOwnership{}

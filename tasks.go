@@ -61,6 +61,12 @@ func init() {
 			},
 			updateNodeSizes,
 		},
+		"trimFullNodes": &PeriodicJob{
+			func() time.Duration {
+				return globalConfig.TrimFullNodesFreq
+			},
+			trimFullNodes,
+		},
 	}
 }
 
@@ -346,6 +352,92 @@ func runMarkedTask(name, excl string, f func() error) error {
 func garbageCollectBlobs() error {
 	return runMarkedTask("garbageCollectBlobs", "ensureMinReplCount",
 		garbageCollectBlobsTask)
+}
+
+func moveSomeOffOf(n StorageNode, nl NodeList) {
+	log.Printf("Freeing up some space from %v", n)
+
+	viewRes := struct {
+		Rows []struct {
+			Id  string
+			Doc struct {
+				Json struct {
+					Nodes map[string]string
+				}
+			}
+		}
+		Errors []cb.ViewError
+	}{}
+
+	err := couchbase.ViewCustom("cbfs", "node_blobs",
+		map[string]interface{}{
+			"key":          n.name,
+			"limit":        globalConfig.TrimFullNodesCount,
+			"reduce":       false,
+			"include_docs": true,
+			"stale":        false,
+		}, &viewRes)
+	if err != nil {
+		log.Printf("Error executing node_blobs view: %v", err)
+		return
+	}
+
+	log.Printf("Moving %v blobs from %v", len(viewRes.Rows), n)
+	for _, row := range viewRes.Rows {
+		oid := row.Id[1:]
+		candidates := NodeList{}
+
+		if len(row.Doc.Json.Nodes)-1 < globalConfig.MinReplicas {
+			for _, n := range nl {
+				if _, ok := row.Doc.Json.Nodes[n.name]; !ok {
+					candidates = append(candidates, n)
+				}
+			}
+
+			if len(candidates) == 0 {
+				log.Printf("No candidates available to move %v",
+					oid)
+				continue
+			}
+
+			newnode := candidates[rand.Intn(len(candidates))]
+
+			log.Printf("Moving replica of %v from %v to %v",
+				oid, n, newnode)
+			queueBlobAcquire(newnode, oid, n.name)
+		} else {
+			// There are enough, just trim it.
+			log.Printf("Just trimming %v from %v", oid, n)
+			queueBlobRemoval(n, oid)
+		}
+	}
+
+}
+
+func trimFullNodes() error {
+	nl, err := findAllNodes()
+	if err != nil {
+		return err
+	}
+
+	toRelieve := nl.withNoMoreThan(0)
+	if len(toRelieve) == 0 {
+		log.Printf("No nodes need space freed")
+		return nil
+	}
+
+	hasSpace := nl.withAtLeast(uint64(globalConfig.TrimFullNodesSpace))
+
+	if len(hasSpace) == 0 {
+		log.Printf("No needs have sufficient free space")
+		return nil
+	}
+
+	for _, n := range toRelieve {
+		moveSomeOffOf(n, hasSpace)
+	}
+
+	return nil
 }
 
 func okToClean(oid string) bool {
