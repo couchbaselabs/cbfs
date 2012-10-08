@@ -225,7 +225,10 @@ func uploadFile(src, dest, localHash string) error {
 
 // This is very similar to rm's version, but uses different channel
 // signaling.
-func uploadRmDashRWorker(baseUrl string) ([]string, error) {
+func uploadRmDir(baseUrl string) ([]string, error) {
+	if *uploadVerbose {
+		log.Printf("Removing directory: %v", baseUrl)
+	}
 	r := quotingReplacer
 	for strings.HasSuffix(baseUrl, "/") {
 		baseUrl = baseUrl[:len(baseUrl)-1]
@@ -236,6 +239,9 @@ func uploadRmDashRWorker(baseUrl string) ([]string, error) {
 		return []string{}, err
 	}
 	for fn := range listing.Files {
+		if *uploadVerbose {
+			log.Printf("Removing file %v/%v", baseUrl, fn)
+		}
 		err = rmFile(baseUrl + "/" + r.Replace(fn))
 		if err != nil {
 			return []string{}, err
@@ -245,6 +251,7 @@ func uploadRmDashRWorker(baseUrl string) ([]string, error) {
 	for dn := range listing.Dirs {
 		children = append(children, baseUrl+"/"+r.Replace(dn))
 	}
+	log.Printf("Children: %v", children)
 	return children, nil
 }
 
