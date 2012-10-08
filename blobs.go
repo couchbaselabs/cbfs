@@ -267,7 +267,8 @@ func increaseReplicaCount(oid string, length int64, by int) error {
 }
 
 func ensureMinimumReplicaCount() error {
-	return runMarkedTask("ensureMinReplCount", "garbageCollectBlobs",
+	return runMarkedTask("ensureMinReplCount",
+		[]string{"garbageCollectBlobs", "trimFullNodes"},
 		ensureMinimumReplicaCountTask)
 }
 

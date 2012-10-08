@@ -281,6 +281,15 @@ func taskRunning(taskName string) bool {
 	return err == nil
 }
 
+func anyTaskRunning(taskNames []string) bool {
+	for _, task := range taskNames {
+		if taskRunning(task) {
+			return true
+		}
+	}
+	return false
+}
+
 func relockTask(taskName string) bool {
 	k := "/@" + taskName
 	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
@@ -326,8 +335,8 @@ func relockTask(taskName string) bool {
 	return err == nil
 }
 
-func runMarkedTask(name, excl string, f func() error) error {
-	for taskRunning(excl) {
+func runMarkedTask(name string, excl []string, f func() error) error {
+	for anyTaskRunning(excl) {
 		time.Sleep(5 * time.Second)
 	}
 
@@ -350,7 +359,8 @@ func runMarkedTask(name, excl string, f func() error) error {
 }
 
 func garbageCollectBlobs() error {
-	return runMarkedTask("garbageCollectBlobs", "ensureMinReplCount",
+	return runMarkedTask("garbageCollectBlobs",
+		[]string{"ensureMinReplCount", "trimFullNodes"},
 		garbageCollectBlobsTask)
 }
 
@@ -424,6 +434,12 @@ func moveSomeOffOf(n StorageNode, nl NodeList) {
 }
 
 func trimFullNodes() error {
+	return runMarkedTask("trimFullNodes",
+		[]string{"ensureMinReplCount", "garbageCollectBlobs"},
+		trimFullNodesTask)
+}
+
+func trimFullNodesTask() error {
 	nl, err := findAllNodes()
 	if err != nil {
 		return err
