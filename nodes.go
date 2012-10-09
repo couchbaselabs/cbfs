@@ -52,7 +52,12 @@ func (a StorageNode) fetchURL(h string) string {
 }
 
 func (n StorageNode) IsDead() bool {
-	return time.Now().Sub(n.Time) > globalConfig.StaleNodeLimit
+	// Get the freshest data.
+	nn, err := findNode(n.name)
+	if err == nil {
+		return time.Now().Sub(nn.Time) > globalConfig.StaleNodeLimit
+	}
+	return false
 }
 
 func (n StorageNode) IsLocal() bool {
