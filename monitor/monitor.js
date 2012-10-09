@@ -217,13 +217,14 @@ function updateTasks() {
         d3.select("#taskhdr")
             .style("display", d3.entries(json).length > 0 ? 'block' : 'none');
 
-        tlist.selectAll("#li")
+        tlist.selectAll("li.toplevel")
             .data(d3.keys(json))
             .exit().remove();
 
         var iul = tlist.selectAll("li")
             .data(d3.keys(json))
             .enter().append("li")
+            .attr("class", "toplevel")
             .text(String)
             .append("ul");
 
