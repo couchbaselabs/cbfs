@@ -98,15 +98,87 @@ type JobMarker struct {
 	Type    string    `json:"type"`
 }
 
+type TaskList struct {
+	Tasks map[string]time.Time `json:"tasks"`
+	Node  string               `json:"node"`
+	Type  string               `json:"type"`
+}
+
+func clearTasks() error {
+	return couchbase.Delete("/@" + serverId + "/tasks")
+}
+
+func updateTasks(add, remove string) error {
+	k := "/@" + serverId + "/tasks"
+	ts := time.Now().UTC()
+	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
+		_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
+			ob := TaskList{Tasks: map[string]time.Time{}}
+			json.Unmarshal(in, &ob)
+			if add != "" {
+				ob.Tasks[add] = ts
+			}
+			delete(ob.Tasks, remove)
+			if len(ob.Tasks) == 0 {
+				return nil, memcached.CASDelete
+			}
+			ob.Type = "tasks"
+			ob.Node = serverId
+			return mustEncode(&ob), memcached.CASStore
+		}, 0)
+		return err
+	})
+	if err == memcached.CASQuit {
+		err = nil
+	}
+	return err
+}
+
+func startedTask(name string) error {
+	return updateTasks(name, "")
+}
+
+func endedTask(name string) error {
+	return updateTasks("", name)
+}
+
+func listRunningTasks() (map[string]TaskList, error) {
+	nodes, err := findAllNodes()
+	if err != nil {
+		return nil, err
+	}
+
+	rv := map[string]TaskList{}
+
+	keys := []string{}
+
+	for _, n := range nodes {
+		keys = append(keys, "/@"+n.name+"/tasks")
+	}
+
+	responses := couchbase.GetBulk(keys)
+
+	for k, res := range responses {
+		if res.Status == gomemcached.SUCCESS {
+			ob := TaskList{}
+			err = json.Unmarshal(res.Body, &ob)
+			if err != nil {
+				return nil, err
+			}
+			rv[k] = ob
+		}
+	}
+
+	return rv, err
+}
+
 // Run a named task if we know one hasn't in the last t seconds.
-func runNamedGlobalTask(name string, t time.Duration, f func() error) bool {
+func runNamedGlobalTask(name string, t time.Duration, f func() error) error {
 	key := "/@" + name
 
 	if t.Seconds() < 1 {
-		log.Printf("WARN: would've run with a 0s ttl, skipping %v",
-			name)
 		time.Sleep(time.Second)
-		return false
+		return fmt.Errorf("Would've run with a 0s ttl")
 	}
 
 	jm := JobMarker{
@@ -133,19 +205,20 @@ func runNamedGlobalTask(name string, t time.Duration, f func() error) bool {
 	})
 
 	if err == nil {
-		err = f()
+		err = startedTask(name)
+		defer endedTask(name)
 		if err != nil {
-			log.Printf("Error running periodic task %#v: %v", name, err)
+			return err
 		}
 		err = f()
 	} else if err == alreadyRunning {
 		err = nil
 	}
 
-	return false
+	return err
 }
 
-func runNamedLocalTask(name string, t time.Duration, f func() error) bool {
+func runNamedLocalTask(name string, t time.Duration, f func() error) error {
 	return runNamedGlobalTask(serverId+"/"+name, t, f)
 }
 
@@ -243,6 +316,10 @@ func cleanupNode(node string) {
 		err = couchbase.Delete("/" + node + "/r")
 		if err != nil {
 			log.Printf("Error deleting %v node counter: %v", node, err)
+		}
+		err = couchbase.Delete("/" + node + "/tasks")
+		if err != nil {
+			log.Printf("Error deleting %v task list: %v", node, err)
 		}
 		err = removeFromNodeRegistry(node)
 		if err != nil {
@@ -607,7 +684,10 @@ func grabSomeData() {
 func runGlobalPeriodicJob(name string, job *PeriodicJob) {
 	time.Sleep(time.Second * time.Duration(5+rand.Intn(60)))
 	for {
-		runNamedGlobalTask(name, job.period(), job.f)
+		err := runNamedGlobalTask(name, job.period(), job.f)
+		if err != nil {
+			log.Printf("Error running global task %v: %v", name, err)
+		}
 		time.Sleep(job.period() + time.Second)
 	}
 }
@@ -615,7 +695,10 @@ func runGlobalPeriodicJob(name string, job *PeriodicJob) {
 func runLocalPeriodicJob(name string, job *PeriodicJob) {
 	time.Sleep(time.Second * time.Duration(5+rand.Intn(60)))
 	for {
-		runNamedLocalTask(name, job.period(), job.f)
+		err := runNamedLocalTask(name, job.period(), job.f)
+		if err != nil {
+			log.Printf("Error running local task %v: %v", name, err)
+		}
 		time.Sleep(job.period() + time.Second)
 	}
 }

@@ -25,6 +25,7 @@ const (
 	zipPrefix    = "/.cbfs/zip/"
 	tarPrefix    = "/.cbfs/tar/"
 	fsckPrefix   = "/.cbfs/fsck/"
+	taskPrefix   = "/.cbfs/tasks/"
 )
 
 type storInfo struct {
@@ -598,6 +599,8 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 		doList(w, req)
 	case req.URL.Path == nodePrefix:
 		doListNodes(w, req)
+	case req.URL.Path == taskPrefix:
+		doListTasks(w, req)
 	case req.URL.Path == configPrefix:
 		doGetConfig(w, req)
 	case strings.HasPrefix(req.URL.Path, fetchPrefix):

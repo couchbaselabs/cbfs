@@ -80,6 +80,40 @@ func doList(w http.ResponseWriter, req *http.Request) {
 	})
 }
 
+func doListTasks(w http.ResponseWriter, req *http.Request) {
+	tasks, err := listRunningTasks()
+	if err != nil {
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Error listing tasks:  %v", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	// Reformat for more APIish output.
+	output := map[string]map[string]time.Time{}
+
+	// Remove node prefix from local task names.
+	npre := serverId + "/"
+
+	for _, tl := range tasks {
+		for k, v := range tl.Tasks {
+			if strings.HasPrefix(k, npre) {
+				delete(tl.Tasks, k)
+				tl.Tasks[k[len(npre):]] = v
+			}
+		}
+		output[tl.Node] = tl.Tasks
+	}
+
+	e := json.NewEncoder(w)
+	err = e.Encode(output)
+	if err != nil {
+		log.Printf("Error encoding running tasks list: %v", err)
+	}
+}
+
 func doGetMeta(w http.ResponseWriter, req *http.Request, path string) {
 	got := fileMeta{}
 	err := couchbase.Get(path, &got)

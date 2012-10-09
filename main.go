@@ -162,6 +162,8 @@ func main() {
 		log.Printf("Server config:")
 		globalConfig.Dump(os.Stdout)
 	}
+	clearTasks()
+
 	go reloadConfig()
 
 	go dnsServices()
