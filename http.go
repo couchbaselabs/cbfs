@@ -526,7 +526,7 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 			if hw != nil {
 				_, err = hw.Finish()
 				if err == nil {
-					go recordBlobOwnership(oid, length,
+					err = recordBlobOwnership(oid, length,
 						true)
 				}
 			}
