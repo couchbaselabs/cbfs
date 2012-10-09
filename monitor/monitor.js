@@ -191,6 +191,50 @@ function updateCBFSConfig() {
     });
 }
 
+function reltime(time){
+    var date = new Date(time.replace(/-/g,"/").replace("T", " ").replace("Z", " +0000").replace(/(\d*\:\d*:\d*)\.\d*/g,"$1")),
+        diff = (((new Date()).getTime() - date.getTime()) / 1000),
+        day_diff = Math.floor(diff / 86400);
+
+    if (isNaN(day_diff)) return time;
+
+    return day_diff < 1 && (
+        diff < 60 && "just now" ||
+            diff < 120 && "1 minute ago" ||
+            diff < 3600 && Math.floor( diff / 60 ) + " minutes ago" ||
+            diff < 7200 && "1 hour ago" ||
+            diff < 86400 && Math.floor( diff / 3600 ) + " hours ago") ||
+        day_diff == 1 && "yesterday" ||
+        day_diff < 21 && day_diff + " days ago" ||
+        day_diff < 45 && Math.ceil( day_diff / 7 ) + " weeks ago" ||
+        time;
+}
+
+function updateTasks() {
+    var tlist = d3.select("#tasklist");
+    d3.json("/.cbfs/tasks/", function(json) {
+
+        d3.select("#taskhdr")
+            .style("display", d3.entries(json).length > 0 ? 'block' : 'none');
+
+        tlist.selectAll("#li")
+            .data(d3.keys(json))
+            .exit().remove();
+
+        var iul = tlist.selectAll("li")
+            .data(d3.keys(json))
+            .enter().append("li")
+            .text(String)
+            .append("ul");
+
+        iul.selectAll("li")
+            .data(function(d) { return d3.entries(json[d]); })
+            .enter().append("li")
+            .text(function(d) { return d.key; })
+            .attr("title", function(d) { return reltime(d.value); });
+    });
+}
+
 function monitorInit() {
     console.log("Starting monitoring");
 
@@ -202,6 +246,10 @@ function monitorInit() {
     setInterval(function() {
         updateCBFSConfig();
     }, 60000);
+
+    setInterval(function() {
+        updateTasks();
+    }, 5000);
 
     d3.json("/.cbfs/nodes/", drawBubbles);
     setInterval(function() {

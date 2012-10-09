@@ -20,6 +20,34 @@
   height: 150px;
 }
 
+#tasks {
+  position: absolute;
+  top: 160px;
+  right: 5px;
+  width: 200px;
+}
+
+#tasks h1 {
+  font-size: 110%;
+  font-weight: bold;
+}
+
+#tasks ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#tasks ul li {
+  font-weight: bold;
+}
+
+#tasks ul li ul li {
+  font-weight: normal;
+  list-style: circle;
+  margin-left: 10px;
+}
+
 #repcounts .chart rect {
   stroke: white;
   fill: steelblue;
@@ -43,6 +71,11 @@
   <body>
     <div id="bubbles"></div>
     <div id="repcounts"></div>
+    <div id="tasks">
+      <h1 id="taskhdr" style="display: none">Tasks</h1>
+      <ul id="tasklist">
+      </ul>
+    </div>
   </body>
 
   <script type="text/javascript">
