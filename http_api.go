@@ -94,10 +94,10 @@ func doListTasks(w http.ResponseWriter, req *http.Request) {
 	// Reformat for more APIish output.
 	output := map[string]map[string]time.Time{}
 
-	// Remove node prefix from local task names.
-	npre := serverId + "/"
-
 	for _, tl := range tasks {
+		// Remove node prefix from local task names.
+		npre := tl.Node + "/"
+
 		for k, v := range tl.Tasks {
 			if strings.HasPrefix(k, npre) {
 				delete(tl.Tasks, k)
