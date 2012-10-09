@@ -223,16 +223,21 @@ function updateTasks() {
 
         var iul = tlist.selectAll("li")
             .data(d3.keys(json))
-            .enter().append("li")
+          .enter().append("li")
             .attr("class", "toplevel")
             .text(String)
             .append("ul");
 
         iul.selectAll("li")
             .data(function(d) { return d3.entries(json[d]); })
-            .enter().append("li")
-            .text(function(d) { return d.key; })
-            .attr("title", function(d) { return reltime(d.value); });
+          .enter().append("li");
+
+        tlist.selectAll("li")
+            .datum(d3.keys(json)) // .datum forces data to not be memoized
+          .selectAll("ul li")
+            .data(function(d) { return d3.entries(json[d]); })
+            .attr("title", function(d) { return reltime(d.value); })
+            .text(function(d) { return d.key; });
     });
 }
 
