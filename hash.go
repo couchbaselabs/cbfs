@@ -141,13 +141,3 @@ func cleanTmpFiles() error {
 	}
 	return nil
 }
-
-func cleanupTmpFilesLoop() {
-	for {
-		err := cleanTmpFiles()
-		if err != nil {
-			log.Printf("Error cleaning tmp files: %v", err)
-		}
-		time.Sleep(time.Hour)
-	}
-}

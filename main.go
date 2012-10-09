@@ -166,13 +166,9 @@ func main() {
 
 	go dnsServices()
 
-	go cleanupTmpFilesLoop()
-
 	initTaskQueueWorkers()
 
 	go heartbeat()
-	go reconcileLoop()
-	go validateLocalLoop()
 	go runPeriodicJobs()
 
 	s := &http.Server{

@@ -27,10 +27,11 @@ type PeriodicJob struct {
 	f      func() error
 }
 
-var periodicJobs = map[string]*PeriodicJob{}
+var globalPeriodicJobs = map[string]*PeriodicJob{}
+var localPeriodicJobs = map[string]*PeriodicJob{}
 
 func init() {
-	periodicJobs = map[string]*PeriodicJob{
+	globalPeriodicJobs = map[string]*PeriodicJob{
 		"checkStaleNodes": &PeriodicJob{
 			func() time.Duration {
 				return globalConfig.StaleNodeCheckFreq
@@ -68,6 +69,27 @@ func init() {
 			trimFullNodes,
 		},
 	}
+
+	localPeriodicJobs = map[string]*PeriodicJob{
+		"validateLocal": &PeriodicJob{
+			func() time.Duration {
+				return globalConfig.LocalValidationFreq
+			},
+			validateLocal,
+		},
+		"reconcile": &PeriodicJob{
+			func() time.Duration {
+				return globalConfig.ReconcileFreq
+			},
+			reconcile,
+		},
+		"cleanTmp": &PeriodicJob{
+			func() time.Duration {
+				return time.Hour
+			},
+			cleanTmpFiles,
+		},
+	}
 }
 
 type JobMarker struct {
@@ -93,11 +115,16 @@ func runNamedGlobalTask(name string, t time.Duration, f func() error) bool {
 		Type:    "job",
 	}
 
+	alreadyRunning := errors.New("running")
+
 	err := couchbase.Do(key, func(mc *memcached.Client, vb uint16) error {
 		resp, err := mc.Add(vb, key, 0, int(t.Seconds()),
 			mustEncode(&jm))
 		if err != nil {
 			return err
+		}
+		if resp.Status == gomemcached.KEY_EEXISTS {
+			return alreadyRunning
 		}
 		if resp.Status != gomemcached.SUCCESS {
 			return fmt.Errorf("Wanted success, got %v", resp.Status)
@@ -110,26 +137,16 @@ func runNamedGlobalTask(name string, t time.Duration, f func() error) bool {
 		if err != nil {
 			log.Printf("Error running periodic task %#v: %v", name, err)
 		}
-		return true
+		err = f()
+	} else if err == alreadyRunning {
+		err = nil
 	}
 
 	return false
 }
 
-func reconcileLoop() {
-	if globalConfig.ReconcileFreq == 0 {
-		log.Printf("Reconciliation is misconfigured")
-		return
-	}
-	time.Sleep(time.Second * time.Duration(5+rand.Intn(60)))
-	for {
-		err := reconcile()
-		if err != nil {
-			log.Printf("Error in reconciliation loop: %v", err)
-		}
-		grabSomeData()
-		time.Sleep(globalConfig.ReconcileFreq)
-	}
+func runNamedLocalTask(name string, t time.Duration, f func() error) bool {
+	return runNamedGlobalTask(serverId+"/"+name, t, f)
 }
 
 func logErrors(from string, errs <-chan error) {
@@ -164,21 +181,6 @@ func validateLocal() error {
 	}
 	log.Printf("Validated %v files in %v", count, time.Since(start))
 	return nil
-}
-
-func validateLocalLoop() {
-	if globalConfig.LocalValidationFreq == 0 {
-		log.Printf("Local validation is misconfigured")
-		return
-	}
-	time.Sleep(time.Second * time.Duration(5+rand.Intn(60)))
-	for {
-		err := validateLocal()
-		if err != nil {
-			log.Printf("Error validating local store: %v", err)
-		}
-		time.Sleep(globalConfig.LocalValidationFreq)
-	}
 }
 
 func cleanupNode(node string) {
@@ -292,6 +294,13 @@ func anyTaskRunning(taskNames []string) bool {
 
 func relockTask(taskName string) bool {
 	k := "/@" + taskName
+
+	task := globalPeriodicJobs[taskName]
+	if task == nil {
+		task = localPeriodicJobs[taskName]
+		k = "/@" + serverId + "/" + taskName
+	}
+
 	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
 		resp, err := mc.Get(vb, k)
 		switch {
@@ -319,7 +328,7 @@ func relockTask(taskName string) bool {
 			Extras:  []byte{0, 0, 0, 0, 0, 0, 0, 0},
 			Body:    mustEncode(&jm),
 		}
-		exp := periodicJobs[taskName].period().Seconds()
+		exp := task.period().Seconds()
 		binary.BigEndian.PutUint64(req.Extras, uint64(exp))
 
 		resp, err = mc.Send(req)
@@ -595,7 +604,7 @@ func grabSomeData() {
 	}
 }
 
-func runPeriodicJob(name string, job *PeriodicJob) {
+func runGlobalPeriodicJob(name string, job *PeriodicJob) {
 	time.Sleep(time.Second * time.Duration(5+rand.Intn(60)))
 	for {
 		runNamedGlobalTask(name, job.period(), job.f)
@@ -603,12 +612,27 @@ func runPeriodicJob(name string, job *PeriodicJob) {
 	}
 }
 
+func runLocalPeriodicJob(name string, job *PeriodicJob) {
+	time.Sleep(time.Second * time.Duration(5+rand.Intn(60)))
+	for {
+		runNamedLocalTask(name, job.period(), job.f)
+		time.Sleep(job.period() + time.Second)
+	}
+}
+
 func runPeriodicJobs() {
-	for n, j := range periodicJobs {
+	for n, j := range globalPeriodicJobs {
 		if j.period() == 0 {
-			log.Printf("%v is misconfigured, ignoring", n)
+			log.Printf("global job %v is misconfigured, ignoring", n)
 		} else {
-			go runPeriodicJob(n, j)
+			go runGlobalPeriodicJob(n, j)
+		}
+	}
+	for n, j := range localPeriodicJobs {
+		if j.period() == 0 {
+			log.Printf("local job %v is misconfigured, ignoring", n)
+		} else {
+			go runLocalPeriodicJob(n, j)
 		}
 	}
 }
