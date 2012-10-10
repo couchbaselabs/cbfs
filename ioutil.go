@@ -14,10 +14,22 @@ type randomDataMaker struct {
 }
 
 func (r *randomDataMaker) Read(p []byte) (n int, err error) {
-	for i := range p {
-		p[i] = byte(r.src.Int63() & 0xff)
+	todo := len(p)
+	offset := 0
+	for {
+		val := int64(r.src.Int63())
+		for i := 0; i < 8; i++ {
+			p[offset] = byte(val)
+			todo--
+			if todo == 0 {
+				return len(p), nil
+			}
+			offset++
+			val >>= 8
+		}
 	}
-	return len(p), nil
+
+	panic("unreachable")
 }
 
 type copyRes struct {
