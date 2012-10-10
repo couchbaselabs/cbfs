@@ -228,12 +228,12 @@ function updateTasks() {
             .text(String)
             .append("ul");
 
-        iul.selectAll("li")
+        iul.selectAll("li.toplevel")
             .data(function(d) { return d3.entries(json[d]); })
           .enter().append("li");
 
-        tlist.selectAll("li")
-            .datum(d3.keys(json)) // .datum forces data to not be memoized
+        tlist.selectAll("li.toplevel")
+            .data(d3.keys(json))
           .selectAll("ul li")
             .data(function(d) { return d3.entries(json[d]); })
             .attr("title", function(d) { return reltime(d.value); })
