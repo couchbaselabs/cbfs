@@ -724,6 +724,14 @@ func runPeriodicJobs() {
 	}
 }
 
+func startTasks() {
+	clearTasks()
+	// Forget the last time we did local validation. We're
+	// restarting, so things have changed.
+	couchbase.Delete("/@" + serverId + "/validateLocal")
+	runPeriodicJobs()
+}
+
 func updateConfig() error {
 	conf, err := RetrieveConfig()
 	if err != nil {

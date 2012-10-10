@@ -165,7 +165,6 @@ func main() {
 		log.Printf("Server config:")
 		globalConfig.Dump(os.Stdout)
 	}
-	clearTasks()
 
 	go reloadConfig()
 
@@ -174,7 +173,7 @@ func main() {
 	initTaskQueueWorkers()
 
 	go heartbeat()
-	go runPeriodicJobs()
+	go startTasks()
 
 	time.AfterFunc(time.Second*time.Duration(rand.Intn(30)+5), grabSomeData)
 
