@@ -429,7 +429,7 @@ func performFetch(oid, prev string) {
 				log.Printf("Error finding old node: %v", err)
 				removeBlobOwnershipRecord(oid, prev)
 			} else {
-				log.Printf("Forcing post-move blob removal of %v from %v",
+				log.Printf("Requesting post-move blob removal of %v from %v",
 					oid, n)
 				queueBlobRemoval(n, oid)
 			}
@@ -470,7 +470,7 @@ func internodeTaskWorker() {
 			}
 		case acquireObjectCmd:
 			if err := c.node.acquireBlob(c.oid, c.prevNode); err != nil {
-				log.Printf("Error acquiring %v from %v: %v",
+				log.Printf("Error requesting acquisition of %v from %v: %v",
 					c.oid, c.node, err)
 			}
 		case fetchObjectCmd:
