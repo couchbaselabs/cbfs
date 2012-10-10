@@ -170,6 +170,7 @@ func main() {
 
 	go dnsServices()
 
+	internodeTaskQueue = make(chan internodeTask, *taskWorkers*1024)
 	initTaskQueueWorkers()
 
 	go heartbeat()

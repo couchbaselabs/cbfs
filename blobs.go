@@ -461,7 +461,7 @@ func salvageBlob(oid, deadNode string, nl NodeList) bool {
 	return true
 }
 
-var internodeTaskQueue = make(chan internodeTask, 1000)
+var internodeTaskQueue chan internodeTask
 
 func internodeTaskWorker() {
 	for c := range internodeTaskQueue {
