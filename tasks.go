@@ -499,6 +499,9 @@ func moveSomeOffOf(n StorageNode, nl NodeList) {
 				}
 			}
 
+			candidates = candidates.withAtLeast(
+				uint64(globalConfig.TrimFullNodesSpace))
+
 			if len(candidates) == 0 {
 				log.Printf("No candidates available to move %v",
 					oid)
