@@ -431,7 +431,7 @@ func performFetch(oid, prev string) {
 			} else {
 				log.Printf("Requesting post-move blob removal of %v from %v",
 					oid, n)
-				queueBlobRemoval(n, oid)
+				go queueBlobRemoval(n, oid)
 			}
 		}
 	} else {

@@ -93,7 +93,7 @@ func (a NodeList) Swap(i, j int) {
 // Ask a node to acquire a blob.
 func (n StorageNode) acquireBlob(oid, prevNode string) error {
 	if n.IsLocal() {
-		queueBlobFetch(oid, prevNode)
+		go queueBlobFetch(oid, prevNode)
 	} else {
 		req, err := http.NewRequest("GET", n.fetchURL(oid), nil)
 		if err != nil {
