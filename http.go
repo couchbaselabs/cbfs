@@ -589,7 +589,11 @@ func doFetchDoc(w http.ResponseWriter, req *http.Request,
 		return
 	}
 
-	go queueBlobFetch(path, req.Header.Get("X-Prevnode"))
+	if !maybeQueueBlobFetch(path, req.Header.Get("X-Prevnode")) {
+		w.WriteHeader(503)
+		w.Write([]byte("Queue is full. Try later."))
+		return
+	}
 	w.WriteHeader(202)
 }
 

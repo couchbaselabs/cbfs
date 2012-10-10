@@ -513,3 +513,17 @@ func queueBlobFetch(oid, prev string) {
 		prevNode: prev,
 	}
 }
+
+func maybeQueueBlobFetch(oid, prev string) bool {
+	select {
+	case internodeTaskQueue <- internodeTask{
+		cmd:      fetchObjectCmd,
+		oid:      oid,
+		prevNode: prev,
+	}:
+		return true
+	default:
+		return false
+	}
+	panic("unreachable")
+}
