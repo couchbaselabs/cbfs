@@ -315,12 +315,18 @@ func ensureMinimumReplicaCountTask() error {
 		return err
 	}
 
-	log.Printf("Increasing replica count of %v items",
+	log.Printf("Increasing replica count of up to %v items",
 		len(viewRes.Rows))
 
+	did := 0
 	for _, r := range viewRes.Rows {
-		salvageBlob(r.Id[1:], "", nl)
+		if !salvageBlob(r.Id[1:], "", nl) {
+			log.Printf("Queue is full ensuring min repl count")
+			break
+		}
+		did++
 	}
+	log.Printf("Increased the replication count of %v items", did)
 	return nil
 }
 
@@ -439,7 +445,9 @@ func performFetch(oid, prev string) {
 	}
 }
 
-func salvageBlob(oid, deadNode string, nl NodeList) {
+// Return false on unrecoverable errors (i.e. the internode queue is
+// full and we need a break)
+func salvageBlob(oid, deadNode string, nl NodeList) bool {
 	candidates := nl.candidatesFor(oid,
 		NodeList{nl.named(deadNode)})
 
@@ -448,8 +456,9 @@ func salvageBlob(oid, deadNode string, nl NodeList) {
 	} else {
 		log.Printf("Recommending %v get a copy of %v",
 			candidates[0], oid)
-		queueBlobAcquire(candidates[0], oid, deadNode)
+		return maybeQueueBlobAcquire(candidates[0], oid, deadNode)
 	}
+	return true
 }
 
 var internodeTaskQueue = make(chan internodeTask, 1000)
@@ -502,6 +511,22 @@ func queueBlobAcquire(n StorageNode, oid string, prev string) {
 		oid:      oid,
 		prevNode: prev,
 	}
+}
+
+// Ask a remote node to go get a blob, return false if the queue is full
+func maybeQueueBlobAcquire(n StorageNode, oid string, prev string) bool {
+	select {
+	case internodeTaskQueue <- internodeTask{
+		node:     n,
+		cmd:      acquireObjectCmd,
+		oid:      oid,
+		prevNode: prev,
+	}:
+		return true
+	default:
+		return false
+	}
+	panic("unreachable")
 }
 
 // Ask this node to go get a blob

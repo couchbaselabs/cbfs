@@ -299,7 +299,10 @@ func cleanupNode(node string) {
 		foundRows++
 
 		if len(r.Doc.Json.Nodes) < globalConfig.MinReplicas {
-			salvageBlob(r.Id[1:], node, nodes)
+			if !salvageBlob(r.Id[1:], node, nodes) {
+				log.Printf("Queue is full during cleanup")
+				break
+			}
 		} else {
 			// There are enough copies, just remove this one.
 			removeBlobOwnershipRecord(r.Id[1:], node)
