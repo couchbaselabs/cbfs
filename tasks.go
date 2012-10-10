@@ -423,6 +423,8 @@ func relockTask(taskName string) bool {
 
 func runMarkedTask(name string, excl []string, f func() error) error {
 	for anyTaskRunning(excl) {
+		log.Printf("Execution of %v is blocked on one of %v",
+			name, excl)
 		time.Sleep(5 * time.Second)
 	}
 
