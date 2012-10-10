@@ -218,11 +218,11 @@ function updateTasks() {
             .style("display", d3.entries(json).length > 0 ? 'block' : 'none');
 
         tlist.selectAll("li.toplevel")
-            .data(d3.keys(json))
+            .data(d3.keys(json), String)
             .exit().remove();
 
         var iul = tlist.selectAll("li")
-            .data(d3.keys(json))
+            .data(d3.keys(json), String)
           .enter().append("li")
             .attr("class", "toplevel")
             .text(String)
@@ -233,7 +233,7 @@ function updateTasks() {
           .enter().append("li");
 
         tlist.selectAll("li.toplevel")
-            .data(d3.keys(json))
+            .data(d3.keys(json), String)
           .selectAll("ul li")
             .data(function(d) { return d3.entries(json[d]); })
             .attr("title", function(d) { return reltime(d.value); })
