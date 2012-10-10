@@ -6,7 +6,6 @@ import (
 	"flag"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"sort"

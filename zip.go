@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
 	"strings"
 

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
 	"math/rand"
 	"net/http"
 	"os"
@@ -30,6 +29,7 @@ var viewTimeout = flag.Duration("viewTimeout", 5*time.Second,
 	"Couchbase view client read timeout")
 var internodeTimeout = flag.Duration("internodeTimeout", 5*time.Second,
 	"Internode client read timeout")
+var useSyslog = flag.Bool("syslog", false, "Log to syslog")
 
 var globalConfig *cbfsconfig.CBFSConfig
 
@@ -119,6 +119,8 @@ func storeMeta(k string, fm fileMeta, revs int) error {
 
 func main() {
 	flag.Parse()
+
+	initLogger(*useSyslog)
 
 	http.DefaultTransport = TimeoutTransport(*internodeTimeout)
 
