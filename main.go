@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"time"
@@ -172,6 +173,8 @@ func main() {
 
 	go heartbeat()
 	go runPeriodicJobs()
+
+	time.AfterFunc(time.Second*time.Duration(rand.Intn(30)+5), grabSomeData)
 
 	s := &http.Server{
 		Addr:        *bindAddr,
