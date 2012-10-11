@@ -340,7 +340,7 @@ func cleanupNode(node string) {
 }
 
 func cleanNodeTaskMarkers(node string) {
-	err := couchbase.Delete("/" + node + "/tasks")
+	err := couchbase.Delete("/@" + node + "/tasks")
 	if err != nil {
 		log.Printf("Error removing %v's task list: %v", node, err)
 	}
