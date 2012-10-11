@@ -275,13 +275,6 @@ func increaseReplicaCount(oid string, length int64, by int) error {
 }
 
 func ensureMinimumReplicaCount() error {
-	// Don't let this run concurrently with the garbage collector.
-	// They don't get along.
-	for taskRunning("garbageCollectBlobs") {
-		log.Printf("Waiting for gc to finish for ensureMinReplCount")
-		time.Sleep(5 * time.Second)
-	}
-
 	nl, err := findAllNodes()
 	if err != nil {
 		return err
