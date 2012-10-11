@@ -42,8 +42,10 @@ type storInfo struct {
 // closed.  The returned channel may yield a storInfo struct before
 // it's closed.  If it's closed without yielding a storInfo, there are
 // no remote nodes available.
-func altStoreFile(r io.Reader, length uint64) (io.Reader, <-chan storInfo) {
-	bgch := make(chan storInfo, 1)
+func altStoreFile(name string, r io.Reader,
+	length uint64) (io.Reader, <-chan storInfo) {
+
+	bgch := make(chan storInfo, 2)
 
 	nodes, err := findRemoteNodes()
 	nodes = nodes.withAtLeast(length)
@@ -58,7 +60,8 @@ func altStoreFile(r io.Reader, length uint64) (io.Reader, <-chan storInfo) {
 
 			rurl := "http://" +
 				nodes[0].Address() + blobPrefix
-			log.Printf("Piping secondary storage to %v", nodes[0])
+			log.Printf("Piping secondary storage of %v to %v",
+				name, nodes[0])
 
 			preq, err := http.NewRequest("POST", rurl, r1)
 			if err != nil {
@@ -85,12 +88,15 @@ func altStoreFile(r io.Reader, length uint64) (io.Reader, <-chan storInfo) {
 				}
 				presp.Body.Close()
 			} else {
-				log.Printf("Error http'n to %v: %v", rurl, err)
+				log.Printf("Error http'n %v to %v: %v", name,
+					rurl, err)
 			}
 			rv.err = err
 			bgch <- rv
 		}()
 	} else {
+		log.Printf("Doing a single-node upload: findRemote=%v, status=%v",
+			nodes, errorOrSuccess(err))
 		close(bgch)
 	}
 
@@ -149,17 +155,25 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		// If we don't know, guess about a meg.
 		l = 1024 * 1024
 	}
-	r, bgch := altStoreFile(req.Body, uint64(l))
+	r, bgch := altStoreFile(req.URL.Path, req.Body, uint64(l))
 
 	h, length, err := f.Process(r)
 	if err != nil {
-		log.Printf("Error completing blob write: %v", err)
+		log.Printf("Error completing blob write for %v: %v",
+			req.URL.Path, err)
 		w.WriteHeader(500)
 		fmt.Fprintf(w, "Error completing blob write: %v", err)
 		return
 	}
 
-	log.Printf("Wrote %v -> %v", req.URL.Path, h)
+	err = recordBlobOwnership(h, length, true)
+	if err != nil {
+		log.Printf("Error storing blob ownership of %v for %v: %v",
+			h, req.URL.Path, err)
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Error recording blob ownership: %v", err)
+		return
+	}
 
 	fm := fileMeta{
 		Headers:  req.Header,
@@ -168,23 +182,22 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		Modified: time.Now().UTC(),
 	}
 
-	err = recordBlobOwnership(h, length, true)
-	if err != nil {
-		log.Printf("Error storing blob ownership of %v: %v", h, err)
-		w.WriteHeader(500)
-		fmt.Fprintf(w, "Error recording blob ownership: %v", err)
-		return
-	}
-
+	// We *should* have two replicas at this point.
+	replicas := 2
 	if si, hasStuff := <-bgch; hasStuff {
 		if si.err != nil || si.hs != h {
-			log.Printf("Error in secondary store to %v: %v",
-				si.node, si.err)
+			log.Printf("Error in secondary store of %v to %v for %v: %v",
+				h, si.node, req.URL.Path, si.err)
 			w.WriteHeader(500)
 			fmt.Fprintf(w, "Error creating secondary copy: %v\n%v",
 				si.err, si.hs)
 			return
 		}
+	} else {
+		// In this case, the upstream couldn't find a
+		// secondary for us.
+		log.Printf("Singly stored %v for %v", h, req.URL.Path)
+		replicas--
 	}
 
 	revs := globalConfig.DefaultVersionCount
@@ -205,10 +218,13 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if globalConfig.MinReplicas > 2 {
+	log.Printf("Wrote %v -> %v", req.URL.Path, h)
+
+	if globalConfig.MinReplicas > replicas {
 		// We're below min replica count.  Start fixing that
 		// up immediately.
-		go increaseReplicaCount(h, length, globalConfig.MinReplicas-2)
+		go increaseReplicaCount(h, length,
+			globalConfig.MinReplicas-replicas)
 	}
 
 	w.WriteHeader(201)
