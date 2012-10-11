@@ -66,6 +66,11 @@ func verifyObjectHash(h string) error {
 }
 
 func verifyWorker(ch chan os.FileInfo) {
+	nl, err := findAllNodes()
+	if err != nil {
+		log.Printf("Couldn't find node list during verify: %v", err)
+		nl = NodeList{}
+	}
 	for info := range ch {
 		err := verifyObjectHash(info.Name())
 		if err == nil {
@@ -74,6 +79,9 @@ func verifyWorker(ch chan os.FileInfo) {
 			log.Printf("Invalid hash for object %v found at verification: %v",
 				info.Name(), err)
 			removeBlobOwnershipRecord(info.Name(), serverId)
+			if len(nl) > 0 {
+				salvageBlob(info.Name(), "", nl)
+			}
 		}
 	}
 }
