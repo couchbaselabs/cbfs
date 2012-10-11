@@ -117,7 +117,7 @@ func doPostRawBlob(w http.ResponseWriter, req *http.Request) {
 
 	err = recordBlobOwnership(sh, length, true)
 	if err != nil {
-		log.Printf("Error recording blob ownership: %v", err)
+		log.Printf("Error recording ownership of %v: %v", sh, err)
 		w.WriteHeader(500)
 		fmt.Fprintf(w, "Error recording blob ownership: %v", err)
 		return
@@ -170,7 +170,7 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 
 	err = recordBlobOwnership(h, length, true)
 	if err != nil {
-		log.Printf("Error storing blob ownership: %v", err)
+		log.Printf("Error storing blob ownership of %v: %v", h, err)
 		w.WriteHeader(500)
 		fmt.Fprintf(w, "Error recording blob ownership: %v", err)
 		return
@@ -198,7 +198,8 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 
 	err = storeMeta(resolvePath(req), fm, revs)
 	if err != nil {
-		log.Printf("Error storing file meta: %v", err)
+		log.Printf("Error storing file meta of %v -> %v: %v",
+			resolvePath(req), h, err)
 		w.WriteHeader(500)
 		fmt.Fprintf(w, "Error recording blob ownership: %v", err)
 		return
@@ -241,7 +242,8 @@ func putRawHash(w http.ResponseWriter, req *http.Request) {
 
 	err = recordBlobOwnership(inputhash, length, true)
 	if err != nil {
-		log.Printf("Error recording blob ownership: %v", err)
+		log.Printf("Error recording blob ownership of %v: %v",
+			inputhash, err)
 		w.WriteHeader(500)
 		fmt.Fprintf(w, "Error recording blob ownership: %v", err)
 		return
@@ -465,7 +467,7 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 	oidkey := "/" + oid
 	err := couchbase.Get(oidkey, &ownership)
 	if err != nil {
-		log.Printf("Missing ownership record for OID: %v", oid)
+		log.Printf("Missing ownership record for %v", oid)
 		// Not sure 404 is the right response here
 		w.WriteHeader(404)
 		return err
@@ -476,19 +478,17 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 	// Loop through the nodes that claim to own this blob
 	// If we encounter any errors along the way, try the next node
 	for _, sid := range nl {
-		log.Printf("Trying to get %s from %s", oid, sid)
-
 		resp, err := http.Get(sid.BlobURL(oid))
 		if err != nil {
-			log.Printf("Error reading oid %s from node %v",
+			log.Printf("Error reading %s from node %v",
 				oid, sid)
 			continue
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode != 200 {
-			log.Printf("Error response %v from node %v",
-				resp.Status, sid)
+			log.Printf("Error response %v from node %v getting %v",
+				resp.Status, sid, oid)
 			continue
 		}
 
@@ -517,7 +517,8 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 		length, err := io.Copy(writeTo, resp.Body)
 
 		if err != nil {
-			log.Printf("Failed to write from remote stream %v", err)
+			log.Printf("Failed to write %v from remote stream %v",
+				oid, err)
 			return err
 		} else {
 			// A successful copy with a working hash
@@ -529,6 +530,8 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 					err = recordBlobOwnership(oid, length,
 						true)
 				}
+				log.Printf("Retrieved %v from %v: result=%v",
+					oid, sid, errorOrSuccess(err))
 			}
 		}
 

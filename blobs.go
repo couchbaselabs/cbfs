@@ -166,8 +166,8 @@ func removeBlobOwnershipRecord(h, node string) int {
 			if err == nil {
 				delete(ownership.Nodes, node)
 			} else {
-				log.Printf("Error unmarhaling blob removal from %s: %v",
-					in, err)
+				log.Printf("Error unmarhaling blob removal from %s for %v: %v",
+					in, h, err)
 				return nil, memcached.CASQuit
 			}
 
@@ -186,20 +186,26 @@ func removeBlobOwnershipRecord(h, node string) int {
 		}, 0)
 		return err
 	})
+	log.Printf("Cleaned %v from %v, result=%v", h, node, errorOrSuccess(err))
 	if err != nil && err != memcached.CASQuit {
-		log.Printf("Error cleaning %v from %v: %v", node, h, err)
 		numOwners = -1
 	}
 	if numOwners == 0 {
+		log.Printf("Completed removal of %v", h)
 		couchbase.Delete(k + "/r")
 	}
 
 	return numOwners
 }
 
-func maybeRemoveBlobOwnership(h string) (rv error) {
-	log.Printf("Conditionally removing %v", h)
+func errorOrSuccess(e error) string {
+	if e == nil {
+		return "success"
+	}
+	return e.Error()
+}
 
+func maybeRemoveBlobOwnership(h string) (rv error) {
 	k := "/" + h
 	removedLast := false
 	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
@@ -223,8 +229,8 @@ func maybeRemoveBlobOwnership(h string) (rv error) {
 				}
 				delete(ownership.Nodes, serverId)
 			} else {
-				log.Printf("Error unmarhaling blob removal from %s: %v",
-					in, err)
+				log.Printf("Error unmarhaling blob removal of %v from %s: %v",
+					h, in, err)
 				rv = err
 				return nil, memcached.CASQuit
 			}
@@ -243,10 +249,9 @@ func maybeRemoveBlobOwnership(h string) (rv error) {
 		}, 0)
 		return err
 	})
-	if err != nil && err != memcached.CASQuit {
-		log.Printf("Error cleaning %v: %v", h, err)
-	}
+	log.Printf("Asked to remove %v - result=%v", h, errorOrSuccess(err))
 	if removedLast {
+		log.Printf("Completed removal of %v", h)
 		couchbase.Delete(k + "/r")
 	}
 
@@ -411,8 +416,8 @@ func performFetch(oid, prev string) {
 	if err == nil {
 		err = recordBlobOwnership(oid, st.Size(), false)
 		if err != nil {
-			log.Printf("Error recording fetched blob: %v",
-				err)
+			log.Printf("Error recording fetched blob %v: %v",
+				oid, err)
 		}
 		return
 	}
@@ -425,7 +430,7 @@ func performFetch(oid, prev string) {
 				oid, prev)
 			n, err := findNode(prev)
 			if err != nil {
-				log.Printf("Error finding old node: %v", err)
+				log.Printf("Error finding old node of %v: %v", oid, err)
 				removeBlobOwnershipRecord(oid, prev)
 			} else {
 				log.Printf("Requesting post-move blob removal of %v from %v",
@@ -434,8 +439,8 @@ func performFetch(oid, prev string) {
 			}
 		}
 	} else {
-		log.Printf("Error grabbing remote object, got %v/%v",
-			c.statusCode, err)
+		log.Printf("Error grabbing remote object %v, got %v/%v",
+			oid, c.statusCode, err)
 	}
 }
 
@@ -446,7 +451,7 @@ func salvageBlob(oid, deadNode string, nl NodeList) bool {
 		NodeList{nl.named(deadNode)})
 
 	if len(candidates) == 0 {
-		log.Printf("Couldn't find a candidate for blob!")
+		log.Printf("Couldn't find a candidate for %v!", oid)
 	} else {
 		log.Printf("Recommending %v get a copy of %v",
 			candidates[0], oid)
@@ -465,7 +470,8 @@ func internodeTaskWorker() {
 				log.Printf("Error deleting %v from %v: %v",
 					c.oid, c.node, err)
 				if c.node.IsDead() {
-					log.Printf("Node is dead, cleaning")
+					log.Printf("Node is dead, cleaning %v",
+						c.oid)
 					removeBlobOwnershipRecord(c.oid,
 						c.node.name)
 				}

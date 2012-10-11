@@ -31,6 +31,8 @@ func removeObject(h string) error {
 	err := maybeRemoveBlobOwnership(h)
 	if err == nil {
 		err = os.Remove(hashFilename(*root, h))
+		log.Printf("Removed local copy of %v, result=%v",
+			h, errorOrSuccess(err))
 	}
 	return err
 }
@@ -56,9 +58,8 @@ func verifyObjectHash(h string) error {
 	hstring := hex.EncodeToString(sh.Sum([]byte{}))
 	if h != hstring {
 		err = forceRemoveObject(h)
-		if err != nil {
-			log.Printf("Error removing corrupt file %v: %v", h, err)
-		}
+		log.Printf("Removed corrupt file from disk: %v (was %v), result=%v",
+			h, hstring, errorOrSuccess(err))
 		return fmt.Errorf("Hash from disk of %v was %v", h, hstring)
 	}
 	return nil
