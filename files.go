@@ -80,7 +80,7 @@ func verifyWorker(ch chan os.FileInfo) {
 				info.Name(), err)
 			removeBlobOwnershipRecord(info.Name(), serverId)
 			if len(nl) > 0 {
-				salvageBlob(info.Name(), "", nl)
+				salvageBlob(info.Name(), "", 1, nl)
 			}
 		}
 	}

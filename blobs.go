@@ -285,7 +285,8 @@ func ensureMinimumReplicaCount() error {
 
 	viewRes := struct {
 		Rows []struct {
-			Id string
+			Key int
+			Id  string
 		}
 	}{}
 
@@ -315,7 +316,8 @@ func ensureMinimumReplicaCount() error {
 
 	did := 0
 	for _, r := range viewRes.Rows {
-		if !salvageBlob(r.Id[1:], "", nl) {
+		todo := globalConfig.MinReplicas - r.Key
+		if !salvageBlob(r.Id[1:], "", todo, nl) {
 			log.Printf("Queue is full ensuring min repl count")
 			break
 		}
@@ -442,16 +444,23 @@ func performFetch(oid, prev string) {
 
 // Return false on unrecoverable errors (i.e. the internode queue is
 // full and we need a break)
-func salvageBlob(oid, deadNode string, nl NodeList) bool {
+func salvageBlob(oid, deadNode string, todo int, nl NodeList) bool {
 	candidates := nl.candidatesFor(oid,
 		NodeList{nl.named(deadNode)})
 
 	if len(candidates) == 0 {
 		log.Printf("Couldn't find a candidate for %v!", oid)
 	} else {
-		log.Printf("Recommending %v get a copy of %v",
-			candidates[0], oid)
-		return maybeQueueBlobAcquire(candidates[0], oid, deadNode)
+		rv := true
+		for _, n := range candidates {
+			log.Printf("Recommending %v get a copy of %v", n, oid)
+			rv = rv && maybeQueueBlobAcquire(n, oid, deadNode)
+			todo--
+			if todo == 0 {
+				break
+			}
+		}
+		return rv
 	}
 	return true
 }
