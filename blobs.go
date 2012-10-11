@@ -130,6 +130,8 @@ func recordBlobOwnership(h string, l int64, force bool) error {
 		}, 0)
 		return err
 	})
+	log.Printf("Recorded myself as an owner of %v: result=%v",
+		h, errorOrSuccess(err))
 	if err == memcached.CASQuit {
 		err = nil
 	}
