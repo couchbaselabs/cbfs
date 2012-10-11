@@ -249,7 +249,8 @@ func maybeRemoveBlobOwnership(h string) (rv error) {
 		}, 0)
 		return err
 	})
-	log.Printf("Asked to remove %v - result=%v", h, errorOrSuccess(err))
+	log.Printf("Asked to remove %v - cas=%v, result=%v", h,
+		errorOrSuccess(err), errorOrSuccess(rv))
 	if removedLast {
 		log.Printf("Completed removal of %v", h)
 		couchbase.Delete(k + "/r")

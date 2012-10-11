@@ -480,8 +480,8 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 	for _, sid := range nl {
 		resp, err := http.Get(sid.BlobURL(oid))
 		if err != nil {
-			log.Printf("Error reading %s from node %v",
-				oid, sid)
+			log.Printf("Error reading %s from node %v: %v",
+				oid, sid, err)
 			continue
 		}
 		defer resp.Body.Close()
