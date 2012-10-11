@@ -24,48 +24,57 @@ var maxStartupRepls = flag.Int("maxStartRepls", 3,
 type PeriodicJob struct {
 	period func() time.Duration
 	f      func() error
+	excl   []string
 }
 
 var globalPeriodicJobs = map[string]*PeriodicJob{}
 var localPeriodicJobs = map[string]*PeriodicJob{}
 
 func init() {
+	none := []string{}
+
 	globalPeriodicJobs = map[string]*PeriodicJob{
 		"checkStaleNodes": &PeriodicJob{
 			func() time.Duration {
 				return globalConfig.StaleNodeCheckFreq
 			},
 			checkStaleNodes,
+			none,
 		},
 		"garbageCollectBlobs": &PeriodicJob{
 			func() time.Duration {
 				return globalConfig.GCFreq
 			},
 			garbageCollectBlobs,
+			[]string{"ensureMinReplCount", "trimFullNodes"},
 		},
 		"ensureMinReplCount": &PeriodicJob{
 			func() time.Duration {
 				return globalConfig.UnderReplicaCheckFreq
 			},
 			ensureMinimumReplicaCount,
+			[]string{"garbageCollectBlobs", "trimFullNodes"},
 		},
 		"pruneExcessiveReplicas": &PeriodicJob{
 			func() time.Duration {
 				return globalConfig.OverReplicaCheckFreq
 			},
 			pruneExcessiveReplicas,
+			none,
 		},
 		"updateNodeSizes": &PeriodicJob{
 			func() time.Duration {
 				return globalConfig.UpdateNodeSizesFreq
 			},
 			updateNodeSizes,
+			none,
 		},
 		"trimFullNodes": &PeriodicJob{
 			func() time.Duration {
 				return globalConfig.TrimFullNodesFreq
 			},
 			trimFullNodes,
+			[]string{"ensureMinReplCount", "garbageCollectBlobs"},
 		},
 	}
 
@@ -75,18 +84,21 @@ func init() {
 				return globalConfig.LocalValidationFreq
 			},
 			validateLocal,
+			[]string{"reconcile"},
 		},
 		"reconcile": &PeriodicJob{
 			func() time.Duration {
 				return globalConfig.ReconcileFreq
 			},
 			reconcile,
+			[]string{"validateLocal"},
 		},
 		"cleanTmp": &PeriodicJob{
 			func() time.Duration {
 				return time.Hour
 			},
 			cleanTmpFiles,
+			none,
 		},
 	}
 }
@@ -172,9 +184,10 @@ func listRunningTasks() (map[string]TaskList, error) {
 }
 
 // Run a named task if we know one hasn't in the last t seconds.
-func runNamedGlobalTask(name string, t time.Duration, f func() error) error {
+func runNamedTask(name string, job *PeriodicJob) error {
 	key := "/@" + name
 
+	t := job.period()
 	if t.Seconds() < 1 {
 		time.Sleep(time.Second)
 		return fmt.Errorf("Would've run with a 0s ttl")
@@ -209,7 +222,7 @@ func runNamedGlobalTask(name string, t time.Duration, f func() error) error {
 		if err != nil {
 			return err
 		}
-		err = f()
+		err = runMarkedTask(name, job)
 	} else if err == alreadyRunning {
 		err = nil
 	}
@@ -217,8 +230,12 @@ func runNamedGlobalTask(name string, t time.Duration, f func() error) error {
 	return err
 }
 
-func runNamedLocalTask(name string, t time.Duration, f func() error) error {
-	return runNamedGlobalTask(serverId+"/"+name, t, f)
+func runGlobalTask(name string, job *PeriodicJob) error {
+	return runNamedTask(name, job)
+}
+
+func runLocalTask(name string, job *PeriodicJob) error {
+	return runNamedTask(serverId+"/"+name, job)
 }
 
 func logErrors(from string, errs <-chan error) {
@@ -423,10 +440,10 @@ func relockTask(taskName string) bool {
 	return err == nil
 }
 
-func runMarkedTask(name string, excl []string, f func() error) error {
-	for anyTaskRunning(excl) {
+func runMarkedTask(name string, job *PeriodicJob) error {
+	for anyTaskRunning(job.excl) {
 		log.Printf("Execution of %v is blocked on one of %v",
-			name, excl)
+			name, job.excl)
 		time.Sleep(5 * time.Second)
 	}
 
@@ -445,13 +462,7 @@ func runMarkedTask(name string, excl []string, f func() error) error {
 		return err
 	}
 	defer couchbase.Delete(taskKey)
-	return f()
-}
-
-func garbageCollectBlobs() error {
-	return runMarkedTask("garbageCollectBlobs",
-		[]string{"ensureMinReplCount", "trimFullNodes"},
-		garbageCollectBlobsTask)
+	return job.f()
 }
 
 func moveSomeOffOf(n StorageNode, nl NodeList) {
@@ -527,12 +538,6 @@ func moveSomeOffOf(n StorageNode, nl NodeList) {
 }
 
 func trimFullNodes() error {
-	return runMarkedTask("trimFullNodes",
-		[]string{"ensureMinReplCount", "garbageCollectBlobs"},
-		trimFullNodesTask)
-}
-
-func trimFullNodesTask() error {
 	nl, err := findAllNodes()
 	if err != nil {
 		return err
@@ -568,7 +573,7 @@ func okToClean(oid string) bool {
 	return true
 }
 
-func garbageCollectBlobsTask() error {
+func garbageCollectBlobs() error {
 	log.Printf("Garbage collecting blobs without any file references")
 
 	viewRes := struct {
@@ -691,7 +696,7 @@ func grabSomeData() {
 func runGlobalPeriodicJob(name string, job *PeriodicJob) {
 	time.Sleep(time.Second * time.Duration(5+rand.Intn(60)))
 	for {
-		err := runNamedGlobalTask(name, job.period(), job.f)
+		err := runGlobalTask(name, job)
 		if err != nil {
 			log.Printf("Error running global task %v: %v", name, err)
 		}
@@ -702,7 +707,7 @@ func runGlobalPeriodicJob(name string, job *PeriodicJob) {
 func runLocalPeriodicJob(name string, job *PeriodicJob) {
 	time.Sleep(time.Second * time.Duration(5+rand.Intn(60)))
 	for {
-		err := runNamedLocalTask(name, job.period(), job.f)
+		err := runLocalTask(name, job)
 		if err != nil {
 			log.Printf("Error running local task %v: %v", name, err)
 		}
