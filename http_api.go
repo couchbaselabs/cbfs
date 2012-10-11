@@ -200,7 +200,6 @@ func doListNodes(w http.ResponseWriter, req *http.Request) {
 			"hbtime":    node.Time,
 			"hbage_ms":  age.Nanoseconds() / 1e6,
 			"hbage_str": age.String(),
-			"hash":      node.Hash,
 			"used":      node.Used,
 			"free":      node.Free,
 			"addr_raw":  node.Addr,
