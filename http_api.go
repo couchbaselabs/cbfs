@@ -190,7 +190,7 @@ func doListNodes(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	respob := map[string]interface{}{}
+	respob := map[string]map[string]interface{}{}
 	for _, node := range nl {
 		age := time.Since(node.Time)
 		respob[node.name] = map[string]interface{}{
@@ -208,8 +208,8 @@ func doListNodes(w http.ResponseWriter, req *http.Request) {
 		// Grandfathering these in.
 		if !node.Started.IsZero() {
 			uptime := time.Since(node.Started)
-			respob["uptime_ms"] = uptime.Nanoseconds() / 1e6
-			respob["uptime_str"] = uptime.String()
+			respob[node.name]["uptime_ms"] = uptime.Nanoseconds() / 1e6
+			respob[node.name]["uptime_str"] = uptime.String()
 		}
 
 	}
