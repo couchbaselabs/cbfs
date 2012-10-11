@@ -461,10 +461,14 @@ func relockTask(taskName string) bool {
 }
 
 func runMarkedTask(name string, job *PeriodicJob) error {
+	start := time.Now()
 	for anyTaskRunning(job.excl) {
 		log.Printf("Execution of %v is blocked on one of %v",
 			name, job.excl)
 		time.Sleep(5 * time.Second)
+		if time.Since(start) > job.period() {
+			return fmt.Errorf("Execution blocked for too long")
+		}
 	}
 
 	if !strings.HasPrefix(name, serverId+"/") && !relockTask(name) {
