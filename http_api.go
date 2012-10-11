@@ -91,7 +91,7 @@ func doListTasks(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(200)
 
 	// Reformat for more APIish output.
-	output := map[string]map[string]time.Time{}
+	output := map[string]map[string]TaskState{}
 
 	for _, tl := range tasks {
 		// Remove node prefix from local task names.

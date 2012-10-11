@@ -237,7 +237,13 @@ function updateTasks() {
             .data(d3.keys(json), String)
           .selectAll("ul li")
             .data(function(d) { return d3.entries(json[d]); })
-            .attr("title", function(d) { return reltime(d.value); })
+            .attr("title", function(d) {
+                if (d.value.state == "preparing") {
+                    return "preparing";
+                }
+                return reltime(d.value.ts);
+            })
+            .attr("class", function(d) { return d.value.state; })
             .text(function(d) { return d.key; });
     });
 }

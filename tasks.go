@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 
 	cb "github.com/couchbaselabs/go-couchbase"
@@ -109,8 +110,13 @@ type JobMarker struct {
 	Type    string    `json:"type"`
 }
 
+type TaskState struct {
+	State     string    `json:"state"`
+	Timestamp time.Time `json:"ts"`
+}
+
 type TaskList struct {
-	Tasks map[string]time.Time `json:"tasks"`
+	Tasks map[string]TaskState `json:"tasks"`
 	Node  string               `json:"node"`
 	Type  string               `json:"type"`
 }
@@ -119,19 +125,20 @@ func clearTasks() error {
 	return couchbase.Delete("/@" + serverId + "/tasks")
 }
 
-func updateTasks(add, remove string) error {
+func setTaskState(task, state string) error {
 	k := "/@" + serverId + "/tasks"
 	ts := time.Now().UTC()
 	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
 		_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
-			ob := TaskList{Tasks: map[string]time.Time{}}
+			ob := TaskList{Tasks: map[string]TaskState{}}
 			json.Unmarshal(in, &ob)
-			if add != "" {
-				ob.Tasks[add] = ts
-			}
-			delete(ob.Tasks, remove)
-			if len(ob.Tasks) == 0 {
-				return nil, memcached.CASDelete
+			if state == "" {
+				delete(ob.Tasks, task)
+				if len(ob.Tasks) == 0 {
+					return nil, memcached.CASDelete
+				}
+			} else {
+				ob.Tasks[task] = TaskState{state, ts}
 			}
 			ob.Type = "tasks"
 			ob.Node = serverId
@@ -143,14 +150,6 @@ func updateTasks(add, remove string) error {
 		err = nil
 	}
 	return err
-}
-
-func startedTask(name string) error {
-	return updateTasks(name, "")
-}
-
-func endedTask(name string) error {
-	return updateTasks("", name)
 }
 
 func listRunningTasks() (map[string]TaskList, error) {
@@ -217,8 +216,8 @@ func runNamedTask(name string, job *PeriodicJob) error {
 	})
 
 	if err == nil {
-		err = startedTask(name)
-		defer endedTask(name)
+		err = setTaskState(name, "preparing")
+		defer setTaskState(name, "")
 		if err != nil {
 			return err
 		}
@@ -447,7 +446,7 @@ func runMarkedTask(name string, job *PeriodicJob) error {
 		time.Sleep(5 * time.Second)
 	}
 
-	if !relockTask(name) {
+	if !strings.HasPrefix(name, serverId+"/") && !relockTask(name) {
 		log.Printf("We lost the lock for %v", name)
 		return nil
 	}
@@ -462,6 +461,13 @@ func runMarkedTask(name string, job *PeriodicJob) error {
 		return err
 	}
 	defer couchbase.Delete(taskKey)
+	err = setTaskState(name, "running")
+	if err != nil {
+		// I'd rather not run a task than erroneously report
+		// is as running when we couldn't update the state to
+		// running.
+		return err
+	}
 	return job.f()
 }
 
