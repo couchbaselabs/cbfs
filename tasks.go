@@ -121,10 +121,6 @@ type TaskList struct {
 	Type  string               `json:"type"`
 }
 
-func clearTasks() error {
-	return couchbase.Delete("/@" + serverId + "/tasks")
-}
-
 func setTaskState(task, state string) error {
 	k := "/@" + serverId + "/tasks"
 	ts := time.Now().UTC()
@@ -335,13 +331,38 @@ func cleanupNode(node string) {
 		if err != nil {
 			log.Printf("Error deleting %v node counter: %v", node, err)
 		}
-		err = couchbase.Delete("/" + node + "/tasks")
-		if err != nil {
-			log.Printf("Error deleting %v task list: %v", node, err)
-		}
 		err = removeFromNodeRegistry(node)
 		if err != nil {
 			log.Printf("Error deleting %v from registry: %v", node, err)
+		}
+		cleanNodeTaskMarkers(node)
+	}
+}
+
+func cleanNodeTaskMarkers(node string) {
+	err := couchbase.Delete("/" + node + "/tasks")
+	if err != nil {
+		log.Printf("Error removing %v's task list: %v", node, err)
+	}
+	for name := range globalPeriodicJobs {
+		k := "/@" + name + "/running"
+		err = couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
+			_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
+				if len(in) == 0 {
+					return nil, memcached.CASQuit
+				}
+				ob := map[string]string{}
+				err := json.Unmarshal(in, &ob)
+				if err == nil && ob["node"] == node {
+					return nil, memcached.CASDelete
+				}
+				return nil, memcached.CASQuit
+			}, 0)
+			return err
+		})
+		if err != nil && err != memcached.CASQuit {
+			log.Printf("Error removing %v's %v running marker: %v",
+				node, name, err)
 		}
 	}
 }
@@ -739,7 +760,7 @@ func runPeriodicJobs() {
 }
 
 func startTasks() {
-	clearTasks()
+	cleanNodeTaskMarkers(serverId)
 	// Forget the last time we did local validation. We're
 	// restarting, so things have changed.
 	couchbase.Delete("/@" + serverId + "/validateLocal")
