@@ -120,7 +120,8 @@ function drawBubbles(d, r) {
 
 function drawRepcounts(d) {
     var vals = [],
-        names = [];
+        names = [],
+        formatNumber = d3.format(",d");
 
     for (var i = 0; i < d.rows.length; i++) {
         names.push(d.rows[i].key);
@@ -134,7 +135,7 @@ function drawRepcounts(d) {
         .range([0, w]);
 
     var textify = function(d, i) {
-        return names[i] + " rep: " + d;
+        return names[i] + " rep: " + formatNumber(d);
     };
 
     var repChart = d3.select("#repcounts svg");
