@@ -182,7 +182,6 @@ func putMeta(w http.ResponseWriter, req *http.Request, path string) {
 }
 
 func doListNodes(w http.ResponseWriter, req *http.Request) {
-
 	nl, err := findAllNodes()
 	if err != nil {
 		log.Printf("Error executing nodes view: %v", err)
@@ -197,6 +196,7 @@ func doListNodes(w http.ResponseWriter, req *http.Request) {
 		respob[node.name] = map[string]interface{}{
 			"size":      node.storageSize,
 			"addr":      node.Address(),
+			"starttime": node.Started,
 			"hbtime":    node.Time,
 			"hbage_ms":  age.Nanoseconds() / 1e6,
 			"hbage_str": age.String(),
@@ -206,6 +206,13 @@ func doListNodes(w http.ResponseWriter, req *http.Request) {
 			"addr_raw":  node.Addr,
 			"bindaddr":  node.BindAddr,
 		}
+		// Grandfathering these in.
+		if !node.Started.IsZero() {
+			uptime := time.Since(node.Started)
+			respob["uptime_ms"] = uptime.Nanoseconds() / 1e6
+			respob["uptime_str"] = uptime.String()
+		}
+
 	}
 
 	w.Header().Set("Content-Type", "application/json")

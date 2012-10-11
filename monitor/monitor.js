@@ -24,6 +24,7 @@ function updateBubbles(bubble, vis, d) {
     for (var n in d) {
         children.push({age: d[n].hbage_ms,
                        hbs: d[n].hbage_str,
+                       uptime: d[n].uptime_str,
                        node: n,
                        avail: d[n].free,
                        value: d[n].size});
@@ -91,7 +92,11 @@ function updateBubbles(bubble, vis, d) {
     vis.selectAll("g.node title")
         .data(data, dKey)
         .text(function(d) {
-            return "Last heartbeat from " + d.node + " " + d.hbs + " ago";
+            var rv = "Last heartbeat from " + d.node + " " + d.hbs + " ago";
+            if (d.uptime) {
+                rv += ", up " + d.uptime;
+            }
+            return rv;
         });
 
 }

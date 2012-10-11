@@ -79,6 +79,7 @@ func updateSpaceUsedLoop() {
 }
 
 func heartbeat() {
+	startTime := time.Now().UTC()
 	go updateSpaceUsedLoop()
 	for {
 
@@ -93,6 +94,7 @@ func heartbeat() {
 		aboutMe := StorageNode{
 			Addr:     localAddr,
 			Type:     "node",
+			Started:  startTime,
 			Time:     time.Now().UTC(),
 			BindAddr: *bindAddr,
 			Used:     spaceUsed,

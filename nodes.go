@@ -19,6 +19,7 @@ var nodeTooOld = errors.New("Node information is too stale")
 type StorageNode struct {
 	Addr     string    `json:"addr"`
 	Type     string    `json:"type"`
+	Started  time.Time `json:"started"`
 	Time     time.Time `json:"time"`
 	BindAddr string    `json:"bindaddr"`
 	Hash     string    `json:"hash"`
