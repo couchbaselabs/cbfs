@@ -1,4 +1,4 @@
-// +build !windows
+// +build windows !darwin !freebsd !linux !openbsd !netbsd
 
 package main
 
@@ -17,10 +17,6 @@ func init() {
 
 func initLogger(slog bool) {
 	if slog {
-		lw, err := syslog.New(syslog.LOG_INFO, "cbfs")
-		if err != nil {
-			corelog.Fatalf("Can't initialize logger: %v", err)
-		}
-		log = corelog.New(lw, "", 0)
+		log.Printf("No syslog support on Windows, using regular logging")
 	}
 }
