@@ -15,10 +15,10 @@ func init() {
 
 func initLogger(slog bool) {
 	if slog {
-		l, err := syslog.NewLogger(syslog.LOG_INFO, 0)
+		lw, err := syslog.New(syslog.LOG_INFO, "cbfs")
 		if err != nil {
 			corelog.Fatalf("Can't initialize logger: %v", err)
 		}
-		log = l
+		log = corelog.New(lw, "", 0)
 	}
 }
