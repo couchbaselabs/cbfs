@@ -35,6 +35,7 @@ var uploadMeta = uploadFlags.Bool("meta", false,
 var uploadWorkers = uploadFlags.Int("workers", 4, "Number of upload workers")
 var uploadRevs = uploadFlags.Int("revs", 0,
 	"Number of old revisions to keep (-1 == all)")
+var uploadNoop = uploadFlags.Bool("n", false, "Dry run")
 var uploadIgnore = uploadFlags.String("ignore", "",
 	"Path to ignore file")
 var uploadRevsSet = false
@@ -161,6 +162,9 @@ func uploadFile(src, dest, localHash string) error {
 	if *uploadVerbose {
 		log.Printf("Uploading %v -> %v (%v)", src, dest, localHash)
 	}
+	if *uploadNoop {
+		return nil
+	}
 
 	f, err := os.Open(src)
 	if err != nil {
@@ -242,9 +246,11 @@ func uploadRmDir(baseUrl string) ([]string, error) {
 		if *uploadVerbose {
 			log.Printf("Removing file %v/%v", baseUrl, fn)
 		}
-		err = rmFile(baseUrl + "/" + r.Replace(fn))
-		if err != nil {
-			return []string{}, err
+		if !*uploadNoop {
+			err = rmFile(baseUrl + "/" + r.Replace(fn))
+			if err != nil {
+				return []string{}, err
+			}
 		}
 	}
 	children := make([]string, 0, len(listing.Dirs))
@@ -309,7 +315,9 @@ func uploadWorker(ch chan uploadReq) {
 				if *uploadVerbose {
 					log.Printf("Removing file %v", req.dest)
 				}
-				err = rmFile(req.dest)
+				if !*uploadNoop {
+					err = rmFile(req.dest)
+				}
 			case removeRecurseOp:
 				err = uploadRmDashR(req.dest)
 			default:
