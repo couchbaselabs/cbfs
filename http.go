@@ -189,8 +189,18 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 			log.Printf("Error in secondary store of %v to %v for %v: %v",
 				h, si.node, req.URL.Path, si.err)
 			w.WriteHeader(500)
-			fmt.Fprintf(w, "Error creating secondary copy: %v\n%v",
+			fmt.Fprintf(w, "Error creating sync secondary copy: %v\n%v",
 				si.err, si.hs)
+
+			// We do have this item now, so even if it's
+			// not going to be linked to a file, we will
+			// increase the replica count to the minimum
+			// so we don't report underreplication.
+			if globalConfig.MinReplicas > 1 {
+				go increaseReplicaCount(h, length,
+					globalConfig.MinReplicas-1)
+			}
+
 			return
 		}
 	} else {
