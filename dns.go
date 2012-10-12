@@ -165,7 +165,7 @@ func (d dnsService) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		}
 	case dns.TypeAAAA:
 		msg := &dns.Msg{}
-		msg.SetRcode(r, dns.RcodeNameError)
+		msg.SetRcode(r, dns.RcodeSuccess)
 		d.writeLogErr(w, msg)
 	default:
 		msg := &dns.Msg{}
