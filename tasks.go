@@ -368,7 +368,6 @@ func cleanNodeTaskMarkers(node string) {
 }
 
 func checkStaleNodes() error {
-	log.Printf("Checking stale nodes")
 	nl, err := findAllNodes()
 	if err != nil {
 		return err
@@ -383,13 +382,12 @@ func checkStaleNodes() error {
 					d)
 				continue
 			}
-			log.Printf("  Node %v missed heartbeat schedule: %v",
+			log.Printf("Node %v missed heartbeat schedule: %v",
 				node.name, d)
 			go cleanupNode(node.name)
-		} else {
-			log.Printf("%v is ok at %v", node.name, d)
 		}
 	}
+	log.Printf("Checked %v nodes for staleness", len(nl))
 	return nil
 }
 
