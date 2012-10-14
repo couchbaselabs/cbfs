@@ -42,6 +42,7 @@ func destroyFrameClient(addr string) {
 	if fc == nil {
 		return
 	}
+	fc.checker.Stop()
 	framesweb.CloseFramesClient(fc.client)
 	delete(frameClients, addr)
 }
@@ -66,7 +67,11 @@ func checkFrameClient(addr string) {
 		log.Printf("Found error checking frame client, killing: %v/%v",
 			err, status)
 		destroyFrameClient(addr)
+		return
 	}
+	fc.checker = time.AfterFunc(frameCheckFreq, func() {
+		checkFrameClient(addr)
+	})
 }
 
 func connectNewFramesClient(addr string) *frameClient {
