@@ -92,13 +92,14 @@ func heartbeat() {
 		}
 
 		aboutMe := StorageNode{
-			Addr:     localAddr,
-			Type:     "node",
-			Started:  startTime,
-			Time:     time.Now().UTC(),
-			BindAddr: *bindAddr,
-			Used:     spaceUsed,
-			Free:     availableSpace(),
+			Addr:      localAddr,
+			Type:      "node",
+			Started:   startTime,
+			Time:      time.Now().UTC(),
+			BindAddr:  *bindAddr,
+			FrameBind: *framesBind,
+			Used:      spaceUsed,
+			Free:      availableSpace(),
 		}
 
 		err = couchbase.Set("/"+serverId, 0, aboutMe)

@@ -17,13 +17,14 @@ import (
 var nodeTooOld = errors.New("Node information is too stale")
 
 type StorageNode struct {
-	Addr     string    `json:"addr"`
-	Type     string    `json:"type"`
-	Started  time.Time `json:"started"`
-	Time     time.Time `json:"time"`
-	BindAddr string    `json:"bindaddr"`
-	Used     int64     `json:"used"`
-	Free     uint64    `json:"free"`
+	Addr      string    `json:"addr"`
+	Type      string    `json:"type"`
+	Started   time.Time `json:"started"`
+	Time      time.Time `json:"time"`
+	BindAddr  string    `json:"bindaddr"`
+	FrameBind string    `json:"framebind"`
+	Used      int64     `json:"used"`
+	Free      uint64    `json:"free"`
 
 	name        string
 	storageSize int64
@@ -38,6 +39,21 @@ func (a StorageNode) Address() string {
 		return a.Addr + a.BindAddr
 	}
 	return a.BindAddr
+}
+
+func (a StorageNode) FrameAddress() string {
+	if strings.HasPrefix(a.FrameBind, ":") {
+		return a.Addr + a.FrameBind
+	}
+	return a.FrameBind
+}
+
+func (a StorageNode) Client() *http.Client {
+	addr := a.FrameAddress()
+	if addr == "" {
+		return http.DefaultClient
+	}
+	return getFrameClient(addr)
 }
 
 func (a StorageNode) BlobURL(h string) string {
@@ -101,7 +117,7 @@ func (n StorageNode) acquireBlob(oid, prevNode string) error {
 
 		req.Header.Set("X-Prevnode", prevNode)
 
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := n.Client().Do(req)
 		if err != nil {
 			return err
 		}
@@ -124,7 +140,7 @@ func (n StorageNode) deleteBlob(oid string) error {
 		if err != nil {
 			return err
 		}
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := n.Client().Do(req)
 		if err != nil {
 			return err
 		}

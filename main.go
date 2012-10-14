@@ -178,6 +178,8 @@ func main() {
 
 	time.AfterFunc(time.Second*time.Duration(rand.Intn(30)+5), grabSomeData)
 
+	go serveFrame()
+
 	s := &http.Server{
 		Addr:        *bindAddr,
 		Handler:     http.HandlerFunc(httpHandler),

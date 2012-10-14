@@ -194,16 +194,17 @@ func doListNodes(w http.ResponseWriter, req *http.Request) {
 	for _, node := range nl {
 		age := time.Since(node.Time)
 		respob[node.name] = map[string]interface{}{
-			"size":      node.storageSize,
-			"addr":      node.Address(),
-			"starttime": node.Started,
-			"hbtime":    node.Time,
-			"hbage_ms":  age.Nanoseconds() / 1e6,
-			"hbage_str": age.String(),
-			"used":      node.Used,
-			"free":      node.Free,
-			"addr_raw":  node.Addr,
-			"bindaddr":  node.BindAddr,
+			"size":       node.storageSize,
+			"addr":       node.Address(),
+			"starttime":  node.Started,
+			"hbtime":     node.Time,
+			"hbage_ms":   age.Nanoseconds() / 1e6,
+			"hbage_str":  age.String(),
+			"used":       node.Used,
+			"free":       node.Free,
+			"addr_raw":   node.Addr,
+			"bindaddr":   node.BindAddr,
+			"framesbind": node.FrameBind,
 		}
 		// Grandfathering these in.
 		if !node.Started.IsZero() {

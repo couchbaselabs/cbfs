@@ -72,11 +72,7 @@ func altStoreFile(name string, r io.Reader,
 				return
 			}
 
-			client := http.Client{
-				Transport: TimeoutTransport(time.Hour),
-			}
-
-			presp, err := client.Do(preq)
+			presp, err := nodes[0].Client().Do(preq)
 			if err == nil {
 				if presp.StatusCode != 201 {
 					rv.err = errors.New(presp.Status)
@@ -505,7 +501,7 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 	// Loop through the nodes that claim to own this blob
 	// If we encounter any errors along the way, try the next node
 	for _, sid := range nl {
-		resp, err := http.Get(sid.BlobURL(oid))
+		resp, err := sid.Client().Get(sid.BlobURL(oid))
 		if err != nil {
 			log.Printf("Error reading %s from node %v: %v",
 				oid, sid, err)
