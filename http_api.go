@@ -302,3 +302,7 @@ func doListDocs(w http.ResponseWriter, req *http.Request,
 		log.Printf("Error writing json stream: %v", err)
 	}
 }
+
+func doPing(w http.ResponseWriter, req *http.Request) {
+	w.WriteHeader(204)
+}

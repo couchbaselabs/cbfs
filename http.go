@@ -25,6 +25,7 @@ const (
 	tarPrefix    = "/.cbfs/tar/"
 	fsckPrefix   = "/.cbfs/fsck/"
 	taskPrefix   = "/.cbfs/tasks/"
+	pingPrefix   = "/.cbfs/ping/"
 )
 
 type storInfo struct {
@@ -627,6 +628,8 @@ func doFetchDoc(w http.ResponseWriter, req *http.Request,
 
 func doGet(w http.ResponseWriter, req *http.Request) {
 	switch {
+	case req.URL.Path == pingPrefix:
+		doPing(w, req)
 	case req.URL.Path == blobPrefix:
 		doList(w, req)
 	case req.URL.Path == nodePrefix:
