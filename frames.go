@@ -77,7 +77,6 @@ func checkFrameClient(addr string) {
 		res, err := fc.client.Get("http://" + addr + "/.cbfs/ping/")
 		if err == nil {
 			res.Body.Close()
-		} else {
 			if res.StatusCode != 204 {
 				err = errors.New(res.Status)
 			}
