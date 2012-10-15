@@ -355,8 +355,12 @@ func ensureMinimumReplicaCount() error {
 		return err
 	}
 
-	log.Printf("Increasing replica count of up to %v items",
-		len(viewRes.Rows))
+	if len(viewRes.Rows) > 0 {
+		log.Printf("Increasing replica count of up to %v items",
+			len(viewRes.Rows))
+	} else {
+		return nil
+	}
 
 	did := 0
 	for _, r := range viewRes.Rows {
@@ -367,7 +371,7 @@ func ensureMinimumReplicaCount() error {
 		}
 		did++
 	}
-	log.Printf("Increased the replication count of %v items", did)
+	log.Printf("Increased the replica count of %v items", did)
 	return nil
 }
 
