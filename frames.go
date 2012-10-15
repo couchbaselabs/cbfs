@@ -43,7 +43,10 @@ func destroyFrameClient(addr string) {
 		return
 	}
 	fc.checker.Stop()
-	framesweb.CloseFramesClient(fc.client)
+	err := framesweb.CloseFramesClient(fc.client)
+	if err != nil {
+		log.Printf("Error closing %v frame client: %v", addr, err)
+	}
 	delete(frameClients, addr)
 }
 
@@ -53,19 +56,22 @@ func checkFrameClient(addr string) {
 		return
 	}
 	if time.Since(fc.lastUsed) > frameMaxIdle {
-		log.Printf("Client was last used %v (%v), closing",
-			fc.lastUsed, time.Since(fc.lastUsed))
+		log.Printf("Client to %v was last used %v (%v), closing",
+			addr, fc.lastUsed, time.Since(fc.lastUsed))
 		destroyFrameClient(addr)
 		return
 	}
 	res, err := fc.client.Get("http://" + addr + "/.cbfs/ping/")
+	if err == nil {
+		res.Body.Close()
+	}
 	if err != nil || res.StatusCode != 204 {
 		status := "<none>"
 		if err == nil {
 			status = res.Status
 		}
-		log.Printf("Found error checking frame client, killing: %v/%v",
-			err, status)
+		log.Printf("Found error checking %v frame client, killing: %v/%v",
+			addr, err, status)
 		destroyFrameClient(addr)
 		return
 	}
@@ -81,20 +87,22 @@ func connectNewFramesClient(addr string) *frameClient {
 		return nil
 	}
 	frt := &framesweb.FramesRoundTripper{
-		Dialer: frames.NewClient(c),
+		Dialer:  frames.NewClient(c),
+		Timeout: time.Second * 5,
+		Logger:  log,
 	}
 	hc := &http.Client{Transport: frt}
 	frameClientsLock.Lock()
 	defer frameClientsLock.Unlock()
 
-	fc := &frameClient{
+	fwc := &frameClient{
 		client: hc,
 		checker: time.AfterFunc(frameCheckFreq, func() {
 			checkFrameClient(addr)
 		}),
 	}
-	frameClients[addr] = fc
-	return fc
+	frameClients[addr] = fwc
+	return fwc
 }
 
 func getFrameClient(addr string) *http.Client {
