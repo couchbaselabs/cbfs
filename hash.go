@@ -126,18 +126,21 @@ func cleanTmpFiles() error {
 		return err
 	}
 	now := time.Now()
+	cleaned := 0
 	for _, fn := range fi {
 		cutoff := fn.ModTime().Add(1 * time.Hour)
 		if strings.HasPrefix(fn.Name(), "tmp") &&
 			cutoff.Before(now) {
 
-			log.Printf("Removing tmp file: %v", fn.Name())
 			err = os.Remove(filepath.Join(*root, fn.Name()))
-			if err != nil {
+			if err == nil {
+				cleaned++
+			} else {
 				log.Printf("Error cleaning %v: %v",
 					fn.Name(), err)
 			}
 		}
 	}
+	log.Printf("Removed %v tmp files in %v", cleaned, time.Since(now))
 	return nil
 }
