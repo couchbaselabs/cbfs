@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -92,7 +93,10 @@ func initServerId() error {
 		serverId = strings.TrimSpace(string(bytes))
 	} else {
 		if serverId == "" {
-			serverId = time.Now().UTC().Format(time.RFC3339Nano)
+			h := getHash()
+			t := time.Now().UTC().Format(time.RFC3339Nano)
+			h.Write([]byte(t))
+			serverId = hex.EncodeToString(h.Sum(nil))[:8]
 		}
 	}
 	return err
