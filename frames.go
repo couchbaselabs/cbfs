@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"net"
 	"net/http"
@@ -15,15 +16,18 @@ const (
 	frameConnectTimeout = time.Second * 5
 	frameCheckFreq      = time.Second * 5
 	frameMaxIdle        = time.Minute * 5
+	minFrameRead        = 24
+	minFrameWritten     = 24
 )
 
 var framesBind = flag.String("frameBind", ":8423",
 	"Binding for frames protocol.")
 
 type frameClient struct {
+	conn     frames.ChannelDialer
 	client   *http.Client
 	checker  *time.Timer
-	lastUsed time.Time
+	prevInfo frames.Info
 }
 
 var frameClients = map[string]*frameClient{}
@@ -55,26 +59,46 @@ func checkFrameClient(addr string) {
 	if fc == nil {
 		return
 	}
-	if time.Since(fc.lastUsed) > frameMaxIdle {
-		log.Printf("Client to %v was last used %v (%v), closing",
-			addr, fc.lastUsed, time.Since(fc.lastUsed))
+	info := fc.conn.GetInfo()
+	log.Printf("Frame client %v: r+%v, w+%v, channels:%v", addr,
+		info.BytesRead-fc.prevInfo.BytesRead,
+		info.BytesWritten-fc.prevInfo.BytesWritten,
+		info.ChannelsOpen)
+	if (info.BytesRead-fc.prevInfo.BytesRead < minFrameRead) ||
+		(info.BytesWritten-fc.prevInfo.BytesWritten < minFrameWritten) {
+		log.Printf("Insufficient recent activity on frames conn %v, closing",
+			addr)
 		destroyFrameClient(addr)
 		return
 	}
-	res, err := fc.client.Get("http://" + addr + "/.cbfs/ping/")
-	if err == nil {
-		res.Body.Close()
-	}
-	if err != nil || res.StatusCode != 204 {
-		status := "<none>"
+
+	ch := make(chan error)
+	go func() {
+		res, err := fc.client.Get("http://" + addr + "/.cbfs/ping/")
 		if err == nil {
-			status = res.Status
+			res.Body.Close()
+		} else {
+			if res.StatusCode != 204 {
+				err = errors.New(res.Status)
+			}
 		}
-		log.Printf("Found error checking %v frame client, killing: %v/%v",
-			addr, err, status)
+		ch <- err
+	}()
+
+	var err error
+	select {
+	case err = <-ch:
+	case <-time.After(time.Minute):
+		err = errors.New("ping timeout")
+	}
+
+	if err != nil {
+		log.Printf("Ping error on %v: %v", addr, err)
 		destroyFrameClient(addr)
 		return
 	}
+
+	fc.prevInfo = info
 	fc.checker = time.AfterFunc(frameCheckFreq, func() {
 		checkFrameClient(addr)
 	})
@@ -86,8 +110,9 @@ func connectNewFramesClient(addr string) *frameClient {
 		log.Printf("Error connecting to %v: %v", addr, err)
 		return nil
 	}
+	conn := frames.NewClient(c)
 	frt := &framesweb.FramesRoundTripper{
-		Dialer:  frames.NewClient(c),
+		Dialer:  conn,
 		Timeout: time.Second * 5,
 		Logger:  log,
 	}
@@ -96,6 +121,7 @@ func connectNewFramesClient(addr string) *frameClient {
 	defer frameClientsLock.Unlock()
 
 	fwc := &frameClient{
+		conn:   conn,
 		client: hc,
 		checker: time.AfterFunc(frameCheckFreq, func() {
 			checkFrameClient(addr)
@@ -113,8 +139,6 @@ func getFrameClient(addr string) *http.Client {
 	if fc == nil {
 		log.Printf("Failed to find or get frames client for %v", addr)
 		return http.DefaultClient
-	} else {
-		fc.lastUsed = time.Now()
 	}
 	return fc.client
 }
