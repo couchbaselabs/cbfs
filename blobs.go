@@ -16,10 +16,11 @@ import (
 )
 
 type BlobOwnership struct {
-	OID    string               `json:"oid"`
-	Length int64                `json:"length"`
-	Nodes  map[string]time.Time `json:"nodes"`
-	Type   string               `json:"type"`
+	OID     string               `json:"oid"`
+	Length  int64                `json:"length"`
+	Nodes   map[string]time.Time `json:"nodes"`
+	Type    string               `json:"type"`
+	Garbage bool                 `json:"garbage"`
 }
 
 type internodeCommand uint8
@@ -125,6 +126,7 @@ func recordBlobOwnership(h string, l int64, force bool) error {
 			}
 			ownership.OID = h
 			ownership.Length = l
+			ownership.Garbage = false
 			ownership.Type = "blob"
 			return mustEncode(&ownership), memcached.CASStore
 		}, 0)
@@ -137,6 +139,45 @@ func recordBlobOwnership(h string, l int64, force bool) error {
 			h, errorOrSuccess(err))
 	}
 	return err
+}
+
+func markGarbage(h string) error {
+	k := "/" + h
+	return couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
+		res, err := mc.Get(vb, k)
+		if err != nil {
+			return err
+		}
+		if res.Status != gomemcached.SUCCESS {
+			return res
+		}
+		ownership := BlobOwnership{}
+		err = json.Unmarshal(res.Body, &ownership)
+		if err != nil {
+			return err
+		}
+		_, t := ownership.mostRecent()
+		if time.Since(t) < time.Minute*15 {
+			return errors.New("too soon")
+		}
+		ownership.Garbage = true
+		req := &gomemcached.MCRequest{
+			Opcode:  gomemcached.SET,
+			VBucket: vb,
+			Key:     []byte(k),
+			Cas:     res.Cas,
+			Opaque:  0,
+			Extras:  []byte{0, 0, 0, 0, 0, 0, 0, 0},
+			Body:    mustEncode(&ownership)}
+		res, err = mc.Send(req)
+		if err != nil {
+			return err
+		}
+		if res.Status != gomemcached.SUCCESS {
+			return res
+		}
+		return nil
+	})
 }
 
 func recordBlobAccess(h string) {
@@ -222,11 +263,12 @@ func maybeRemoveBlobOwnership(h string) (rv error) {
 
 			err := json.Unmarshal(in, &ownership)
 			if err == nil {
-				if time.Since(ownership.Nodes[serverId]) < time.Hour {
+				if ownership.Garbage {
+					// OK
+				} else if time.Since(ownership.Nodes[serverId]) < time.Hour {
 					rv = errors.New("too soon")
 					return nil, memcached.CASQuit
-				}
-				if len(ownership.Nodes)-1 < globalConfig.MinReplicas {
+				} else if len(ownership.Nodes)-1 < globalConfig.MinReplicas {
 					rv = errors.New("Insufficient replicas")
 					return nil, memcached.CASQuit
 				}

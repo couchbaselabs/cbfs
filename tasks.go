@@ -592,14 +592,7 @@ func trimFullNodes() error {
 }
 
 func okToClean(oid string) bool {
-	ob, err := getBlobOwnership(oid)
-	if err == nil {
-		_, t := ob.mostRecent()
-		if time.Since(t) < time.Hour {
-			return false
-		}
-	}
-	return true
+	return markGarbage(oid) == nil
 }
 
 func garbageCollectBlobs() error {
