@@ -61,10 +61,6 @@ func checkFrameClient(addr string) {
 		return
 	}
 	info := fc.conn.GetInfo()
-	log.Printf("Frame client %v: r+%v, w+%v, channels:%v", addr,
-		info.BytesRead-fc.prevInfo.BytesRead,
-		info.BytesWritten-fc.prevInfo.BytesWritten,
-		info.ChannelsOpen)
 
 	if (info.BytesRead-fc.prevInfo.BytesRead > minFrameRead) ||
 		(info.BytesWritten-fc.prevInfo.BytesWritten > minFrameWritten) {
