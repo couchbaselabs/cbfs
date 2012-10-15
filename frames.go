@@ -16,18 +16,19 @@ const (
 	frameConnectTimeout = time.Second * 5
 	frameCheckFreq      = time.Second * 5
 	frameMaxIdle        = time.Minute * 5
-	minFrameRead        = 24
-	minFrameWritten     = 24
+	minFrameRead        = 180
+	minFrameWritten     = 120
 )
 
 var framesBind = flag.String("frameBind", ":8423",
 	"Binding for frames protocol.")
 
 type frameClient struct {
-	conn     frames.ChannelDialer
-	client   *http.Client
-	checker  *time.Timer
-	prevInfo frames.Info
+	conn         frames.ChannelDialer
+	client       *http.Client
+	checker      *time.Timer
+	prevInfo     frames.Info
+	lastActivity time.Time
 }
 
 var frameClients = map[string]*frameClient{}
@@ -64,9 +65,14 @@ func checkFrameClient(addr string) {
 		info.BytesRead-fc.prevInfo.BytesRead,
 		info.BytesWritten-fc.prevInfo.BytesWritten,
 		info.ChannelsOpen)
-	if (info.BytesRead-fc.prevInfo.BytesRead < minFrameRead) ||
-		(info.BytesWritten-fc.prevInfo.BytesWritten < minFrameWritten) {
-		log.Printf("Insufficient recent activity on frames conn %v, closing",
+
+	if (info.BytesRead-fc.prevInfo.BytesRead > minFrameRead) ||
+		(info.BytesWritten-fc.prevInfo.BytesWritten > minFrameWritten) {
+		fc.lastActivity = time.Now()
+	}
+
+	if time.Since(fc.lastActivity) > frameMaxIdle {
+		log.Printf("Too long with insufficient activity on %v, shutting down",
 			addr)
 		destroyFrameClient(addr)
 		return
