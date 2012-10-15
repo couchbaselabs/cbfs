@@ -61,10 +61,12 @@ func checkFrameClient(addr string) {
 		return
 	}
 	info := fc.conn.GetInfo()
+	sufficient := false
 
 	if (info.BytesRead-fc.prevInfo.BytesRead > minFrameRead) ||
 		(info.BytesWritten-fc.prevInfo.BytesWritten > minFrameWritten) {
 		fc.lastActivity = time.Now()
+		sufficient = true
 	}
 
 	if time.Since(fc.lastActivity) > frameMaxIdle {
@@ -74,29 +76,33 @@ func checkFrameClient(addr string) {
 		return
 	}
 
-	ch := make(chan error)
-	go func() {
-		res, err := fc.client.Get("http://" + addr + "/.cbfs/ping/")
-		if err == nil {
-			res.Body.Close()
-			if res.StatusCode != 204 {
-				err = errors.New(res.Status)
+	// If we're not naturally moving enough data, send a ping.
+	if !sufficient {
+		ch := make(chan error)
+		go func() {
+			res, err := fc.client.Get("http://" +
+				addr + "/.cbfs/ping/")
+			if err == nil {
+				res.Body.Close()
+				if res.StatusCode != 204 {
+					err = errors.New(res.Status)
+				}
 			}
+			ch <- err
+		}()
+
+		var err error
+		select {
+		case err = <-ch:
+		case <-time.After(time.Minute):
+			err = errors.New("ping timeout")
 		}
-		ch <- err
-	}()
 
-	var err error
-	select {
-	case err = <-ch:
-	case <-time.After(time.Minute):
-		err = errors.New("ping timeout")
-	}
-
-	if err != nil {
-		log.Printf("Ping error on %v: %v", addr, err)
-		destroyFrameClient(addr)
-		return
+		if err != nil {
+			log.Printf("Ping error on %v: %v", addr, err)
+			destroyFrameClient(addr)
+			return
+		}
 	}
 
 	fc.prevInfo = info
