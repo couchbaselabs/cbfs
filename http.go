@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -316,7 +317,7 @@ func resolvePath(req *http.Request) string {
 	return path
 }
 
-func doHead(w http.ResponseWriter, req *http.Request) {
+func doHeadUserFile(w http.ResponseWriter, req *http.Request) {
 	path := resolvePath(req)
 	got := fileMeta{}
 	err := couchbase.Get(path, &got)
@@ -351,6 +352,39 @@ func doHead(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", got.Length))
 
 	w.WriteHeader(200)
+}
+
+func doHeadRawBlob(w http.ResponseWriter, req *http.Request, oid string) {
+	f, err := openBlob(oid)
+	if err != nil {
+		w.WriteHeader(404)
+		fmt.Fprintf(w, "Error opening blob: %v", err)
+		removeBlobOwnershipRecord(oid, serverId)
+		return
+	}
+	defer f.Close()
+
+	length, err := f.Seek(0, os.SEEK_END)
+	if err != nil {
+		w.WriteHeader(500)
+		log.Printf("Error seeking in %v: %v", oid, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Length", fmt.Sprintf("%v", length))
+	w.WriteHeader(200)
+}
+
+func doHead(w http.ResponseWriter, req *http.Request) {
+	switch {
+	case strings.HasPrefix(req.URL.Path, blobPrefix):
+		doHeadRawBlob(w, req, minusPrefix(req.URL.Path, blobPrefix))
+	case strings.HasPrefix(req.URL.Path, "/.cbfs/"):
+		w.WriteHeader(400)
+	default:
+		doHeadUserFile(w, req)
+	}
 }
 
 type geezyWriter struct {
