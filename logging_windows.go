@@ -3,16 +3,8 @@
 package main
 
 import (
-	corelog "log"
-	"os"
+	"log"
 )
-
-var log *corelog.Logger
-
-func init() {
-	log = corelog.New(os.Stderr, "", 0)
-	log.SetFlags(corelog.LstdFlags)
-}
 
 func initLogger(slog bool) {
 	if slog {
