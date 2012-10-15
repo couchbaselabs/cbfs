@@ -34,6 +34,18 @@ type frameClient struct {
 var frameClients = map[string]*frameClient{}
 var frameClientsLock sync.Mutex
 
+func getFramesInfos() map[string]frames.Info {
+	rv := map[string]frames.Info{}
+	frameClientsLock.Lock()
+	defer frameClientsLock.Unlock()
+
+	for k, v := range frameClients {
+		rv[k] = v.conn.GetInfo()
+	}
+
+	return rv
+}
+
 func findExistingFrameClient(addr string) *frameClient {
 	frameClientsLock.Lock()
 	defer frameClientsLock.Unlock()

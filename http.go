@@ -27,6 +27,7 @@ const (
 	fsckPrefix   = "/.cbfs/fsck/"
 	taskPrefix   = "/.cbfs/tasks/"
 	pingPrefix   = "/.cbfs/ping/"
+	framePrefix  = "/.cbfs/info/frames/"
 )
 
 type storInfo struct {
@@ -660,6 +661,8 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 	switch {
 	case req.URL.Path == pingPrefix:
 		doPing(w, req)
+	case req.URL.Path == framePrefix:
+		doGetFramesData(w, req)
 	case req.URL.Path == blobPrefix:
 		doList(w, req)
 	case req.URL.Path == nodePrefix:

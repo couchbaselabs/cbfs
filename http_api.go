@@ -219,6 +219,12 @@ func doListNodes(w http.ResponseWriter, req *http.Request) {
 	w.Write(mustEncode(respob))
 }
 
+func doGetFramesData(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	w.Write(mustEncode(getFramesInfos()))
+}
+
 func proxyViewRequest(w http.ResponseWriter, req *http.Request,
 	path string) {
 
