@@ -4,7 +4,6 @@ package main
 
 import (
 	corelog "log"
-	"log/syslog"
 	"os"
 )
 
