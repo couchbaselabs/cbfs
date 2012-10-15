@@ -454,8 +454,10 @@ func salvageBlob(oid, deadNode string, todo int, nl NodeList) bool {
 	} else {
 		rv := true
 		for _, n := range candidates {
-			log.Printf("Recommending %v get a copy of %v", n, oid)
-			rv = rv && maybeQueueBlobAcquire(n, oid, deadNode)
+			worked := maybeQueueBlobAcquire(n, oid, deadNode)
+			log.Printf("Recommending %v get a copy of %v - queued=%v",
+				n, oid, worked)
+			rv = rv && worked
 			todo--
 			if todo == 0 {
 				break
