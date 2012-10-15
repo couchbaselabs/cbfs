@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"flag"
+	"log"
 	"net"
 	"net/http"
 	"sync"
@@ -133,7 +134,6 @@ func connectNewFramesClient(addr string) *frameClient {
 	frt := &framesweb.FramesRoundTripper{
 		Dialer:  conn,
 		Timeout: time.Second * 5,
-		Logger:  log,
 	}
 	hc := &http.Client{Transport: frt}
 	frameClientsLock.Lock()
