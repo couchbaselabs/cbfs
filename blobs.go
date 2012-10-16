@@ -435,12 +435,12 @@ func pruneExcessiveReplicas() error {
 		return err
 	}
 
-	log.Printf("Decreasing replica count of %v items",
-		len(viewRes.Rows))
-
 	// Short-circuit when there's nothing to clean
 	if len(viewRes.Rows) == 0 {
 		return nil
+	} else {
+		log.Printf("Decreasing replica count of %v items",
+			len(viewRes.Rows))
 	}
 
 	for _, r := range viewRes.Rows {
