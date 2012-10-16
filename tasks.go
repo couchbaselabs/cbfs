@@ -388,7 +388,6 @@ func checkStaleNodes() error {
 			go cleanupNode(node.name)
 		}
 	}
-	log.Printf("Checked %v nodes for staleness", len(nl))
 	return nil
 }
 
