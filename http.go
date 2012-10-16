@@ -142,6 +142,14 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	fn := resolvePath(req)
+	if len(fn) > 250 {
+		w.WriteHeader(400)
+		log.Printf("User supplied excessively long filename: %v", fn)
+		fmt.Fprintf(w, "Filename too long.")
+		return
+	}
+
 	f, err := NewHashRecord(*root, req.Header.Get("X-CBFS-Hash"))
 	if err != nil {
 		log.Printf("Error writing tmp file: %v", err)
@@ -155,7 +163,7 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		// If we don't know, guess about a meg.
 		l = 1024 * 1024
 	}
-	r, bgch := altStoreFile(req.URL.Path, req.Body, uint64(l))
+	r, bgch := altStoreFile(fn, req.Body, uint64(l))
 
 	h, length, err := f.Process(r)
 	if err != nil {
@@ -219,10 +227,10 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	err = storeMeta(resolvePath(req), fm, revs)
+	err = storeMeta(fn, fm, revs)
 	if err != nil {
 		log.Printf("Error storing file meta of %v -> %v: %v",
-			resolvePath(req), h, err)
+			fn, h, err)
 		w.WriteHeader(500)
 		fmt.Fprintf(w, "Error recording blob ownership: %v", err)
 		return
