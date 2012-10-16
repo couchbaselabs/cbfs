@@ -14,5 +14,6 @@ func initLogger(slog bool) {
 			log.Fatalf("Can't initialize syslog: %v", err)
 		}
 		log.SetOutput(lw)
+		log.SetFlags(0)
 	}
 }
