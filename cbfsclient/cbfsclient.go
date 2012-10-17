@@ -20,6 +20,7 @@ var commands = map[string]struct {
 	"rm":      {0, rmCommand, "path"},
 	"getconf": {0, getConfCommand, ""},
 	"setconf": {2, setConfCommand, "prop value"},
+	"fsck":    {0, fsckCommand, ""},
 }
 
 func init() {
@@ -44,6 +45,8 @@ func init() {
 		rmFlags.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nupload:\n")
 		uploadFlags.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "\nfsck:\n")
+		fsckFlags.PrintDefaults()
 		os.Exit(1)
 	}
 
