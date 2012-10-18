@@ -27,7 +27,8 @@ function updateBubbles(bubble, vis, d) {
                        uptime: d[n].uptime_str,
                        node: n,
                        avail: d[n].free,
-                       value: d[n].size});
+                       value: d[n].size,
+                       total: d[n].free + d[n].size});
     }
 
     function fill(val) {
@@ -65,8 +66,13 @@ function updateBubbles(bubble, vis, d) {
     node.append("title")
         .text(function(d) { return d.node + ": " + format(d.value); });
 
-    node.append("circle")
-        .attr("r", function(d) { return d.r; })
+    node.append("path")
+        .attr("class", "arcf")
+        .attr("d", function(d, i) {
+            var howfull = d.value / d.total;
+            var angle = (2 * Math.PI) * howfull;
+            return d3.svg.arc().innerRadius(0).outerRadius(d.r).startAngle(0).endAngle(angle)();
+        })
         .style("fill", function(d) { return fill(d.age); });
 
     node.append("text")
@@ -80,7 +86,7 @@ function updateBubbles(bubble, vis, d) {
             return d.node + " " + prettySize(d.value) + "/" + prettySize(d.avail);
         });
 
-    vis.selectAll("g.node circle")
+    vis.selectAll("g.node .arc")
         .data(data, dKey)
       .transition()
         .duration(1000)
