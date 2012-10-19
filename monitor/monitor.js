@@ -278,9 +278,7 @@ function drawRepcounts(d) {
 }
 
 function updateCBFSConfig(d) {
-    if (d) {
-        cbfsConfig = d;
-    }
+    cbfsConfig = d;
     return updateCBFSConfig;
 }
 
