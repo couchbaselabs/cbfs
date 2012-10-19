@@ -15,9 +15,6 @@ function prettySize(s) {
 }
 
 function updateBubbles(bubble, vis, d) {
-    if (!d) {
-        return;
-    }
     var format = d3.format(",d");
 
     var children = [];
@@ -212,6 +209,11 @@ function drawRepcounts(d) {
         names = [],
         formatNumber = d3.format(",d");
 
+    if (!d.rows) {
+        console.log("No rows found:", d);
+        return;
+    }
+
     for (var i = 0; i < d.rows.length; i++) {
         names.push(d.rows[i].key);
         vals.push(parseInt(d.rows[i].value));
@@ -342,6 +344,12 @@ function updateTasks(d) {
 
 function initAndRefresh(path, functions, interval) {
     d3.json(path, function(d) {
+        if (!d) {
+            console.log("Initialization error on", path, "Trying again in one second");
+            setTimeout(function() {
+                initAndRefresh(path, functions, interval);
+            }, 1000);
+        }
         var updates = [];
         for (var i = 0; i < functions.length; i++) {
             updates.push(functions[i](d));
@@ -349,8 +357,12 @@ function initAndRefresh(path, functions, interval) {
 
         setInterval(function() {
             d3.json(path, function(d) {
-                for (var i = 0; i < updates.length; i++) {
-                    updates[i](d);
+                if (d) {
+                    for (var i = 0; i < updates.length; i++) {
+                        updates[i](d);
+                    }
+                } else {
+                    console.log("Error updating", path);
                 }
             });
         }, interval);
