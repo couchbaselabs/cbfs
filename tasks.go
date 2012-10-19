@@ -254,13 +254,30 @@ func validateLocal() error {
 
 	go me.iterateBlobs(oids, nil, quit)
 
+	nl, err := findAllNodes()
+	if err != nil {
+		log.Printf("Error getting node list for local validation: %v",
+			err)
+	}
+
 	start := time.Now()
 	count := 0
 	for hash := range oids {
 		if !hasBlob(hash) {
 			log.Printf("Mistakenly registered with %v",
 				hash)
-			removeBlobOwnershipRecord(hash, serverId)
+			owners := removeBlobOwnershipRecord(hash, serverId)
+
+			if owners < globalConfig.MinReplicas {
+				log.Printf("Local validation on %v dropped rep to %v",
+					hash, owners)
+				if !salvageBlob(hash, "",
+					globalConfig.MinReplicas-owners, nl) {
+
+					log.Printf("Internode queue full salvaging %v",
+						hash)
+				}
+			}
 		}
 		count++
 	}
