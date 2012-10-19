@@ -130,7 +130,7 @@ function updateBubbles(bubble, vis, d) {
 
 function drawBubbles(d, r) {
     if (!r) {
-        r = Math.min(window.innerWidth, window.innerHeight);
+        r = Math.min(window.innerWidth - 25, window.innerHeight);
     }
     var bubble = d3.layout.pack()
         .sort(null)
@@ -143,11 +143,72 @@ function drawBubbles(d, r) {
         .attr("class", "bubble");
 
     updateBubbles(bubble, vis, d);
-    setInterval(function() {
-        d3.json("/.cbfs/nodes/", function(d) {
-            updateBubbles(bubble, vis, d);
-        });
-    }, refreshInterval);
+    return function(x) {
+        updateBubbles(bubble, vis, x);
+    };
+}
+
+function addNodeSizes(d) {
+    var rv = {totalUsed: 0, totalFree: 0};
+
+    for (var k in d) {
+        rv.totalUsed += d[k].used;
+        rv.totalFree += d[k].free;
+    }
+
+    return rv;
+}
+
+function drawSizeChart(d) {
+    console.log(addNodeSizes(d));
+
+    var h = window.innerHeight - 4, w = 20;
+
+    var svg = d3.select("#size").append("svg")
+        .attr("width", w)
+        .attr("height", h);
+
+    var r = svg.selectAll("rect")
+        .data(["avail", "used"])
+      .enter().append("rect")
+        .attr("class", String)
+        .attr("width", w)
+        .attr("x", 2)
+        .attr("y", 0);
+    svg.selectAll("text")
+        .data(["avail", "used"])
+        .enter().append("text")
+        .attr("class", String)
+        .attr("transform", "rotate(90)")
+        .attr("x", 10)
+        .attr("y", -5);
+
+    function rv(x) {
+        console.log("Updating size chart", addNodeSizes(d));
+        var sizes = addNodeSizes(x);
+        var total = sizes.totalFree + sizes.totalUsed;
+        var y = d3.scale.linear().domain([0, total]).rangeRound([h, 2]);
+
+        d3.select("#size rect.used")
+            .attr("title", prettySize(sizes.totalUsed))
+          .transition().duration(1000)
+            .attr("height", y(0))
+            .attr("y", y(sizes.totalUsed));
+        d3.select("#size rect.avail")
+            .attr("title", prettySize(sizes.totalFree))
+          .transition().duration(1000)
+            .attr("height", y(sizes.totalUsed))
+            .attr("y", y(total));
+
+        d3.select("#size text.used")
+            .text("Used: " + prettySize(sizes.totalUsed))
+          .transition().duration(1000)
+            .attr("x", function(d) { return y(sizes.totalUsed) + 10;});
+        d3.select("#size text.avail")
+            .text("Available: " + prettySize(sizes.totalFree));
+    };
+    rv(d);
+    return rv;
 }
 
 function drawRepcounts(d) {
@@ -296,7 +357,20 @@ function monitorInit() {
         updateTasks();
     }, 5000);
 
-    d3.json("/.cbfs/nodes/", drawBubbles);
+    d3.json("/.cbfs/nodes/", function(d) {
+        var updates = [];
+        updates.push(drawBubbles(d));
+        updates.push(drawSizeChart(d));
+
+        setInterval(function() {
+            d3.json("/.cbfs/nodes/", function(d) {
+                for (var i = 0; i < updates.length; i++) {
+                    updates[i](d);
+                }
+            });
+        }, refreshInterval);
+    });
+
     setInterval(function() {
         d3.json(repCountURL, drawRepcounts);
     }, refreshInterval);

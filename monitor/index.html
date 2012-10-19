@@ -9,7 +9,25 @@
 #bubbles {
   position: absolute;
   top: 2px;
+  left: 22px;
+}
+
+#size {
+  position: absolute;
+  top: 2px;
   left: 2px;
+}
+
+#size rect.used {
+  fill: #FDC086;
+}
+
+#size rect.avail {
+  fill: #7FC97F;
+}
+
+#size text {
+  fill: black;
 }
 
 #repcounts {
@@ -74,6 +92,7 @@
   </head>
 
   <body>
+    <div id="size"></div>
     <div id="bubbles"></div>
     <div id="repcounts"></div>
     <div id="tasks">
