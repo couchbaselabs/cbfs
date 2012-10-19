@@ -141,6 +141,9 @@ func cleanTmpFiles() error {
 			}
 		}
 	}
-	log.Printf("Removed %v tmp files in %v", cleaned, time.Since(now))
+	if cleaned > 0 {
+		log.Printf("Removed %v tmp files in %v",
+			cleaned, time.Since(now))
+	}
 	return nil
 }
