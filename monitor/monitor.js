@@ -203,7 +203,7 @@ function drawSizeChart(d) {
         d3.select("#size text.used")
             .text("Used: " + prettySize(sizes.totalUsed))
           .transition().duration(1000)
-            .attr("x", function(d) { return y(sizes.totalUsed) + 10;});
+            .attr("x", function(d) { return Math.max(y(sizes.totalUsed) + 10, 200);});
         d3.select("#size text.avail")
             .text("Available: " + prettySize(sizes.totalFree));
     };
