@@ -67,11 +67,13 @@ function updateBubbles(bubble, vis, d) {
         .text(function(d) { return d.node + ": " + format(d.value); });
 
     node.append("path")
-        .attr("class", "arcf")
-        .attr("d", function(d, i) {
-            return d3.svg.arc().innerRadius(0).outerRadius(d.r).startAngle(0).endAngle(0)();
-        })
+        .attr("class", "arc arcf")
         .style("fill", "white")
+        .each(function(d) { this._current = {value: 0, r: d.r}; });
+
+    node.append("path")
+        .attr("class", "arc arce")
+        .style("fill", "#ddd")
         .each(function(d) { this._current = {value: 0, r: d.r}; });
 
     node.append("text")
@@ -88,9 +90,15 @@ function updateBubbles(bubble, vis, d) {
     function arcTween(a) {
         var i = d3.interpolate(this._current, {r: a.r, value: (a.value / a.total) * (2 * Math.PI)});
         this._current = i(0);
+        var isArce = d3.select(this).attr('class').indexOf('arce') >= 0;
         return function(t) {
             var x = i(t);
-            return d3.svg.arc().innerRadius(0).outerRadius(x.r).startAngle(0).endAngle(x.value)();
+            var start = 0, end = x.value;
+            if (isArce) {
+                start = end;
+                end = 2 * Math.PI;
+            }
+            return d3.svg.arc().innerRadius(0).outerRadius(x.r).startAngle(start).endAngle(end)();
         };
     }
 
@@ -99,6 +107,13 @@ function updateBubbles(bubble, vis, d) {
       .transition()
         .duration(1000)
         .style("fill", function(d) { return fill(d.age); })
+        .attrTween("d", arcTween);
+
+    vis.selectAll("g.node .arce")
+        .data(data, dKey)
+      .transition()
+        .duration(1000)
+        .style("fill", function(d) { return d3.interpolate(fill(d.age), 'white')(0.8); })
         .attrTween("d", arcTween);
 
     vis.selectAll("g.node title")
