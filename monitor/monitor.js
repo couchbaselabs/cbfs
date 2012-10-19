@@ -271,14 +271,15 @@ function drawRepcounts(d) {
             return (parseInt(names[i]) < (cbfsConfig.minrepl || 2) && x(d,i) < 10) ? "under" : null;
         })
         .text(textify);
+
+    return drawRepcounts;
 }
 
-function updateCBFSConfig() {
-    d3.json("/.cbfs/config/", function(d) {
-        if (d) {
-            cbfsConfig = d;
-        }
-    });
+function updateCBFSConfig(d) {
+    if (d) {
+        cbfsConfig = d;
+    }
+    return updateCBFSConfig;
 }
 
 function reltime(time){
@@ -300,9 +301,9 @@ function reltime(time){
         time;
 }
 
-function updateTasks() {
+function updateTasks(d) {
     var tlist = d3.select("#tasklist");
-    d3.json("/.cbfs/tasks/", function(json) {
+    function rv(json) {
 
         d3.select("#taskhdr")
             .style("display", d3.entries(json).length > 0 ? 'block' : 'none');
@@ -334,40 +335,38 @@ function updateTasks() {
             })
             .attr("class", function(d) { return d.value.state; })
             .text(function(d) { return d.key; });
+    };
+    rv(d);
+    return rv;
+}
+
+function initAndRefresh(path, functions, interval) {
+    d3.json(path, function(d) {
+        var updates = [];
+        for (var i = 0; i < functions.length; i++) {
+            updates.push(functions[i](d));
+        }
+
+        setInterval(function() {
+            d3.json(path, function(d) {
+                for (var i = 0; i < updates.length; i++) {
+                    updates[i](d);
+                }
+            });
+        }, interval);
     });
 }
 
 function monitorInit() {
     console.log("Starting monitoring");
 
-    var repChart = d3.select("#repcounts").append("svg")
+    d3.select("#repcounts").append("svg")
         .attr("class", "chart")
         .attr("width", 200);
 
-    updateCBFSConfig();
-    setInterval(function() {
-        updateCBFSConfig();
-    }, 60000);
-
-    setInterval(function() {
-        updateTasks();
-    }, 5000);
-
-    d3.json("/.cbfs/nodes/", function(d) {
-        var updates = [];
-        updates.push(drawBubbles(d));
-        updates.push(drawSizeChart(d));
-
-        setInterval(function() {
-            d3.json("/.cbfs/nodes/", function(d) {
-                for (var i = 0; i < updates.length; i++) {
-                    updates[i](d);
-                }
-            });
-        }, refreshInterval);
-    });
-
-    setInterval(function() {
-        d3.json(repCountURL, drawRepcounts);
-    }, refreshInterval);
+    initAndRefresh("/.cbfs/config/", [updateCBFSConfig], 60000);
+    initAndRefresh("/.cbfs/tasks/", [updateTasks], 5000);
+    initAndRefresh("/.cbfs/nodes/",
+                   [drawBubbles, drawSizeChart], refreshInterval);
+    initAndRefresh(repCountURL, [drawRepcounts], refreshInterval);
 }
