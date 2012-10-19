@@ -148,17 +148,6 @@ function drawBubbles(d, r) {
     };
 }
 
-function addNodeSizes(d) {
-    var rv = {totalUsed: 0, totalFree: 0};
-
-    for (var k in d) {
-        rv.totalUsed += d[k].used;
-        rv.totalFree += d[k].free;
-    }
-
-    return rv;
-}
-
 function drawSizeChart(d) {
     var h = window.innerHeight - 4, w = 20;
 
@@ -166,15 +155,17 @@ function drawSizeChart(d) {
         .attr("width", w)
         .attr("height", h);
 
+    var classes = ['avail', 'used'];
+
     var r = svg.selectAll("rect")
-        .data(["avail", "used"])
+        .data(classes)
       .enter().append("rect")
         .attr("class", String)
         .attr("width", w)
         .attr("x", 2)
         .attr("y", 0);
     svg.selectAll("text")
-        .data(["avail", "used"])
+        .data(classes)
         .enter().append("text")
         .attr("class", String)
         .attr("transform", "rotate(90)")
@@ -182,7 +173,13 @@ function drawSizeChart(d) {
         .attr("y", -5);
 
     function rv(x) {
-        var sizes = addNodeSizes(x);
+        var sizes = {totalUsed: 0, totalFree: 0};
+
+        for (var k in d) {
+            sizes.totalUsed += d[k].used;
+            sizes.totalFree += d[k].free;
+        }
+
         var total = sizes.totalFree + sizes.totalUsed;
         var y = d3.scale.linear().domain([0, total]).rangeRound([h, 2]);
 
