@@ -143,8 +143,8 @@ function drawBubbles(d, r) {
         .attr("class", "bubble");
 
     updateBubbles(bubble, vis, d);
-    return function(x) {
-        updateBubbles(bubble, vis, x);
+    return function(d) {
+        updateBubbles(bubble, vis, d);
     };
 }
 
@@ -172,7 +172,7 @@ function drawSizeChart(d) {
         .attr("x", 10)
         .attr("y", -5);
 
-    function rv(x) {
+    function rv(d) {
         var sizes = {totalUsed: 0, totalFree: 0};
 
         for (var k in d) {
