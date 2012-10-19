@@ -360,10 +360,6 @@ function initAndRefresh(path, functions, interval) {
 function monitorInit() {
     console.log("Starting monitoring");
 
-    d3.select("#repcounts").append("svg")
-        .attr("class", "chart")
-        .attr("width", 200);
-
     initAndRefresh("/.cbfs/config/", [updateCBFSConfig], 60000);
     initAndRefresh("/.cbfs/tasks/", [updateTasks], 5000);
     initAndRefresh("/.cbfs/nodes/",
