@@ -160,8 +160,6 @@ function addNodeSizes(d) {
 }
 
 function drawSizeChart(d) {
-    console.log(addNodeSizes(d));
-
     var h = window.innerHeight - 4, w = 20;
 
     var svg = d3.select("#size").append("svg")
@@ -184,7 +182,6 @@ function drawSizeChart(d) {
         .attr("y", -5);
 
     function rv(x) {
-        console.log("Updating size chart", addNodeSizes(d));
         var sizes = addNodeSizes(x);
         var total = sizes.totalFree + sizes.totalUsed;
         var y = d3.scale.linear().domain([0, total]).rangeRound([h, 2]);
