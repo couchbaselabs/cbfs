@@ -23,9 +23,7 @@ import (
 func doGetConfig(w http.ResponseWriter, req *http.Request) {
 	err := updateConfig()
 	if err != nil {
-		w.WriteHeader(500)
-		fmt.Fprintf(w, "Error updating config: %v", err)
-		return
+		log.Printf("Error updating config: %v", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
