@@ -340,6 +340,10 @@ func ensureMinimumReplicaCount() error {
 		endKey = len(nl) - 1
 	}
 
+	if endKey < 1 {
+		return errors.New("Not enough nodes to increase repl count.")
+	}
+
 	// Find some less replicated docs to suck in.
 	err = couchbase.ViewCustom("cbfs", "repcounts",
 		map[string]interface{}{
