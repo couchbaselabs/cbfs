@@ -5,31 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 
 	"github.com/couchbaselabs/cbfs/config"
 )
 
-func getConfURL(uin string) (string, error) {
-	u, err := url.Parse(uin)
-	if err != nil {
-		return "", err
-	}
-
-	u.Path = "/.cbfs/config/"
-	return u.String(), nil
+func (c Client) confURL() string {
+	return string(c) + ".cbfs/config/"
 }
 
 // Get the current configuration.
-func GetConfig(u string) (cbfsconfig.CBFSConfig, error) {
+func (c Client) GetConfig() (cbfsconfig.CBFSConfig, error) {
 	conf := cbfsconfig.CBFSConfig{}
 
-	confu, err := getConfURL(u)
-	if err != nil {
-		return conf, err
-	}
-
-	res, err := http.Get(confu)
+	res, err := http.Get(c.confURL())
 	if err != nil {
 		return conf, err
 	}
@@ -43,8 +31,8 @@ func GetConfig(u string) (cbfsconfig.CBFSConfig, error) {
 }
 
 // Set a configuration parameter by name.
-func SetConfigParam(u, key, val string) error {
-	conf, err := GetConfig(u)
+func (c Client) SetConfigParam(key, val string) error {
+	conf, err := c.GetConfig()
 	if err != nil {
 		return err
 	}
@@ -59,12 +47,7 @@ func SetConfigParam(u, key, val string) error {
 		return err
 	}
 
-	confu, err := getConfURL(u)
-	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequest("PUT", confu,
+	req, err := http.NewRequest("PUT", c.confURL(),
 		bytes.NewBuffer(data))
 	if err != nil {
 		return err
