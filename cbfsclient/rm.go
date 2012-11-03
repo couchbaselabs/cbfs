@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+
+	"github.com/couchbaselabs/cbfs/client"
 )
 
 var rmFlags = flag.NewFlagSet("rm", flag.ExitOnError)
@@ -21,7 +23,7 @@ func rmDashR(baseUrl string) {
 		baseUrl = baseUrl[:len(baseUrl)-1]
 	}
 
-	listing, err := listStuff(baseUrl)
+	listing, err := cbfsclient.List(baseUrl)
 	if err != nil {
 		log.Fatalf("Error listing files: %v", err)
 	}

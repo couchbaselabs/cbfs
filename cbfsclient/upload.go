@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/couchbaselabs/cbfs/client"
 	"github.com/dustin/go-id3"
 	"github.com/dustin/goexif/exif"
 )
@@ -238,7 +239,7 @@ func uploadRmDir(baseUrl string) ([]string, error) {
 		baseUrl = baseUrl[:len(baseUrl)-1]
 	}
 
-	listing, err := listOrEmpty(baseUrl)
+	listing, err := cbfsclient.ListOrEmpty(baseUrl)
 	for err != nil {
 		return []string{}, err
 	}
@@ -355,9 +356,9 @@ func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
 	dest = quotingReplacer.Replace(dest)
 
 	retries := 3
-	serverListing, err := listOrEmpty(dest)
+	serverListing, err := cbfsclient.ListOrEmpty(dest)
 	for err != nil && retries > 0 {
-		serverListing, err = listOrEmpty(dest)
+		serverListing, err = cbfsclient.ListOrEmpty(dest)
 		time.Sleep(time.Second)
 		retries--
 	}
