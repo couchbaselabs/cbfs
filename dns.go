@@ -27,7 +27,7 @@ func (d dnsService) serviceDomain() string {
 }
 
 func (d dnsService) writeLogErr(w dns.ResponseWriter, msg *dns.Msg) {
-	err := w.Write(msg)
+	err := w.WriteMsg(msg)
 	if err != nil {
 		log.Printf("Error writing response: %v\n%v", err, msg)
 	}
