@@ -53,7 +53,7 @@ func (d dnsService) srvList(w dns.ResponseWriter, r *dns.Msg) {
 			port = tmp
 		}
 
-		rr := &dns.RR_SRV{
+		rr := &dns.SRV{
 			Hdr: dns.RR_Header{
 				Name:   d.serviceDomain(),
 				Rrtype: dns.TypeSRV,
@@ -66,7 +66,7 @@ func (d dnsService) srvList(w dns.ResponseWriter, r *dns.Msg) {
 		}
 		msg.Answer = append(msg.Answer, rr)
 
-		arr := &dns.RR_A{
+		arr := &dns.A{
 			Hdr: dns.RR_Header{
 				Name:   n.name + "." + *dnsZone,
 				Rrtype: dns.TypeA,
@@ -95,7 +95,7 @@ func (d dnsService) hostLookup(w dns.ResponseWriter, r *dns.Msg) {
 
 	node, err := findNode(name)
 	if err == nil {
-		msg.Answer = []dns.RR{&dns.RR_A{
+		msg.Answer = []dns.RR{&dns.A{
 			Hdr: dns.RR_Header{
 				Name:   r.Question[0].Name,
 				Rrtype: dns.TypeA,
@@ -125,7 +125,7 @@ func (d dnsService) listHosts(w dns.ResponseWriter, r *dns.Msg) {
 		if time.Since(n.Time) > (3 * globalConfig.HeartbeatFreq) {
 			continue
 		}
-		rr := &dns.RR_A{
+		rr := &dns.A{
 			Hdr: dns.RR_Header{
 				Name:   *dnsZone,
 				Rrtype: dns.TypeA,
