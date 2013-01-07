@@ -16,19 +16,20 @@ import (
 )
 
 const (
-	blobPrefix   = "/.cbfs/blob/"
-	nodePrefix   = "/.cbfs/nodes/"
-	metaPrefix   = "/.cbfs/meta/"
-	proxyPrefix  = "/.cbfs/viewproxy/"
-	fetchPrefix  = "/.cbfs/fetch/"
-	listPrefix   = "/.cbfs/list/"
-	configPrefix = "/.cbfs/config/"
-	zipPrefix    = "/.cbfs/zip/"
-	tarPrefix    = "/.cbfs/tar/"
-	fsckPrefix   = "/.cbfs/fsck/"
-	taskPrefix   = "/.cbfs/tasks/"
-	pingPrefix   = "/.cbfs/ping/"
-	framePrefix  = "/.cbfs/info/frames/"
+	blobPrefix      = "/.cbfs/blob/"
+	nodePrefix      = "/.cbfs/nodes/"
+	metaPrefix      = "/.cbfs/meta/"
+	proxyPrefix     = "/.cbfs/viewproxy/"
+	crudproxyPrefix = "/.cbfs/crudproxy/"
+	fetchPrefix     = "/.cbfs/fetch/"
+	listPrefix      = "/.cbfs/list/"
+	configPrefix    = "/.cbfs/config/"
+	zipPrefix       = "/.cbfs/zip/"
+	tarPrefix       = "/.cbfs/tar/"
+	fsckPrefix      = "/.cbfs/fsck/"
+	taskPrefix      = "/.cbfs/tasks/"
+	pingPrefix      = "/.cbfs/ping/"
+	framePrefix     = "/.cbfs/info/frames/"
 )
 
 type storInfo struct {
@@ -296,6 +297,8 @@ func doPut(w http.ResponseWriter, req *http.Request) {
 		putRawHash(w, req)
 	case strings.HasPrefix(req.URL.Path, metaPrefix):
 		putMeta(w, req, minusPrefix(req.URL.Path, metaPrefix))
+	case *enableCRUDProxy && strings.HasPrefix(req.URL.Path, crudproxyPrefix):
+		proxyCRUDPut(w, req, minusPrefix(req.URL.Path, crudproxyPrefix))
 	case strings.HasPrefix(req.URL.Path, "/.cbfs/"):
 		w.WriteHeader(400)
 	default:
@@ -690,6 +693,8 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 		doServeRawBlob(w, req, minusPrefix(req.URL.Path, blobPrefix))
 	case *enableViewProxy && strings.HasPrefix(req.URL.Path, proxyPrefix):
 		proxyViewRequest(w, req, minusPrefix(req.URL.Path, proxyPrefix))
+	case *enableCRUDProxy && strings.HasPrefix(req.URL.Path, crudproxyPrefix):
+		proxyCRUDGet(w, req, minusPrefix(req.URL.Path, crudproxyPrefix))
 	case strings.HasPrefix(req.URL.Path, listPrefix):
 		doListDocs(w, req, minusPrefix(req.URL.Path, listPrefix))
 	case strings.HasPrefix(req.URL.Path, zipPrefix):
@@ -735,6 +740,8 @@ func doDelete(w http.ResponseWriter, req *http.Request) {
 	switch {
 	case strings.HasPrefix(req.URL.Path, blobPrefix):
 		doDeleteOID(w, req)
+	case *enableCRUDProxy && strings.HasPrefix(req.URL.Path, crudproxyPrefix):
+		proxyCRUDDelete(w, req, minusPrefix(req.URL.Path, crudproxyPrefix))
 	case strings.HasPrefix(req.URL.Path, "/.cbfs/"):
 		w.WriteHeader(400)
 	default:

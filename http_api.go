@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
@@ -263,6 +264,52 @@ func proxyViewRequest(w http.ResponseWriter, req *http.Request,
 	w.WriteHeader(res.StatusCode)
 
 	io.Copy(output, res.Body)
+}
+
+func proxyCRUDGet(w http.ResponseWriter, req *http.Request,
+	path string) {
+
+	val, err := couchbase.GetRaw(path)
+	if err != nil {
+		w.WriteHeader(404)
+		fmt.Fprintf(w, "Error getting value: %v", err)
+		return
+	}
+	w.WriteHeader(200)
+	w.Write(val)
+}
+
+func proxyCRUDPut(w http.ResponseWriter, req *http.Request,
+	path string) {
+
+	data, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Error reading data: %v", err)
+		return
+	}
+
+	err = couchbase.SetRaw(path, 0, data)
+	if err != nil {
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Error storing value: %v", err)
+		return
+	}
+
+	w.WriteHeader(204)
+}
+
+func proxyCRUDDelete(w http.ResponseWriter, req *http.Request,
+	path string) {
+
+	err := couchbase.Delete(path)
+	if err != nil {
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Error deleting value: %v", err)
+		return
+	}
+
+	w.WriteHeader(204)
 }
 
 func doListDocs(w http.ResponseWriter, req *http.Request,

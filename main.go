@@ -23,6 +23,8 @@ var cachePercentage = flag.Int("cachePercent", 100,
 	"Percentage of proxied requests to eagerly cache.")
 var enableViewProxy = flag.Bool("viewProxy", false,
 	"Enable the view proxy")
+var enableCRUDProxy = flag.Bool("crudProxy", false,
+	"Enable the CRUD proxy")
 var verbose = flag.Bool("verbose", false, "Show some more stuff")
 var readTimeout = flag.Duration("serverTimeout", 5*time.Minute,
 	"Web server read timeout")
