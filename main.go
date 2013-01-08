@@ -57,6 +57,7 @@ type fileMeta struct {
 	Modified time.Time        `json:"modified"`
 	Previous []prevMeta       `json:"older"`
 	Revno    int              `json:"revno"`
+	Type     string           `json:"type"`
 }
 
 func (fm fileMeta) MarshalJSON() ([]byte, error) {

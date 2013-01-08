@@ -438,6 +438,12 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 		w.Write([]byte(err.Error()))
 		return
 	}
+	if got.Type != "file" {
+		log.Printf("%v is not a file", path)
+		w.WriteHeader(404)
+		fmt.Fprintf(w, "Item at %v is not a file.", path)
+		return
+	}
 
 	oid := got.OID
 	respHeaders := got.Headers
