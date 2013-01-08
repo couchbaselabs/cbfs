@@ -36,42 +36,42 @@ func init() {
 	none := []string{}
 
 	globalPeriodicJobs = map[string]*PeriodicJob{
-		"checkStaleNodes": &PeriodicJob{
+		"checkStaleNodes": {
 			func() time.Duration {
 				return globalConfig.StaleNodeCheckFreq
 			},
 			checkStaleNodes,
 			none,
 		},
-		"garbageCollectBlobs": &PeriodicJob{
+		"garbageCollectBlobs": {
 			func() time.Duration {
 				return globalConfig.GCFreq
 			},
 			garbageCollectBlobs,
 			[]string{"ensureMinReplCount", "trimFullNodes"},
 		},
-		"ensureMinReplCount": &PeriodicJob{
+		"ensureMinReplCount": {
 			func() time.Duration {
 				return globalConfig.UnderReplicaCheckFreq
 			},
 			ensureMinimumReplicaCount,
 			[]string{"garbageCollectBlobs", "trimFullNodes"},
 		},
-		"pruneExcessiveReplicas": &PeriodicJob{
+		"pruneExcessiveReplicas": {
 			func() time.Duration {
 				return globalConfig.OverReplicaCheckFreq
 			},
 			pruneExcessiveReplicas,
 			none,
 		},
-		"updateNodeSizes": &PeriodicJob{
+		"updateNodeSizes": {
 			func() time.Duration {
 				return globalConfig.UpdateNodeSizesFreq
 			},
 			updateNodeSizes,
 			none,
 		},
-		"trimFullNodes": &PeriodicJob{
+		"trimFullNodes": {
 			func() time.Duration {
 				return globalConfig.TrimFullNodesFreq
 			},
@@ -81,21 +81,21 @@ func init() {
 	}
 
 	localPeriodicJobs = map[string]*PeriodicJob{
-		"validateLocal": &PeriodicJob{
+		"validateLocal": {
 			func() time.Duration {
 				return globalConfig.LocalValidationFreq
 			},
 			validateLocal,
 			[]string{"reconcile"},
 		},
-		"reconcile": &PeriodicJob{
+		"reconcile": {
 			func() time.Duration {
 				return globalConfig.ReconcileFreq
 			},
 			reconcile,
 			[]string{"validateLocal"},
 		},
-		"cleanTmp": &PeriodicJob{
+		"cleanTmp": {
 			func() time.Duration {
 				return time.Hour
 			},
