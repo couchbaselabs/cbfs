@@ -12,6 +12,7 @@ import (
 	"sort"
 	"time"
 
+	cb "github.com/couchbaselabs/go-couchbase"
 	"github.com/dustin/gomemcached"
 	"github.com/dustin/gomemcached/client"
 )
@@ -110,30 +111,29 @@ func copyBlob(w io.Writer, oid string) error {
 
 func recordBlobOwnership(h string, l int64, force bool) error {
 	k := "/" + h
-	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
-		_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
-			ownership := BlobOwnership{}
-			err := json.Unmarshal(in, &ownership)
-			if err == nil {
-				if _, ok := ownership.Nodes[serverId]; ok && !force {
-					// Skip it fast if it already knows us
-					return nil, memcached.CASQuit
-				}
-				ownership.Nodes[serverId] = time.Now().UTC()
-			} else {
-				ownership.Nodes = map[string]time.Time{
-					serverId: time.Now().UTC(),
-				}
+
+	err := couchbase.Update(k, 0, func(in []byte) ([]byte, error) {
+		ownership := BlobOwnership{}
+		err := json.Unmarshal(in, &ownership)
+		if err == nil {
+			if _, ok := ownership.Nodes[serverId]; ok && !force {
+				// Skip it fast if it already knows us
+				return nil, cb.UpdateCancel
 			}
-			ownership.OID = h
-			ownership.Length = l
-			ownership.Garbage = false
-			ownership.Type = "blob"
-			return mustEncode(&ownership), memcached.CASStore
-		}, 0)
-		return err
+			ownership.Nodes[serverId] = time.Now().UTC()
+		} else {
+			ownership.Nodes = map[string]time.Time{
+				serverId: time.Now().UTC(),
+			}
+		}
+		ownership.OID = h
+		ownership.Length = l
+		ownership.Garbage = false
+		ownership.Type = "blob"
+		return json.Marshal(ownership)
 	})
-	if err == memcached.CASQuit {
+
+	if err == cb.UpdateCancel {
 		err = nil
 	} else {
 		log.Printf("Recorded myself as an owner of %v: result=%v",
@@ -199,40 +199,32 @@ func removeBlobOwnershipRecord(h, node string) int {
 	numOwners := -1
 
 	k := "/" + h
-	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
-		_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
-			ownership := BlobOwnership{}
 
-			if len(in) == 0 {
-				return nil, memcached.CASQuit
-			}
+	err := couchbase.Update(k, 0, func(in []byte) ([]byte, error) {
+		ownership := BlobOwnership{}
+		if len(in) == 0 {
+			return nil, cb.UpdateCancel
+		}
 
-			err := json.Unmarshal(in, &ownership)
-			if err == nil {
-				delete(ownership.Nodes, node)
-			} else {
-				log.Printf("Error unmarhaling blob removal from %s for %v: %v",
-					in, h, err)
-				return nil, memcached.CASQuit
-			}
+		err := json.Unmarshal(in, &ownership)
+		if err == nil {
+			delete(ownership.Nodes, node)
+		} else {
+			log.Printf("Error unmarhaling blob removal from %s for %v: %v",
+				in, h, err)
+			return nil, cb.UpdateCancel
+		}
 
-			var rv []byte
-			op := memcached.CASStore
+		numOwners = len(ownership.Nodes)
 
-			numOwners = len(ownership.Nodes)
+		if len(ownership.Nodes) == 0 && node == serverId {
+			return nil, nil
+		}
 
-			if len(ownership.Nodes) == 0 && node == serverId {
-				op = memcached.CASDelete
-			} else {
-				rv = mustEncode(&ownership)
-			}
-
-			return rv, op
-		}, 0)
-		return err
+		return json.Marshal(ownership)
 	})
 	log.Printf("Cleaned %v from %v, result=%v", h, node, errorOrSuccess(err))
-	if err != nil && err != memcached.CASQuit {
+	if err != nil && err != cb.UpdateCancel {
 		numOwners = -1
 	}
 	if numOwners == 0 {
@@ -253,48 +245,42 @@ func errorOrSuccess(e error) string {
 func maybeRemoveBlobOwnership(h string) (rv error) {
 	k := "/" + h
 	removedLast := false
-	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
-		_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
-			ownership := BlobOwnership{}
-			removedLast = false
 
-			if len(in) == 0 {
-				return nil, memcached.CASQuit
+	err := couchbase.Update(k, 0, func(in []byte) ([]byte, error) {
+		ownership := BlobOwnership{}
+		removedLast = false
+
+		if len(in) == 0 {
+			return nil, cb.UpdateCancel
+		}
+
+		err := json.Unmarshal(in, &ownership)
+		if err == nil {
+			if ownership.Garbage {
+				// OK
+			} else if time.Since(ownership.Nodes[serverId]) < time.Hour {
+				rv = errors.New("too soon")
+				return nil, cb.UpdateCancel
+			} else if len(ownership.Nodes)-1 < globalConfig.MinReplicas {
+				rv = errors.New("Insufficient replicas")
+				return nil, cb.UpdateCancel
 			}
+			delete(ownership.Nodes, serverId)
+		} else {
+			log.Printf("Error unmarhaling blob removal of %v from %s: %v",
+				h, in, err)
+			rv = err
+			return nil, cb.UpdateCancel
+		}
 
-			err := json.Unmarshal(in, &ownership)
-			if err == nil {
-				if ownership.Garbage {
-					// OK
-				} else if time.Since(ownership.Nodes[serverId]) < time.Hour {
-					rv = errors.New("too soon")
-					return nil, memcached.CASQuit
-				} else if len(ownership.Nodes)-1 < globalConfig.MinReplicas {
-					rv = errors.New("Insufficient replicas")
-					return nil, memcached.CASQuit
-				}
-				delete(ownership.Nodes, serverId)
-			} else {
-				log.Printf("Error unmarhaling blob removal of %v from %s: %v",
-					h, in, err)
-				rv = err
-				return nil, memcached.CASQuit
-			}
+		if len(ownership.Nodes) == 0 {
+			removedLast = true
+			return nil, nil
+		}
 
-			var newv []byte
-			op := memcached.CASStore
-
-			if len(ownership.Nodes) == 0 {
-				removedLast = true
-				op = memcached.CASDelete
-			} else {
-				newv = mustEncode(&ownership)
-			}
-
-			return newv, op
-		}, 0)
-		return err
+		return json.Marshal(ownership)
 	})
+
 	log.Printf("Asked to remove %v - cas=%v, result=%v", h,
 		errorOrSuccess(err), errorOrSuccess(rv))
 	if removedLast {

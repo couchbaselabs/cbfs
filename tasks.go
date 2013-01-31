@@ -125,25 +125,24 @@ type TaskList struct {
 func setTaskState(task, state string) error {
 	k := "/@" + serverId + "/tasks"
 	ts := time.Now().UTC()
-	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
-		_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
-			ob := TaskList{Tasks: map[string]TaskState{}}
-			json.Unmarshal(in, &ob)
-			if state == "" {
-				delete(ob.Tasks, task)
-				if len(ob.Tasks) == 0 {
-					return nil, memcached.CASDelete
-				}
-			} else {
-				ob.Tasks[task] = TaskState{state, ts}
+
+	err := couchbase.Update(k, 0, func(in []byte) ([]byte, error) {
+		ob := TaskList{Tasks: map[string]TaskState{}}
+		json.Unmarshal(in, &ob)
+		if state == "" {
+			delete(ob.Tasks, task)
+			if len(ob.Tasks) == 0 {
+				return nil, nil
 			}
-			ob.Type = "tasks"
-			ob.Node = serverId
-			return mustEncode(&ob), memcached.CASStore
-		}, 0)
-		return err
+		} else {
+			ob.Tasks[task] = TaskState{state, ts}
+		}
+		ob.Type = "tasks"
+		ob.Node = serverId
+		return json.Marshal(ob)
 	})
-	if err == memcached.CASQuit {
+
+	if err == cb.UpdateCancel {
 		err = nil
 	}
 	return err
@@ -364,21 +363,20 @@ func cleanNodeTaskMarkers(node string) {
 	}
 	for name := range globalPeriodicJobs {
 		k := "/@" + name + "/running"
-		err = couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
-			_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
-				if len(in) == 0 {
-					return nil, memcached.CASQuit
-				}
-				ob := map[string]string{}
-				err := json.Unmarshal(in, &ob)
-				if err == nil && ob["node"] == node {
-					return nil, memcached.CASDelete
-				}
-				return nil, memcached.CASQuit
-			}, 0)
-			return err
+
+		err = couchbase.Update(k, 0, func(in []byte) ([]byte, error) {
+			if len(in) == 0 {
+				return nil, cb.UpdateCancel
+			}
+			ob := map[string]string{}
+			err := json.Unmarshal(in, &ob)
+			if err == nil && ob["node"] == node {
+				return nil, nil
+			}
+			return nil, cb.UpdateCancel
 		})
-		if err != nil && err != memcached.CASQuit {
+
+		if err != nil && err != cb.UpdateCancel {
 			log.Printf("Error removing %v's %v running marker: %v",
 				node, name, err)
 		}

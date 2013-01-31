@@ -12,7 +12,6 @@ import (
 
 	"github.com/couchbaselabs/cbfs/config"
 	"github.com/dustin/go-humanize"
-	"github.com/dustin/gomemcached/client"
 )
 
 var bindAddr = flag.String("bind", ":8484", "Address to bind web thing to")
@@ -89,35 +88,32 @@ func mustEncode(i interface{}) []byte {
 }
 
 func storeMeta(k string, fm fileMeta, revs int) error {
-	return couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
-		_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
-			existing := fileMeta{}
-			err := json.Unmarshal(in, &existing)
-			if err == nil {
-				fm.Userdata = existing.Userdata
-				fm.Revno = existing.Revno + 1
+	return couchbase.Update(k, 0, func(in []byte) ([]byte, error) {
+		existing := fileMeta{}
+		err := json.Unmarshal(in, &existing)
+		if err == nil {
+			fm.Userdata = existing.Userdata
+			fm.Revno = existing.Revno + 1
 
-				if revs == -1 || revs > 0 {
-					newMeta := prevMeta{
-						Headers:  existing.Headers,
-						OID:      existing.OID,
-						Length:   existing.Length,
-						Modified: existing.Modified,
-						Revno:    existing.Revno,
-					}
+			if revs == -1 || revs > 0 {
+				newMeta := prevMeta{
+					Headers:  existing.Headers,
+					OID:      existing.OID,
+					Length:   existing.Length,
+					Modified: existing.Modified,
+					Revno:    existing.Revno,
+				}
 
-					fm.Previous = append(existing.Previous,
-						newMeta)
+				fm.Previous = append(existing.Previous,
+					newMeta)
 
-					diff := len(fm.Previous) - revs
-					if revs != -1 && diff > 0 {
-						fm.Previous = fm.Previous[diff:]
-					}
+				diff := len(fm.Previous) - revs
+				if revs != -1 && diff > 0 {
+					fm.Previous = fm.Previous[diff:]
 				}
 			}
-			return mustEncode(&fm), memcached.CASStore
-		}, 0)
-		return err
+		}
+		return json.Marshal(fm)
 	})
 }
 

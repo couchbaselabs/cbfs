@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dustin/gomemcached/client"
+	cb "github.com/couchbaselabs/go-couchbase"
 )
 
 var serverId string
@@ -39,45 +39,35 @@ func validateServerId(s string) error {
 }
 
 func setInNodeRegistry(nodeID string, size int64) error {
-	k := nodeListKey
-	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
-		_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
-			reg := NodeRegistry{}
-			err := json.Unmarshal(in, &reg)
-			if err == nil {
-				reg.Nodes[nodeID] = size
-			} else {
-				reg.Nodes = map[string]int64{
-					nodeID: size,
-				}
+	return couchbase.Update(nodeListKey, 0, func(in []byte) ([]byte, error) {
+		reg := NodeRegistry{}
+		err := json.Unmarshal(in, &reg)
+		if err == nil {
+			reg.Nodes[nodeID] = size
+		} else {
+			reg.Nodes = map[string]int64{
+				nodeID: size,
 			}
-			reg.LastModTime = time.Now().UTC()
-			reg.LastModBy = serverId
-			return mustEncode(&reg), memcached.CASStore
-		}, 0)
-		return err
+		}
+		reg.LastModTime = time.Now().UTC()
+		reg.LastModBy = serverId
+		return json.Marshal(reg)
 	})
-	return err
 }
 
 func removeFromNodeRegistry(nodeID string) error {
-	k := nodeListKey
-	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
-		_, err := mc.CAS(vb, k, func(in []byte) ([]byte, memcached.CasOp) {
-			reg := NodeRegistry{}
-			err := json.Unmarshal(in, &reg)
-			if err == nil {
-				delete(reg.Nodes, nodeID)
-			} else {
-				return nil, memcached.CASQuit
-			}
-			reg.LastModTime = time.Now().UTC()
-			reg.LastModBy = serverId
-			return mustEncode(&reg), memcached.CASStore
-		}, 0)
-		return err
+	return couchbase.Update(nodeListKey, 0, func(in []byte) ([]byte, error) {
+		reg := NodeRegistry{}
+		err := json.Unmarshal(in, &reg)
+		if err == nil {
+			delete(reg.Nodes, nodeID)
+		} else {
+			return nil, cb.UpdateCancel
+		}
+		reg.LastModTime = time.Now().UTC()
+		reg.LastModBy = serverId
+		return json.Marshal(reg)
 	})
-	return err
 }
 
 func retrieveNodeRegistry() (NodeRegistry, error) {
