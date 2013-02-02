@@ -12,6 +12,7 @@ import (
 
 	"github.com/couchbaselabs/cbfs/config"
 	"github.com/dustin/go-humanize"
+	"github.com/dustin/gomemcached"
 )
 
 var bindAddr = flag.String("bind", ":8484", "Address to bind web thing to")
@@ -157,7 +158,7 @@ func main() {
 	}
 
 	err = updateConfig()
-	if err != nil {
+	if err != nil && !gomemcached.IsNotFound(err) {
 		log.Printf("Error updating initial config, using default: %v",
 			err)
 	}

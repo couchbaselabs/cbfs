@@ -789,7 +789,7 @@ func updateConfig() error {
 func reloadConfig() {
 	for {
 		time.Sleep(time.Minute)
-		if err := updateConfig(); err != nil {
+		if err := updateConfig(); err != nil && !gomemcached.IsNotFound(err) {
 			log.Printf("Error updating config: %v", err)
 		}
 	}

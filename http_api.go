@@ -23,7 +23,7 @@ import (
 
 func doGetConfig(w http.ResponseWriter, req *http.Request) {
 	err := updateConfig()
-	if err != nil {
+	if err != nil && !gomemcached.IsNotFound(err) {
 		log.Printf("Error updating config: %v", err)
 	}
 
