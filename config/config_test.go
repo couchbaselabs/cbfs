@@ -1,6 +1,7 @@
 package cbfsconfig
 
 import (
+	"bytes"
 	"encoding/json"
 	"reflect"
 	"testing"
@@ -24,28 +25,33 @@ func TestJSONRoundTrip(t *testing.T) {
 	}
 }
 
+func TestConfigDump(t *testing.T) {
+	b := &bytes.Buffer{}
+	DefaultConfig().Dump(b)
+
+	if b.Len() == 0 {
+		t.Fatalf("Expected dump to dump some stuff.  Didn't.")
+	}
+}
+
 func TestSetParam(t *testing.T) {
 	conf := DefaultConfig()
 
-	err := conf.SetParameter("nonexistent", "novalue")
-	if err == nil {
-		t.Errorf("Failed to recongize nonexistent value")
-		t.Fail()
-	}
-
 	tests := []struct {
 		param string
-		val   string
+		val   interface{}
 		ptr   interface{}
 		exp   interface{}
 	}{
 		{"hbfreq", "3m", &conf.HeartbeatFreq, 3 * time.Minute},
+		{"hbfreq", float64(time.Minute * 5),
+			&conf.HeartbeatFreq, 5 * time.Minute},
 		{"hash", "sha1", &conf.Hash, "sha1"},
 		{"minrepl", "3", &conf.MinReplicas, 3},
 	}
 
 	for _, test := range tests {
-		err = conf.SetParameter(test.param, test.val)
+		err := conf.SetParameter(test.param, test.val)
 		if err != nil {
 			t.Errorf("Error in %v: %v", test.param, err)
 			t.Fail()
@@ -55,6 +61,26 @@ func TestSetParam(t *testing.T) {
 			t.Errorf("Expected %v, got %v for %v=%v",
 				test.exp, got, test.param, test.val)
 			t.Fail()
+		}
+	}
+}
+
+func TestSetParamErrors(t *testing.T) {
+	conf := DefaultConfig()
+
+	tests := []struct {
+		param string
+		val   interface{}
+	}{
+		{"nonexistent", "something"},
+		{"gcfreq", "427years"},
+		{"maxrepl", "one"},
+	}
+
+	for _, test := range tests {
+		err := conf.SetParameter(test.param, test.val)
+		if err == nil {
+			t.Errorf("Expected error on %v = %v", test.param, test.val)
 		}
 	}
 }
