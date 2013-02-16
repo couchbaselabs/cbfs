@@ -444,6 +444,8 @@ func hasBlob(oid string) bool {
 	return err == nil
 }
 
+var fetchLocks namedLock
+
 func performFetch(oid, prev string) {
 	c := captureResponseWriter{w: ioutil.Discard}
 
@@ -458,7 +460,13 @@ func performFetch(oid, prev string) {
 		return
 	}
 
-	err = getBlobFromRemote(&c, oid, http.Header{}, 100)
+	if fetchLocks.Lock(oid) {
+		defer fetchLocks.Unlock(oid)
+		err = getBlobFromRemote(&c, oid, http.Header{}, 100)
+	} else {
+		log.Printf("Not fetching remote, already in progress.")
+		return
+	}
 
 	if err == nil && c.statusCode == 200 {
 		if prev != "" {
