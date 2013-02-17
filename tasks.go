@@ -197,8 +197,8 @@ func runNamedTask(name string, job *PeriodicJob) error {
 	alreadyRunning := errors.New("running")
 
 	err := couchbase.Do(key, func(mc *memcached.Client, vb uint16) error {
-		resp, err := mc.Add(vb, key, 0, int(t.Seconds()),
-			mustEncode(&jm))
+		resp, err := memcached.UnwrapMemcachedError(mc.Add(vb,
+			key, 0, int(t.Seconds()), mustEncode(&jm)))
 		if err != nil {
 			return err
 		}
