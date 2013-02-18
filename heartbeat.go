@@ -36,6 +36,10 @@ func availableSpace() uint64 {
 	return freeSpace
 }
 
+func increaseSpaceUsed(by int64) {
+	atomic.AddInt64(&spaceUsed, by)
+}
+
 func updateSpaceUsed() error {
 	viewRes := struct {
 		Rows []struct {

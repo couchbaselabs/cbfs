@@ -672,6 +672,9 @@ func doFetchDoc(w http.ResponseWriter, req *http.Request,
 		w.Write([]byte("Queue is full. Try later."))
 		return
 	}
+
+	increaseSpaceUsed(ownership.Length)
+
 	w.WriteHeader(202)
 }
 
