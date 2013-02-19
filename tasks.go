@@ -730,7 +730,13 @@ func grabSomeData() {
 	}
 }
 
+func periodicTaskGasp(name string) {
+	log.Fatalf("Fatal error in periodic job %v: %v", name, recover())
+}
+
 func runGlobalPeriodicJob(name string, job *PeriodicJob) {
+	defer periodicTaskGasp(name)
+
 	time.Sleep(time.Second * time.Duration(5+rand.Intn(60)))
 	for {
 		err := runGlobalTask(name, job)
@@ -742,6 +748,8 @@ func runGlobalPeriodicJob(name string, job *PeriodicJob) {
 }
 
 func runLocalPeriodicJob(name string, job *PeriodicJob) {
+	defer periodicTaskGasp(name)
+
 	time.Sleep(time.Second * time.Duration(5+rand.Intn(60)))
 	for {
 		err := runLocalTask(name, job)
