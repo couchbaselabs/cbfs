@@ -651,6 +651,10 @@ func garbageCollectBlobs() error {
 
 		lastBlob := ""
 		for _, r := range viewRes.Rows {
+			if len(r.Key) < 3 {
+				log.Printf("Malformed key in gc result: %+v", r)
+				continue
+			}
 			blobId := r.Key[0]
 			typeFlag := r.Key[1]
 			blobNode := r.Key[2]
