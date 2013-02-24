@@ -84,6 +84,8 @@ func updateSpaceUsedLoop() {
 }
 
 func heartbeat() {
+	defer periodicTaskGasp("heartbeat")
+
 	startTime := time.Now().UTC()
 	go updateSpaceUsedLoop()
 	for {
