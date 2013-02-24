@@ -25,18 +25,26 @@ var maxStartupRepls = flag.Int("maxStartRepls", 3,
 	"Blob replication limit for startup objects.")
 
 type PeriodicJob struct {
+	period       func() time.Duration
+	f            func() error
+	excl         []string
+	ticker       *time.Ticker
+	configChange chan interface{}
+}
+
+type periodicJobRecipe struct {
 	period func() time.Duration
 	f      func() error
 	excl   []string
 }
 
-var globalPeriodicJobs = map[string]*PeriodicJob{}
-var localPeriodicJobs = map[string]*PeriodicJob{}
+var globalPeriodicJobRecipes = map[string]*periodicJobRecipe{}
+var localPeriodicJobRecipes = map[string]*periodicJobRecipe{}
 
 func init() {
 	none := []string{}
 
-	globalPeriodicJobs = map[string]*PeriodicJob{
+	globalPeriodicJobRecipes = map[string]*periodicJobRecipe{
 		"checkStaleNodes": {
 			func() time.Duration {
 				return globalConfig.StaleNodeCheckFreq
@@ -81,7 +89,7 @@ func init() {
 		},
 	}
 
-	localPeriodicJobs = map[string]*PeriodicJob{
+	localPeriodicJobRecipes = map[string]*periodicJobRecipe{
 		"validateLocal": {
 			func() time.Duration {
 				return globalConfig.LocalValidationFreq
@@ -362,7 +370,7 @@ func cleanNodeTaskMarkers(node string) {
 	if err != nil {
 		log.Printf("Error removing %v's task list: %v", node, err)
 	}
-	for name := range globalPeriodicJobs {
+	for name := range globalPeriodicJobRecipes {
 		k := "/@" + name + "/running"
 
 		err = couchbase.Update(k, 0, func(in []byte) ([]byte, error) {
@@ -425,9 +433,9 @@ func anyTaskRunning(taskNames []string) bool {
 func relockTask(taskName string) bool {
 	k := "/@" + taskName
 
-	task := globalPeriodicJobs[taskName]
+	task := globalPeriodicJobRecipes[taskName]
 	if task == nil {
-		task = localPeriodicJobs[taskName]
+		task = localPeriodicJobRecipes[taskName]
 		k = "/@" + serverId + "/" + taskName
 	}
 
@@ -742,47 +750,61 @@ func periodicTaskGasp(name string) {
 		name, recover(), buf[:w])
 }
 
-func runGlobalPeriodicJob(name string, job *PeriodicJob) {
+func runPeriodicJob(name string, job *PeriodicJob,
+	executor func(name string, job *PeriodicJob) error) {
+
 	defer periodicTaskGasp(name)
 
 	time.Sleep(time.Second * time.Duration(5+rand.Intn(60)))
+	period := job.period()
+	job.ticker = time.NewTicker(period)
+
 	for {
-		err := runGlobalTask(name, job)
-		if err != nil {
-			log.Printf("Error running global task %v: %v", name, err)
+		select {
+		case <-job.ticker.C:
+			err := executor(name, job)
+			if err != nil {
+				log.Printf("Error running task %v: %v", name, err)
+			}
+		case <-job.configChange:
+			if period != job.period() {
+				period = job.period()
+				if period > 0 {
+					log.Printf("Config change for %v to %v",
+						name, period)
+					job.ticker.Stop()
+					job.ticker = time.NewTicker(period)
+				} else {
+					log.Printf("New period for %v is too short: %v",
+						name, period)
+				}
+			}
 		}
-		time.Sleep(job.period() + time.Second)
 	}
 }
 
-func runLocalPeriodicJob(name string, job *PeriodicJob) {
-	defer periodicTaskGasp(name)
+func launchJobs(m map[string]*periodicJobRecipe,
+	executor func(string, *PeriodicJob) error) {
 
-	time.Sleep(time.Second * time.Duration(5+rand.Intn(60)))
-	for {
-		err := runLocalTask(name, job)
-		if err != nil {
-			log.Printf("Error running local task %v: %v", name, err)
+	for n, recipe := range m {
+		if recipe.period() == 0 {
+			log.Printf("job %v is misconfigured, ignoring", n)
+		} else {
+			j := &PeriodicJob{
+				period:       recipe.period,
+				f:            recipe.f,
+				excl:         recipe.excl,
+				configChange: make(chan interface{}),
+			}
+			confBroadcaster.Register(j.configChange)
+			go runPeriodicJob(n, j, executor)
 		}
-		time.Sleep(job.period() + time.Second)
 	}
 }
 
 func runPeriodicJobs() {
-	for n, j := range globalPeriodicJobs {
-		if j.period() == 0 {
-			log.Printf("global job %v is misconfigured, ignoring", n)
-		} else {
-			go runGlobalPeriodicJob(n, j)
-		}
-	}
-	for n, j := range localPeriodicJobs {
-		if j.period() == 0 {
-			log.Printf("local job %v is misconfigured, ignoring", n)
-		} else {
-			go runLocalPeriodicJob(n, j)
-		}
-	}
+	launchJobs(globalPeriodicJobRecipes, runGlobalTask)
+	launchJobs(localPeriodicJobRecipes, runLocalTask)
 }
 
 func startTasks() {
@@ -798,13 +820,13 @@ func updateConfig() error {
 	if err != nil {
 		return err
 	}
+	confBroadcaster.Submit(configChange{globalConfig, conf})
 	globalConfig = conf
 	return nil
 }
 
 func reloadConfig() {
-	for {
-		time.Sleep(time.Minute)
+	for _ = range time.Tick(time.Minute) {
 		if err := updateConfig(); err != nil && !gomemcached.IsNotFound(err) {
 			log.Printf("Error updating config: %v", err)
 		}
