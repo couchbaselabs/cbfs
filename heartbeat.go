@@ -83,36 +83,61 @@ func updateSpaceUsedLoop() {
 	}
 }
 
+func oneHeartbeat(startTime time.Time) {
+	u, err := url.Parse(*couchbaseServer)
+	c, err := net.Dial("tcp", u.Host)
+	localAddr := ""
+	if err == nil {
+		localAddr = strings.Split(c.LocalAddr().String(), ":")[0]
+		c.Close()
+	}
+
+	aboutMe := StorageNode{
+		Addr:      localAddr,
+		Type:      "node",
+		Started:   startTime,
+		Time:      time.Now().UTC(),
+		BindAddr:  *bindAddr,
+		FrameBind: *framesBind,
+		Used:      spaceUsed,
+		Free:      availableSpace(),
+	}
+
+	err = couchbase.Set("/"+serverId, 0, aboutMe)
+	if err != nil {
+		log.Printf("Failed to record a heartbeat: %v", err)
+	}
+}
+
 func heartbeat() {
 	defer periodicTaskGasp("heartbeat")
 
+	configChange := make(chan interface{})
+	confBroadcaster.Register(configChange)
+
 	startTime := time.Now().UTC()
 	go updateSpaceUsedLoop()
+
+	period := globalConfig.HeartbeatFreq
+	ticker := time.NewTicker(period)
+
 	for {
-
-		u, err := url.Parse(*couchbaseServer)
-		c, err := net.Dial("tcp", u.Host)
-		localAddr := ""
-		if err == nil {
-			localAddr = strings.Split(c.LocalAddr().String(), ":")[0]
-			c.Close()
+		select {
+		case <-ticker.C:
+			oneHeartbeat(startTime)
+		case <-configChange:
+			if period != globalConfig.HeartbeatFreq {
+				period = globalConfig.HeartbeatFreq
+				if period > 0 {
+					log.Printf("Config change for %v to %v",
+						"heartbeat", period)
+					ticker.Stop()
+					ticker = time.NewTicker(period)
+				} else {
+					log.Printf("New period for %v is too short: %v",
+						"heartbeat", period)
+				}
+			}
 		}
-
-		aboutMe := StorageNode{
-			Addr:      localAddr,
-			Type:      "node",
-			Started:   startTime,
-			Time:      time.Now().UTC(),
-			BindAddr:  *bindAddr,
-			FrameBind: *framesBind,
-			Used:      spaceUsed,
-			Free:      availableSpace(),
-		}
-
-		err = couchbase.Set("/"+serverId, 0, aboutMe)
-		if err != nil {
-			log.Printf("Failed to record a heartbeat: %v", err)
-		}
-		time.Sleep(globalConfig.HeartbeatFreq)
 	}
 }
