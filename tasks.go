@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"runtime"
 	"strings"
 	"time"
 
@@ -735,7 +736,10 @@ func grabSomeData() {
 }
 
 func periodicTaskGasp(name string) {
-	log.Fatalf("Fatal error in periodic job %v: %v", name, recover())
+	buf := make([]byte, 8192)
+	w := runtime.Stack(buf, false)
+	log.Fatalf("Fatal error in periodic job %v: %v\n%s",
+		name, recover(), buf[:w])
 }
 
 func runGlobalPeriodicJob(name string, job *PeriodicJob) {
