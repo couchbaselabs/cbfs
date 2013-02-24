@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/dustin/go-broadcast"
+
 	"github.com/couchbaselabs/cbfs/config"
 )
 
@@ -10,7 +12,7 @@ type configChange struct {
 	old, current *cbfsconfig.CBFSConfig
 }
 
-var confBroadcaster = newBroadcaster(64)
+var confBroadcaster = broadcast.NewBroadcaster(64)
 
 // Update this config within a bucket.
 func StoreConfig(conf cbfsconfig.CBFSConfig) error {
