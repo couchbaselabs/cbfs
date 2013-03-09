@@ -257,6 +257,7 @@ func proxyViewRequest(w http.ResponseWriter, req *http.Request,
 
 	if canGzip(req) {
 		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Del("Content-Length")
 		gz := gzip.NewWriter(w)
 		defer gz.Close()
 		output = gz
