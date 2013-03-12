@@ -80,6 +80,8 @@ func recognizeTypeByName(n, def string) string {
 		return byname
 	case strings.HasSuffix(n, ".js"):
 		return "application/javascript"
+	case strings.HasSuffix(n, ".json"):
+		return "application/json"
 	case strings.HasSuffix(n, ".css"):
 		return "text/css"
 	}
