@@ -2,11 +2,11 @@ package main
 
 import (
 	"archive/zip"
-	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 
 	cb "github.com/couchbaselabs/go-couchbase"
 )
@@ -19,10 +19,27 @@ type namedFile struct {
 	err  error
 }
 
+func pathDataFetcher(wg *sync.WaitGroup, quit <-chan bool,
+	in <-chan string, out chan<- *namedFile) {
+	defer wg.Done()
+
+	for {
+		select {
+		case s, ok := <-in:
+			if !ok {
+				return
+			}
+			ob := namedFile{name: s}
+			ob.err = couchbase.Get(s, &ob.meta)
+			out <- &ob
+		case <-quit:
+			return
+		}
+	}
+}
+
 func pathGenerator(from string, ch chan *namedFile,
 	errs chan error, quit chan bool) {
-	defer close(ch)
-	defer close(errs)
 
 	parts := strings.Split(from, "/")
 
@@ -35,8 +52,22 @@ func pathGenerator(from string, ch chan *namedFile,
 	}{}
 
 	limit := 1000
+	fetchch := make(chan string, limit)
 	startKey := parts
 	done := false
+
+	wg := &sync.WaitGroup{}
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go pathDataFetcher(wg, quit, fetchch, ch)
+	}
+	defer func() {
+		close(fetchch)
+		wg.Wait()
+		close(ch)
+		close(errs)
+	}()
+
 	for !done {
 		err := couchbase.ViewCustom("cbfs", "file_browse",
 			map[string]interface{}{
@@ -60,9 +91,6 @@ func pathGenerator(from string, ch chan *namedFile,
 
 		done = len(viewRes.Rows) < limit
 
-		paths := map[string]*namedFile{}
-		keys := []string{}
-
 		for _, r := range viewRes.Rows {
 			k := r.Id
 			if !strings.HasPrefix(k, from) {
@@ -71,24 +99,7 @@ func pathGenerator(from string, ch chan *namedFile,
 			}
 			startKey = r.Key
 
-			nf := namedFile{name: k, err: missingFile}
-
-			paths[k] = &nf
-			keys = append(keys, k)
-		}
-
-		for k, res := range couchbase.GetBulk(keys) {
-			ob := paths[k]
-			ob.err = json.Unmarshal(res.Body, &ob.meta)
-			if ob.err != nil {
-				log.Printf("Error unmarshaling %v: %v", k, ob.err)
-			}
-			select {
-			case <-quit:
-				return
-			case ch <- ob:
-				// We sent one.
-			}
+			fetchch <- k
 		}
 	}
 }
