@@ -56,6 +56,8 @@ func backupTo(w io.Writer) (err error) {
 			ech = nil
 		}
 	}
+
+	panic("unreachable")
 }
 
 func backupToCBFS(fn string) error {
