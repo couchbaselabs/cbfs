@@ -47,6 +47,7 @@ func pathGenerator(from string, ch chan *namedFile,
 			}, &viewRes)
 		if err != nil {
 			log.Printf("View error: %v", err)
+			errs <- err
 			return
 		}
 		for _, e := range viewRes.Errors {
