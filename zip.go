@@ -51,7 +51,11 @@ func pathGenerator(from string, ch chan *namedFile,
 			return
 		}
 		for _, e := range viewRes.Errors {
-			errs <- e
+			select {
+			case errs <- e:
+			case <-quit:
+				return
+			}
 		}
 
 		done = len(viewRes.Rows) < limit
