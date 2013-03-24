@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"strings"
 	"time"
 
@@ -13,12 +14,23 @@ import (
 
 var serverId string
 
+var nodeKeys = flag.Int("nodeKeys", 0, "number of additional node keys")
+
 func init() {
 	flag.StringVar(&serverId, "nodeID", "",
 		"Node ID (defaults to what's stored in guid file or arbitrary)")
 }
 
-const nodeListKey = "/@nodes"
+const nodeListPrefix = "/@nodes"
+
+var nodeListKeys = []string{nodeListPrefix}
+
+func initNodeListKeys() {
+	for i := 0; i < *nodeKeys; i++ {
+		nodeListKeys = append(nodeListKeys,
+			fmt.Sprintf("%v.%v", nodeListPrefix, i))
+	}
+}
 
 // List of names of nodes
 type NodeRegistry struct {
@@ -38,41 +50,77 @@ func validateServerId(s string) error {
 	return nil
 }
 
+type errslice []error
+
+func (e errslice) Error() string {
+	es := []string{}
+	for _, err := range e {
+		es = append(es, err.Error())
+	}
+	return "{Errors: " + strings.Join(es, ", ") + "}"
+}
+
 func setInNodeRegistry(nodeID string, size int64) error {
-	return couchbase.Update(nodeListKey, 0, func(in []byte) ([]byte, error) {
-		reg := NodeRegistry{}
-		err := json.Unmarshal(in, &reg)
-		if err == nil {
-			reg.Nodes[nodeID] = size
-		} else {
-			reg.Nodes = map[string]int64{
-				nodeID: size,
+	rv := errslice{}
+	for _, k := range nodeListKeys {
+		err := couchbase.Update(k, 0, func(in []byte) ([]byte, error) {
+			reg := NodeRegistry{}
+			err := json.Unmarshal(in, &reg)
+			if err == nil {
+				reg.Nodes[nodeID] = size
+			} else {
+				reg.Nodes = map[string]int64{
+					nodeID: size,
+				}
 			}
+			reg.LastModTime = time.Now().UTC()
+			reg.LastModBy = serverId
+			return json.Marshal(reg)
+		})
+		if err != nil {
+			rv = append(rv, err)
 		}
-		reg.LastModTime = time.Now().UTC()
-		reg.LastModBy = serverId
-		return json.Marshal(reg)
-	})
+	}
+	if len(rv) == 0 {
+		return nil
+	}
+	return rv
 }
 
 func removeFromNodeRegistry(nodeID string) error {
-	return couchbase.Update(nodeListKey, 0, func(in []byte) ([]byte, error) {
-		reg := NodeRegistry{}
-		err := json.Unmarshal(in, &reg)
-		if err == nil {
-			delete(reg.Nodes, nodeID)
-		} else {
-			return nil, cb.UpdateCancel
+	rv := errslice{}
+	for _, k := range nodeListKeys {
+		err := couchbase.Update(k, 0, func(in []byte) ([]byte, error) {
+			reg := NodeRegistry{}
+			err := json.Unmarshal(in, &reg)
+			if err == nil {
+				delete(reg.Nodes, nodeID)
+			} else {
+				return nil, cb.UpdateCancel
+			}
+			reg.LastModTime = time.Now().UTC()
+			reg.LastModBy = serverId
+			return json.Marshal(reg)
+		})
+		if err != nil {
+			rv = append(rv, err)
 		}
-		reg.LastModTime = time.Now().UTC()
-		reg.LastModBy = serverId
-		return json.Marshal(reg)
-	})
+	}
+	if len(rv) == 0 {
+		return nil
+	}
+	return rv
 }
 
 func retrieveNodeRegistry() (NodeRegistry, error) {
 	reg := NodeRegistry{}
-	err := couchbase.Get(nodeListKey, &reg)
+	var err error
+	for _, k := range nodeListKeys {
+		err = couchbase.Get(k, &reg)
+		if err == nil {
+			return reg, nil
+		}
+	}
 	return reg, err
 }
 

@@ -122,6 +122,7 @@ func main() {
 	flag.Parse()
 
 	initLogger(*useSyslog)
+	initNodeListKeys()
 
 	http.DefaultTransport = TimeoutTransport(*internodeTimeout)
 
