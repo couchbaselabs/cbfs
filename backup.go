@@ -7,6 +7,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -60,6 +62,16 @@ func backupTo(w io.Writer) (err error) {
 	panic("unreachable")
 }
 
+func recordBackupObject(h string) error {
+	f, err := os.Create(filepath.Join(*root, ".backup"))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = fmt.Fprintf(f, "%v\n", h)
+	return err
+}
+
 func backupToCBFS(fn string) error {
 	f, err := NewHashRecord(*root, "")
 	if err != nil {
@@ -90,6 +102,11 @@ func backupToCBFS(fn string) error {
 	err = storeMeta(fn, fm, 1)
 	if err != nil {
 		return err
+	}
+
+	err = recordBackupObject(h)
+	if err != nil {
+		log.Printf("Failed to record backup OID: %v", err)
 	}
 
 	log.Printf("Replicating backup %v.", h)
