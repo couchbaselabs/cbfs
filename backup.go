@@ -73,6 +73,29 @@ func recordBackupObject(h string) error {
 	return err
 }
 
+func recordRemoteBackupObjects(h string) {
+	rn, err := findRemoteNodes()
+	if err != nil {
+		log.Printf("Error getting remote nodes for recording backup: %v",
+			err)
+		return
+	}
+	for _, n := range rn {
+		u := fmt.Sprintf("http://%s%s",
+			n.Address(), markBackupPrefix)
+		c := n.Client()
+		res, err := c.Post(u, "application/octet-stream", nil)
+		if err != nil {
+			log.Printf("Error posting to %v: %v", u, err)
+			continue
+		}
+		res.Body.Close()
+		if res.StatusCode != 204 {
+			log.Printf("HTTP Error posting to %v: %v", u, res.Status)
+		}
+	}
+}
+
 func backupToCBFS(fn string) error {
 	f, err := NewHashRecord(*root, "")
 	if err != nil {
@@ -110,10 +133,21 @@ func backupToCBFS(fn string) error {
 		log.Printf("Failed to record backup OID: %v", err)
 	}
 
+	go recordRemoteBackupObjects(h)
+
 	log.Printf("Replicating backup %v.", h)
 	go increaseReplicaCount(h, length, globalConfig.MinReplicas-1)
 
 	return nil
+}
+
+func doMarkBackup(w http.ResponseWriter, req *http.Request, h string) {
+	err := recordBackupObject(h)
+	if err != nil {
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Error marking backup: %v", err)
+	}
+	w.WriteHeader(204)
 }
 
 func doBackupDocs(w http.ResponseWriter, req *http.Request) {

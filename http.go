@@ -16,21 +16,22 @@ import (
 )
 
 const (
-	blobPrefix      = "/.cbfs/blob/"
-	nodePrefix      = "/.cbfs/nodes/"
-	metaPrefix      = "/.cbfs/meta/"
-	proxyPrefix     = "/.cbfs/viewproxy/"
-	crudproxyPrefix = "/.cbfs/crudproxy/"
-	fetchPrefix     = "/.cbfs/fetch/"
-	listPrefix      = "/.cbfs/list/"
-	configPrefix    = "/.cbfs/config/"
-	zipPrefix       = "/.cbfs/zip/"
-	tarPrefix       = "/.cbfs/tar/"
-	fsckPrefix      = "/.cbfs/fsck/"
-	taskPrefix      = "/.cbfs/tasks/"
-	pingPrefix      = "/.cbfs/ping/"
-	framePrefix     = "/.cbfs/info/frames/"
-	backupPrefix    = "/.cbfs/backup/"
+	blobPrefix       = "/.cbfs/blob/"
+	nodePrefix       = "/.cbfs/nodes/"
+	metaPrefix       = "/.cbfs/meta/"
+	proxyPrefix      = "/.cbfs/viewproxy/"
+	crudproxyPrefix  = "/.cbfs/crudproxy/"
+	fetchPrefix      = "/.cbfs/fetch/"
+	listPrefix       = "/.cbfs/list/"
+	configPrefix     = "/.cbfs/config/"
+	zipPrefix        = "/.cbfs/zip/"
+	tarPrefix        = "/.cbfs/tar/"
+	fsckPrefix       = "/.cbfs/fsck/"
+	taskPrefix       = "/.cbfs/tasks/"
+	pingPrefix       = "/.cbfs/ping/"
+	framePrefix      = "/.cbfs/info/frames/"
+	markBackupPrefix = "/.cbfs/backup/mark/"
+	backupPrefix     = "/.cbfs/backup/"
 )
 
 type storInfo struct {
@@ -709,6 +710,8 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 		doListDocs(w, req, minusPrefix(req.URL.Path, listPrefix))
 	case strings.HasPrefix(req.URL.Path, zipPrefix):
 		doZipDocs(w, req, minusPrefix(req.URL.Path, zipPrefix))
+	case strings.HasPrefix(req.URL.Path, markBackupPrefix):
+		doMarkBackup(w, req, minusPrefix(req.URL.Path, markBackupPrefix))
 	case strings.HasPrefix(req.URL.Path, backupPrefix):
 		doBackupDocs(w, req)
 	case strings.HasPrefix(req.URL.Path, tarPrefix):
