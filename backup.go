@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 )
 
@@ -122,7 +123,7 @@ func doBackupDocs(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if req.FormValue("bg") == "true" {
+	if bg, _ := strconv.ParseBool(req.FormValue("bg")); bg {
 		go func() {
 			err := backupToCBFS(fn)
 			if err != nil {
