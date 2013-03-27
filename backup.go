@@ -81,8 +81,8 @@ func recordRemoteBackupObjects(h string) {
 		return
 	}
 	for _, n := range rn {
-		u := fmt.Sprintf("http://%s%s",
-			n.Address(), markBackupPrefix)
+		u := fmt.Sprintf("http://%s%s%s",
+			n.Address(), markBackupPrefix, h)
 		c := n.Client()
 		res, err := c.Post(u, "application/octet-stream", nil)
 		if err != nil {
