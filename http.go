@@ -710,8 +710,6 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 		doListDocs(w, req, minusPrefix(req.URL.Path, listPrefix))
 	case strings.HasPrefix(req.URL.Path, zipPrefix):
 		doZipDocs(w, req, minusPrefix(req.URL.Path, zipPrefix))
-	case strings.HasPrefix(req.URL.Path, backupPrefix):
-		doBackupDocs(w, req)
 	case strings.HasPrefix(req.URL.Path, tarPrefix):
 		doTarDocs(w, req, minusPrefix(req.URL.Path, tarPrefix))
 	case strings.HasPrefix(req.URL.Path, fsckPrefix):
@@ -767,6 +765,8 @@ func doPost(w http.ResponseWriter, req *http.Request) {
 		doPostRawBlob(w, req)
 	} else if strings.HasPrefix(req.URL.Path, markBackupPrefix) {
 		doMarkBackup(w, req, minusPrefix(req.URL.Path, markBackupPrefix))
+	} else if strings.HasPrefix(req.URL.Path, backupPrefix) {
+		doBackupDocs(w, req)
 	} else {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
