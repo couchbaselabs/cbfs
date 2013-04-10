@@ -49,6 +49,7 @@ func restoreFile(base, path string, data interface{}) error {
 	if res.StatusCode != 201 {
 		log.Printf("restore error: %v", res.Status)
 		io.Copy(os.Stderr, res.Body)
+		fmt.Fprintln(os.Stderr)
 		return fmt.Errorf("HTTP Error restoring %v: %v", path, res.Status)
 	}
 
