@@ -22,6 +22,7 @@ var commands = map[string]struct {
 	"setconf": {2, setConfCommand, "prop value"},
 	"fsck":    {0, fsckCommand, ""},
 	"backup":  {-1, backupCommand, "filename"},
+	"restore": {-1, restoreCommand, "filename"},
 }
 
 func init() {
@@ -50,6 +51,8 @@ func init() {
 		fsckFlags.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nbackup <filename>:\n")
 		backupFlags.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "\nrestore <filename>:\n")
+		restoreFlags.PrintDefaults()
 		os.Exit(1)
 	}
 
