@@ -17,10 +17,17 @@ import (
 var restoreFlags = flag.NewFlagSet("restore", flag.ExitOnError)
 var restoreForce = restoreFlags.Bool("f", false, "Overwrite existing")
 var restoreVerbose = restoreFlags.Bool("v", false, "Verbose restore")
+var restoreNoop = restoreFlags.Bool("n", false, "Noop")
 
 func restoreFile(base, path string, data interface{}) error {
 	u, err := url.Parse(base)
 	if err != nil {
+	log.Printf("Restoring %v", path)
+
+	if *restoreNoop {
+		return nil
+	}
+
 		log.Fatalf("Error parsing URL: %v", err)
 	}
 
@@ -42,8 +49,6 @@ func restoreFile(base, path string, data interface{}) error {
 		io.Copy(os.Stderr, res.Body)
 		return fmt.Errorf("HTTP Error restoring %v: %v", path, res.Status)
 	}
-
-	log.Printf("Restored %v", path)
 
 	return nil
 }
