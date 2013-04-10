@@ -764,7 +764,7 @@ func doPost(w http.ResponseWriter, req *http.Request) {
 	if req.URL.Path == blobPrefix {
 		doPostRawBlob(w, req)
 	} else if strings.HasPrefix(req.URL.Path, markBackupPrefix) {
-		doMarkBackup(w, req, minusPrefix(req.URL.Path, markBackupPrefix))
+		doMarkBackup(w, req)
 	} else if strings.HasPrefix(req.URL.Path, backupPrefix) {
 		doBackupDocs(w, req)
 	} else {

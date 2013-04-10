@@ -11,7 +11,22 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"github.com/dustin/gomemcached"
 )
+
+const backupKey = "/@backup"
+
+type backupItem struct {
+	Fn   string    `json:"filename"`
+	Oid  string    `json:"oid"`
+	When time.Time `json:"when"`
+}
+
+type backups struct {
+	Latest  backupItem   `json:"latest"`
+	Backups []backupItem `json:"backups"`
+}
 
 func logDuration(m string, startTime time.Time) {
 	log.Printf("Completed %v in %v", m, time.Since(startTime))
@@ -63,17 +78,23 @@ func backupTo(w io.Writer) (err error) {
 	panic("unreachable")
 }
 
-func recordBackupObject(h string) error {
-	f, err := os.Create(filepath.Join(*root, ".backup"))
+func recordBackupObject() error {
+	b := backups{}
+	err := couchbase.Get(backupKey, &b)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(filepath.Join(*root, ".backup.json"))
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	_, err = fmt.Fprintf(f, "%v\n", h)
-	return err
+	e := json.NewEncoder(f)
+	return e.Encode(&b)
 }
 
-func recordRemoteBackupObjects(h string) {
+func recordRemoteBackupObjects() {
 	rn, err := findRemoteNodes()
 	if err != nil {
 		log.Printf("Error getting remote nodes for recording backup: %v",
@@ -81,8 +102,8 @@ func recordRemoteBackupObjects(h string) {
 		return
 	}
 	for _, n := range rn {
-		u := fmt.Sprintf("http://%s%s%s",
-			n.Address(), markBackupPrefix, h)
+		u := fmt.Sprintf("http://%s%s",
+			n.Address(), markBackupPrefix)
 		c := n.Client()
 		res, err := c.Post(u, "application/octet-stream", nil)
 		if err != nil {
@@ -94,6 +115,24 @@ func recordRemoteBackupObjects(h string) {
 			log.Printf("HTTP Error posting to %v: %v", u, res.Status)
 		}
 	}
+}
+
+func storeBackupObject(fn, h string) error {
+	b := backups{}
+	err := couchbase.Get(backupKey, &b)
+	if err != nil && !gomemcached.IsNotFound(err) {
+		log.Printf("Weird: %v", err)
+		// return err
+	}
+
+	ob := backupItem{fn, h, time.Now().UTC()}
+
+	b.Latest = ob
+	b.Backups = append(b.Backups, ob)
+
+	// TODO:  Verify existing backups
+
+	return couchbase.Set(backupKey, 0, &b)
 }
 
 func backupToCBFS(fn string) error {
@@ -128,12 +167,17 @@ func backupToCBFS(fn string) error {
 		return err
 	}
 
-	err = recordBackupObject(h)
+	err = storeBackupObject(fn, h)
+	if err != nil {
+		return err
+	}
+
+	err = recordBackupObject()
 	if err != nil {
 		log.Printf("Failed to record backup OID: %v", err)
 	}
 
-	go recordRemoteBackupObjects(h)
+	go recordRemoteBackupObjects()
 
 	log.Printf("Replicating backup %v.", h)
 	go increaseReplicaCount(h, length, globalConfig.MinReplicas-1)
@@ -141,8 +185,8 @@ func backupToCBFS(fn string) error {
 	return nil
 }
 
-func doMarkBackup(w http.ResponseWriter, req *http.Request, h string) {
-	err := recordBackupObject(h)
+func doMarkBackup(w http.ResponseWriter, req *http.Request) {
+	err := recordBackupObject()
 	if err != nil {
 		w.WriteHeader(500)
 		fmt.Fprintf(w, "Error marking backup: %v", err)
