@@ -31,6 +31,7 @@ const (
 	pingPrefix       = "/.cbfs/ping/"
 	framePrefix      = "/.cbfs/info/frames/"
 	markBackupPrefix = "/.cbfs/backup/mark/"
+	restorePrefix    = "/.cbfs/backup/restore/"
 	backupPrefix     = "/.cbfs/backup/"
 )
 
@@ -767,6 +768,8 @@ func doPost(w http.ResponseWriter, req *http.Request) {
 		doPostRawBlob(w, req)
 	} else if strings.HasPrefix(req.URL.Path, markBackupPrefix) {
 		doMarkBackup(w, req)
+	} else if strings.HasPrefix(req.URL.Path, restorePrefix) {
+		doRestoreDocument(w, req, minusPrefix(req.URL.Path, restorePrefix))
 	} else if strings.HasPrefix(req.URL.Path, backupPrefix) {
 		doBackupDocs(w, req)
 	} else {

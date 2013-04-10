@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/dustin/gomemcached"
@@ -235,4 +236,61 @@ func doGetBackupInfo(w http.ResponseWriter, req *http.Request) {
 	}
 
 	w.Write(mustEncode(&b))
+}
+
+func maybeStoreMeta(k string, fm fileMeta, force bool) error {
+	if force {
+		return couchbase.Set(k, 0, fm)
+	}
+	added, err := couchbase.Add(k, 0, fm)
+	if err == nil && !added {
+		err = fmt.Errorf("Failed to add %v (exists?)", k)
+	}
+	return err
+}
+
+func doRestoreDocument(w http.ResponseWriter, req *http.Request, fn string) {
+	d := json.NewDecoder(req.Body)
+	fm := fileMeta{}
+	err := d.Decode(&fm)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	for len(fn) > 0 && fn[0] == '/' {
+		fn = fn[1:]
+	}
+
+	if fn == "" {
+		http.Error(w, "No filename", 400)
+		return
+	}
+
+	if strings.Contains(fn, "//") {
+		w.WriteHeader(400)
+		fmt.Fprintf(w, "Too many slashes in the path name: %v", fn)
+		return
+	}
+
+	if len(fn) > 250 {
+		w.WriteHeader(400)
+		log.Printf("User supplied excessively long filename: %v", fn)
+		fmt.Fprintf(w, "Filename too long.")
+		return
+	}
+
+	force := false
+	err = maybeStoreMeta(fn, fm, force)
+	if err != nil {
+		log.Printf("Error storing file meta of %v -> %v: %v",
+			fn, fm.OID, err)
+		w.WriteHeader(500)
+		fmt.Fprintf(w, "Error recording blob ownership: %v", err)
+		return
+	}
+
+	log.Printf("Restored %v -> %v", fn, fm.OID)
+
+	w.WriteHeader(201)
 }
