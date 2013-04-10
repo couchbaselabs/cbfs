@@ -286,7 +286,7 @@ func doRestoreDocument(w http.ResponseWriter, req *http.Request, fn string) {
 		log.Printf("Error storing file meta of %v -> %v: %v",
 			fn, fm.OID, err)
 		w.WriteHeader(500)
-		fmt.Fprintf(w, "Error recording blob ownership: %v", err)
+		fmt.Fprintf(w, "Error recording file meta: %v", err)
 		return
 	}
 
