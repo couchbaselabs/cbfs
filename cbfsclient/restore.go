@@ -11,23 +11,25 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"time"
 )
 
 var restoreFlags = flag.NewFlagSet("restore", flag.ExitOnError)
 var restoreForce = restoreFlags.Bool("f", false, "Overwrite existing")
-var restoreVerbose = restoreFlags.Bool("v", false, "Verbose restore")
 var restoreNoop = restoreFlags.Bool("n", false, "Noop")
+var restoreVerbose = restoreFlags.Bool("v", false, "Verbose restore")
+var restorePat = restoreFlags.String("match", ".*", "Regex for paths to match")
 
 func restoreFile(base, path string, data interface{}) error {
-	u, err := url.Parse(base)
-	if err != nil {
 	log.Printf("Restoring %v", path)
 
 	if *restoreNoop {
 		return nil
 	}
 
+	u, err := url.Parse(base)
+	if err != nil {
 		log.Fatalf("Error parsing URL: %v", err)
 	}
 
@@ -55,6 +57,11 @@ func restoreFile(base, path string, data interface{}) error {
 
 func restoreCommand(ustr string, args []string) {
 	restoreFlags.Parse(args)
+
+	regex, err := regexp.Compile(*restorePat)
+	if err != nil {
+		log.Fatalf("Error parsing match pattern: %v", err)
+	}
 
 	if restoreFlags.NArg() < 1 {
 		log.Fatalf("Filename is required")
@@ -85,6 +92,10 @@ func restoreCommand(ustr string, args []string) {
 		err := d.Decode(&ob)
 		switch err {
 		case nil:
+			if !regex.MatchString(ob.Path) {
+				// Skipping
+				continue
+			}
 			nfiles++
 			err := restoreFile(ustr, ob.Path, ob.Meta)
 			if err != nil {
