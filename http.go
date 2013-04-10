@@ -694,6 +694,8 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 		doListTasks(w, req)
 	case req.URL.Path == configPrefix:
 		doGetConfig(w, req)
+	case req.URL.Path == backupPrefix:
+		doGetBackupInfo(w, req)
 	case strings.HasPrefix(req.URL.Path, fetchPrefix):
 		doFetchDoc(w, req,
 			minusPrefix(req.URL.Path, fetchPrefix))

@@ -221,3 +221,18 @@ func doBackupDocs(w http.ResponseWriter, req *http.Request) {
 
 	w.WriteHeader(201)
 }
+
+func doGetBackupInfo(w http.ResponseWriter, req *http.Request) {
+	b := backups{}
+	err := couchbase.Get(backupKey, &b)
+	if err != nil {
+		code := 500
+		if gomemcached.IsNotFound(err) {
+			code = 404
+		}
+		w.WriteHeader(code)
+		return
+	}
+
+	w.Write(mustEncode(&b))
+}
