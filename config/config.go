@@ -60,15 +60,15 @@ type CBFSConfig struct {
 // Get the default configuration
 func DefaultConfig() CBFSConfig {
 	return CBFSConfig{
-		GCFreq:                time.Minute * 5,
+		GCFreq:                time.Hour * 8,
 		GCLimit:               5000,
 		Hash:                  "sha1",
 		HeartbeatFreq:         time.Second * 5,
 		MinReplicas:           3,
 		MaxReplicas:           5,
-		NodeCleanCount:        1000,
-		ReconcileFreq:         time.Hour * 24,
-		LocalValidationFreq:   time.Hour * 4,
+		NodeCleanCount:        5000,
+		ReconcileFreq:         time.Hour * 27,
+		LocalValidationFreq:   time.Hour * 31,
 		StaleNodeCheckFreq:    time.Minute,
 		StaleNodeLimit:        time.Minute * 10,
 		UnderReplicaCheckFreq: time.Minute * 5,
@@ -77,7 +77,7 @@ func DefaultConfig() CBFSConfig {
 		DefaultVersionCount:   0,
 		UpdateNodeSizesFreq:   time.Second * 5,
 		TrimFullNodesFreq:     time.Hour,
-		TrimFullNodesCount:    1000,
+		TrimFullNodesCount:    10000,
 		TrimFullNodesSpace:    1 * 1024 * 1024 * 1024,
 	}
 }
