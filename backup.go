@@ -14,14 +14,17 @@ import (
 	"time"
 
 	"github.com/dustin/gomemcached"
+
+	"github.com/couchbaselabs/cbfs/config"
 )
 
 const backupKey = "/@backup"
 
 type backupItem struct {
-	Fn   string    `json:"filename"`
-	Oid  string    `json:"oid"`
-	When time.Time `json:"when"`
+	Fn   string                `json:"filename"`
+	Oid  string                `json:"oid"`
+	When time.Time             `json:"when"`
+	Conf cbfsconfig.CBFSConfig `json:"conf"`
 }
 
 type backups struct {
@@ -126,7 +129,7 @@ func storeBackupObject(fn, h string) error {
 		// return err
 	}
 
-	ob := backupItem{fn, h, time.Now().UTC()}
+	ob := backupItem{fn, h, time.Now().UTC(), *globalConfig}
 
 	b.Latest = ob
 	b.Backups = append(b.Backups, ob)
