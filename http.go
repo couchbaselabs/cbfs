@@ -770,6 +770,8 @@ func doPost(w http.ResponseWriter, req *http.Request) {
 		doMarkBackup(w, req)
 	} else if strings.HasPrefix(req.URL.Path, restorePrefix) {
 		doRestoreDocument(w, req, minusPrefix(req.URL.Path, restorePrefix))
+	} else if strings.HasPrefix(req.URL.Path, taskPrefix) {
+		doInduceTask(w, req, minusPrefix(req.URL.Path, taskPrefix))
 	} else if strings.HasPrefix(req.URL.Path, backupPrefix) {
 		doBackupDocs(w, req)
 	} else {

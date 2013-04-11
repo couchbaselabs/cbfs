@@ -360,3 +360,15 @@ func doListDocs(w http.ResponseWriter, req *http.Request,
 func doPing(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(204)
 }
+
+func doInduceTask(w http.ResponseWriter, req *http.Request, taskName string) {
+	err := induceTask(taskName)
+	switch err {
+	case noSuchTask:
+		http.Error(w, fmt.Sprintf("No such task: %q", taskName), 404)
+	case taskAlreadyQueued, nil:
+		w.WriteHeader(202)
+	default:
+		http.Error(w, err.Error(), 500)
+	}
+}

@@ -40,6 +40,7 @@ type periodicJobRecipe struct {
 
 var globalPeriodicJobRecipes = map[string]*periodicJobRecipe{}
 var localPeriodicJobRecipes = map[string]*periodicJobRecipe{}
+var taskInducers = map[string]chan time.Time{}
 
 func init() {
 	none := []string{}
@@ -750,7 +751,7 @@ func periodicTaskGasp(name string) {
 		name, recover(), buf[:w])
 }
 
-func runPeriodicJob(name string, job *PeriodicJob,
+func runPeriodicJob(name string, job *PeriodicJob, inducer chan time.Time,
 	executor func(name string, job *PeriodicJob) error) {
 
 	defer periodicTaskGasp(name)
@@ -761,11 +762,18 @@ func runPeriodicJob(name string, job *PeriodicJob,
 
 	for {
 		select {
+		case <-inducer:
+			err := executor(name, job)
+			if err != nil {
+				log.Printf("Error running induced task %v: %v", name, err)
+			}
+
 		case <-job.ticker.C:
 			err := executor(name, job)
 			if err != nil {
 				log.Printf("Error running task %v: %v", name, err)
 			}
+
 		case <-job.configChange:
 			if period != job.period() {
 				period = job.period()
@@ -790,14 +798,19 @@ func launchJobs(m map[string]*periodicJobRecipe,
 		if recipe.period() == 0 {
 			log.Printf("job %v is misconfigured, ignoring", n)
 		} else {
+			inducer := make(chan time.Time, 1)
 			j := &PeriodicJob{
 				period:       recipe.period,
 				f:            recipe.f,
 				excl:         recipe.excl,
 				configChange: make(chan interface{}),
 			}
+			if _, exists := taskInducers[n]; exists {
+				log.Fatalf("Duplicate task launching: %v", n)
+			}
+			taskInducers[n] = inducer
 			confBroadcaster.Register(j.configChange)
-			go runPeriodicJob(n, j, executor)
+			go runPeriodicJob(n, j, inducer, executor)
 		}
 	}
 }
@@ -813,6 +826,22 @@ func startTasks() {
 	// restarting, so things have changed.
 	couchbase.Delete("/@" + serverId + "/validateLocal")
 	runPeriodicJobs()
+}
+
+var noSuchTask = errors.New("no such task")
+var taskAlreadyQueued = errors.New("task already queued")
+
+func induceTask(name string) error {
+	ch := taskInducers[name]
+	if ch == nil {
+		return noSuchTask
+	}
+	select {
+	case ch <- time.Now():
+	default:
+		return taskAlreadyQueued
+	}
+	return nil
 }
 
 func updateConfig() error {
