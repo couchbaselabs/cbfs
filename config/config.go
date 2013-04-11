@@ -17,6 +17,8 @@ var unhandledValue = errors.New("Unsupported parameter")
 type CBFSConfig struct {
 	// Frequency of Object GC Process
 	GCFreq time.Duration `json:"gcfreq"`
+	// Is garbage collection enabled?
+	GCEnabled bool `json:"gcEnabled"`
 	// Maximum number of items to look for in a GC pass.
 	GCLimit int `json:"gclimit"`
 	// Hash algorithm to use

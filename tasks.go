@@ -621,6 +621,11 @@ func okToClean(oid string) bool {
 }
 
 func garbageCollectBlobs() error {
+	if !globalConfig.GCEnabled {
+		log.Printf("Garbage collection is disabled -- skipping")
+		return nil
+	}
+
 	log.Printf("Garbage collecting blobs without any file references")
 
 	viewRes := struct {
