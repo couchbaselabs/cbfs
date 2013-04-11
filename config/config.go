@@ -152,6 +152,20 @@ func (conf *CBFSConfig) SetParameter(name string, inval interface{}) error {
 			}
 			val.Field(i).SetInt(int64(d))
 			return nil
+		case sf.Type.Kind() == reflect.Bool:
+			v := false
+			switch i := inval.(type) {
+			case string:
+				v, err = strconv.ParseBool(i)
+				if err != nil {
+					return err
+				}
+
+			case bool:
+				v = i
+			}
+			val.Field(i).SetBool(v)
+			return nil
 		case sf.Type.Kind() == reflect.String:
 			val.Field(i).SetString(inval.(string))
 			return nil
