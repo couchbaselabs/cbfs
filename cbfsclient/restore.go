@@ -29,8 +29,6 @@ type restoreWorkItem struct {
 }
 
 func restoreFile(base, path string, data interface{}) error {
-	log.Printf("Restoring %v", path)
-
 	if *restoreNoop {
 		return nil
 	}
@@ -53,8 +51,14 @@ func restoreFile(base, path string, data interface{}) error {
 		log.Fatalf("Error executing POST to %v - %v", u, err)
 	}
 	defer res.Body.Close()
-	if res.StatusCode != 201 {
-		log.Printf("restore error: %v", res.Status)
+	switch {
+	case res.StatusCode == 201:
+		log.Printf("Restored %v", path)
+		// OK
+	case res.StatusCode == 409 && !*restoreForce:
+		// OK
+	default:
+		log.Printf("restore error on %v: %v", path, res.Status)
 		io.Copy(os.Stderr, res.Body)
 		fmt.Fprintln(os.Stderr)
 		return fmt.Errorf("HTTP Error restoring %v: %v", path, res.Status)

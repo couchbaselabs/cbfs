@@ -3,6 +3,7 @@ package main
 import (
 	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -241,13 +242,15 @@ func doGetBackupInfo(w http.ResponseWriter, req *http.Request) {
 	w.Write(mustEncode(&b))
 }
 
+var errExists = errors.New("item exists")
+
 func maybeStoreMeta(k string, fm fileMeta, force bool) error {
 	if force {
 		return couchbase.Set(k, 0, fm)
 	}
 	added, err := couchbase.Add(k, 0, fm)
 	if err == nil && !added {
-		err = fmt.Errorf("Failed to add %v (exists?)", k)
+		err = errExists
 	}
 	return err
 }
@@ -285,11 +288,16 @@ func doRestoreDocument(w http.ResponseWriter, req *http.Request, fn string) {
 
 	force := false
 	err = maybeStoreMeta(fn, fm, force)
-	if err != nil {
+	switch err {
+	case errExists:
+		http.Error(w, err.Error(), 409)
+		return
+	case nil:
+	default:
 		log.Printf("Error storing file meta of %v -> %v: %v",
 			fn, fm.OID, err)
-		w.WriteHeader(500)
-		fmt.Fprintf(w, "Error recording file meta: %v", err)
+		http.Error(w,
+			fmt.Sprintf("Error recording file meta: %v", err), 500)
 		return
 	}
 
