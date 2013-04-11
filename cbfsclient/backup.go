@@ -13,7 +13,7 @@ import (
 )
 
 var backupFlags = flag.NewFlagSet("backup", flag.ExitOnError)
-var backupWait = backupFlags.Bool("f", false, "Wait for backup to complete")
+var backupWait = backupFlags.Bool("w", false, "Wait for backup to complete")
 
 func backupCommand(ustr string, args []string) {
 	backupFlags.Parse(args)
