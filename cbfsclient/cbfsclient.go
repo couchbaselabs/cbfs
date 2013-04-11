@@ -23,6 +23,7 @@ var commands = map[string]struct {
 	"fsck":    {0, fsckCommand, ""},
 	"backup":  {-1, backupCommand, "filename"},
 	"restore": {-1, restoreCommand, "filename"},
+	"induce":  {1, induceCommand, "taskname"},
 }
 
 func init() {
