@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"sync"
 	"time"
 )
 
@@ -20,6 +21,12 @@ var restoreForce = restoreFlags.Bool("f", false, "Overwrite existing")
 var restoreNoop = restoreFlags.Bool("n", false, "Noop")
 var restoreVerbose = restoreFlags.Bool("v", false, "Verbose restore")
 var restorePat = restoreFlags.String("match", ".*", "Regex for paths to match")
+var restoreWorkers = restoreFlags.Int("workers", 4, "Number of restore workers")
+
+type restoreWorkItem struct {
+	Path string
+	Meta *json.RawMessage
+}
 
 func restoreFile(base, path string, data interface{}) error {
 	log.Printf("Restoring %v", path)
@@ -56,6 +63,17 @@ func restoreFile(base, path string, data interface{}) error {
 	return nil
 }
 
+func restoreWorker(wg *sync.WaitGroup, base string, ch <-chan restoreWorkItem) {
+	defer wg.Done()
+	for ob := range ch {
+		err := restoreFile(base, ob.Path, ob.Meta)
+		if err != nil {
+			log.Printf("Error restoring %v: %v",
+				ob.Path, err)
+		}
+	}
+}
+
 func restoreCommand(ustr string, args []string) {
 	restoreFlags.Parse(args)
 
@@ -81,27 +99,26 @@ func restoreCommand(ustr string, args []string) {
 		log.Fatalf("Error uncompressing restore file: %v", err)
 	}
 
+	wg := &sync.WaitGroup{}
+
+	ch := make(chan restoreWorkItem)
+	for i := 0; i < *restoreWorkers; i++ {
+		wg.Add(1)
+		go restoreWorker(wg, ustr, ch)
+	}
+
 	d := json.NewDecoder(gz)
 	nfiles := 0
 	done := false
 	for !done {
-		ob := struct {
-			Path string
-			Meta *json.RawMessage
-		}{}
+		ob := restoreWorkItem{}
 
 		err := d.Decode(&ob)
 		switch err {
 		case nil:
-			if !regex.MatchString(ob.Path) {
-				// Skipping
-				continue
-			}
-			nfiles++
-			err := restoreFile(ustr, ob.Path, ob.Meta)
-			if err != nil {
-				log.Printf("Error restoring %v: %v",
-					ob.Path, err)
+			if regex.MatchString(ob.Path) {
+				nfiles++
+				ch <- ob
 			}
 		case io.EOF:
 			done = true
@@ -110,6 +127,8 @@ func restoreCommand(ustr string, args []string) {
 			log.Fatalf("Error reading backup file: %v", err)
 		}
 	}
+	close(ch)
+	wg.Wait()
 
 	log.Printf("Restored %v files in %v", nfiles, time.Since(start))
 }
