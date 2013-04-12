@@ -189,7 +189,7 @@ func listRunningTasks() (map[string]TaskList, error) {
 }
 
 // Run a named task if we know one hasn't in the last t seconds.
-func runNamedTask(name string, job *PeriodicJob) error {
+func runNamedTask(name string, job *PeriodicJob, force bool) error {
 	key := "/@" + name
 
 	t := job.period()
@@ -207,8 +207,15 @@ func runNamedTask(name string, job *PeriodicJob) error {
 	alreadyRunning := errors.New("running")
 
 	err := couchbase.Do(key, func(mc *memcached.Client, vb uint16) error {
-		resp, err := memcached.UnwrapMemcachedError(mc.Add(vb,
-			key, 0, int(t.Seconds()), mustEncode(&jm)))
+		var resp *gomemcached.MCResponse
+		var err error
+		if force {
+			resp, err = memcached.UnwrapMemcachedError(mc.Set(vb,
+				key, 0, int(t.Seconds()), mustEncode(&jm)))
+		} else {
+			resp, err = memcached.UnwrapMemcachedError(mc.Add(vb,
+				key, 0, int(t.Seconds()), mustEncode(&jm)))
+		}
 		if err != nil {
 			return err
 		}
@@ -235,12 +242,12 @@ func runNamedTask(name string, job *PeriodicJob) error {
 	return err
 }
 
-func runGlobalTask(name string, job *PeriodicJob) error {
-	return runNamedTask(name, job)
+func runGlobalTask(name string, job *PeriodicJob, force bool) error {
+	return runNamedTask(name, job, force)
 }
 
-func runLocalTask(name string, job *PeriodicJob) error {
-	return runNamedTask(serverId+"/"+name, job)
+func runLocalTask(name string, job *PeriodicJob, force bool) error {
+	return runNamedTask(serverId+"/"+name, job, force)
 }
 
 func logErrors(from string, errs <-chan error) {
@@ -757,7 +764,7 @@ func periodicTaskGasp(name string) {
 }
 
 func runPeriodicJob(name string, job *PeriodicJob, inducer chan time.Time,
-	executor func(name string, job *PeriodicJob) error) {
+	executor func(name string, job *PeriodicJob, force bool) error) {
 
 	defer periodicTaskGasp(name)
 
@@ -768,13 +775,13 @@ func runPeriodicJob(name string, job *PeriodicJob, inducer chan time.Time,
 	for {
 		select {
 		case <-inducer:
-			err := executor(name, job)
+			err := executor(name, job, true)
 			if err != nil {
 				log.Printf("Error running induced task %v: %v", name, err)
 			}
 
 		case <-job.ticker.C:
-			err := executor(name, job)
+			err := executor(name, job, false)
 			if err != nil {
 				log.Printf("Error running task %v: %v", name, err)
 			}
@@ -797,7 +804,7 @@ func runPeriodicJob(name string, job *PeriodicJob, inducer chan time.Time,
 }
 
 func launchJobs(m map[string]*periodicJobRecipe,
-	executor func(string, *PeriodicJob) error) {
+	executor func(string, *PeriodicJob, bool) error) {
 
 	for n, recipe := range m {
 		if recipe.period() == 0 {
