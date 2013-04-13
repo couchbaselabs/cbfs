@@ -30,6 +30,7 @@ type restoreWorkItem struct {
 
 func restoreFile(base, path string, data interface{}) error {
 	if *restoreNoop {
+		log.Printf("NOOP would restore %v", path)
 		return nil
 	}
 
