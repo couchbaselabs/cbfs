@@ -54,6 +54,11 @@ func altStoreFile(name string, r io.Reader,
 	length int64) (io.Reader, <-chan storInfo) {
 
 	bgch := make(chan storInfo, 2)
+	if length == -1 {
+		// No alt store requested
+		close(bgch)
+		return r, bgch
+	}
 
 	nodes, err := findRemoteNodes()
 	nodes = nodes.withAtLeast(length)
@@ -167,7 +172,10 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		// If we don't know, guess about a meg.
 		l = 1024 * 1024
 	}
-	r, bgch := altStoreFile(fn, req.Body, uint64(l))
+	if t, _ := strconv.ParseBool(req.Header.Get("X-CBFS-Unsafe")); t {
+		l = -1
+	}
+	r, bgch := altStoreFile(fn, req.Body, l)
 
 	h, length, err := f.Process(r)
 	if err != nil {
