@@ -193,8 +193,8 @@ func backupToCBFS(fn string) error {
 func doMarkBackup(w http.ResponseWriter, req *http.Request) {
 	err := recordBackupObject()
 	if err != nil {
-		w.WriteHeader(500)
-		fmt.Fprintf(w, "Error marking backup: %v", err)
+		http.Error(w, fmt.Sprintf("Error marking backup; %v", err), 500)
+		return
 	}
 	w.WriteHeader(204)
 }
@@ -202,7 +202,7 @@ func doMarkBackup(w http.ResponseWriter, req *http.Request) {
 func doBackupDocs(w http.ResponseWriter, req *http.Request) {
 	fn := req.FormValue("fn")
 	if fn == "" {
-		w.WriteHeader(400)
+		http.Error(w, "Missing fn parameter", 400)
 		return
 	}
 
@@ -219,8 +219,7 @@ func doBackupDocs(w http.ResponseWriter, req *http.Request) {
 
 	err := backupToCBFS(fn)
 	if err != nil {
-		w.WriteHeader(500)
-		fmt.Fprintf(w, "Error performing backup: %v", err)
+		http.Error(w, fmt.Sprintf("Error performing backup: %v", err), 500)
 		return
 	}
 
@@ -235,7 +234,7 @@ func doGetBackupInfo(w http.ResponseWriter, req *http.Request) {
 		if gomemcached.IsNotFound(err) {
 			code = 404
 		}
-		w.WriteHeader(code)
+		http.Error(w, err.Error(), code)
 		return
 	}
 
@@ -274,8 +273,8 @@ func doRestoreDocument(w http.ResponseWriter, req *http.Request, fn string) {
 	}
 
 	if strings.Contains(fn, "//") {
-		w.WriteHeader(400)
-		fmt.Fprintf(w, "Too many slashes in the path name: %v", fn)
+		http.Error(w,
+			fmt.Sprintf("Too many slashes in the path name: %v", fn), 400)
 		return
 	}
 

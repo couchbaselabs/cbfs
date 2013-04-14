@@ -116,8 +116,7 @@ func doPostRawBlob(w http.ResponseWriter, req *http.Request) {
 	f, err := NewHashRecord(*root, "")
 	if err != nil {
 		log.Printf("Error writing tmp file: %v", err)
-		w.WriteHeader(500)
-		w.Write([]byte(err.Error()))
+		http.Error(w, err.Error(), 500)
 		return
 	}
 	defer f.Close()
@@ -125,16 +124,15 @@ func doPostRawBlob(w http.ResponseWriter, req *http.Request) {
 	sh, length, err := f.Process(req.Body)
 	if err != nil {
 		log.Printf("Error linking in raw hash: %v", err)
-		w.WriteHeader(500)
-		w.Write([]byte(err.Error()))
+		http.Error(w, err.Error(), 500)
 		return
 	}
 
 	err = recordBlobOwnership(sh, length, true)
 	if err != nil {
 		log.Printf("Error recording ownership of %v: %v", sh, err)
-		w.WriteHeader(500)
-		fmt.Fprintf(w, "Error recording blob ownership: %v", err)
+		http.Error(w, fmt.Sprintf("Error recording blob ownership: %v", err),
+			500)
 		return
 	}
 
@@ -145,9 +143,9 @@ func doPostRawBlob(w http.ResponseWriter, req *http.Request) {
 
 func putUserFile(w http.ResponseWriter, req *http.Request) {
 	if strings.Contains(req.URL.Path, "//") {
-		w.WriteHeader(400)
-		fmt.Fprintf(w, "Too many slashes in the path name: %v",
-			req.URL.Path)
+		http.Error(w,
+			fmt.Sprintf("Too many slashes in the path name: %v",
+				req.URL.Path), 400)
 		return
 	}
 
@@ -156,7 +154,7 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 	f, err := NewHashRecord(*root, req.Header.Get("X-CBFS-Hash"))
 	if err != nil {
 		log.Printf("Error writing tmp file: %v", err)
-		w.WriteHeader(500)
+		http.Error(w, "Error writing tmp file", 500)
 		return
 	}
 	defer f.Close()
@@ -175,8 +173,7 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Printf("Error completing blob write for %v: %v",
 			req.URL.Path, err)
-		w.WriteHeader(500)
-		fmt.Fprintf(w, "Error completing blob write: %v", err)
+		http.Error(w, fmt.Sprintf("Error completing blob write: %v", err), 500)
 		return
 	}
 
@@ -184,8 +181,8 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Printf("Error storing blob ownership of %v for %v: %v",
 			h, req.URL.Path, err)
-		w.WriteHeader(500)
-		fmt.Fprintf(w, "Error recording blob ownership: %v", err)
+		http.Error(w, fmt.Sprintf("Error recording blob ownership: %v", err),
+			500)
 		return
 	}
 
@@ -202,9 +199,9 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		if si.err != nil || si.hs != h {
 			log.Printf("Error in secondary store of %v to %v for %v: %v",
 				h, si.node, req.URL.Path, si.err)
-			w.WriteHeader(500)
-			fmt.Fprintf(w, "Error creating sync secondary copy: %v\n%v",
-				si.err, si.hs)
+			http.Error(w,
+				fmt.Sprintf("Error creating sync secondary copy: %v\n%v",
+					si.err, si.hs), 500)
 
 			// We do have this item now, so even if it's
 			// not going to be linked to a file, we will
@@ -237,8 +234,8 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Printf("Error storing file meta of %v -> %v: %v",
 			fn, h, err)
-		w.WriteHeader(500)
-		fmt.Fprintf(w, "Error recording blob ownership: %v", err)
+		http.Error(w, fmt.Sprintf("Error recording blob ownership: %v", err),
+			500)
 		return
 	}
 
@@ -258,16 +255,14 @@ func putRawHash(w http.ResponseWriter, req *http.Request) {
 	inputhash := minusPrefix(req.URL.Path, blobPrefix)
 
 	if inputhash == "" {
-		w.WriteHeader(400)
-		w.Write([]byte("No oid specified"))
+		http.Error(w, "No oid specified", 400)
 		return
 	}
 
 	f, err := NewHashRecord(*root, inputhash)
 	if err != nil {
 		log.Printf("Error writing tmp file: %v", err)
-		w.WriteHeader(500)
-		w.Write([]byte(err.Error()))
+		http.Error(w, err.Error(), 500)
 		return
 	}
 	defer f.Close()
@@ -275,8 +270,7 @@ func putRawHash(w http.ResponseWriter, req *http.Request) {
 	sh, length, err := f.Process(req.Body)
 	if err != nil {
 		log.Printf("Error linking in raw hash: %v", err)
-		w.WriteHeader(500)
-		w.Write([]byte(err.Error()))
+		http.Error(w, err.Error(), 500)
 		return
 	}
 
@@ -284,8 +278,8 @@ func putRawHash(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Printf("Error recording blob ownership of %v: %v",
 			inputhash, err)
-		w.WriteHeader(500)
-		fmt.Fprintf(w, "Error recording blob ownership: %v", err)
+		http.Error(w, fmt.Sprintf("Error recording blob ownership: %v", err),
+			500)
 		return
 	}
 
@@ -305,7 +299,7 @@ func doPut(w http.ResponseWriter, req *http.Request) {
 	case *enableCRUDProxy && strings.HasPrefix(req.URL.Path, crudproxyPrefix):
 		proxyCRUDPut(w, req, minusPrefix(req.URL.Path, crudproxyPrefix))
 	case strings.HasPrefix(req.URL.Path, "/.cbfs/"):
-		w.WriteHeader(400)
+		http.Error(w, "Can't PUT here", 400)
 	default:
 		putUserFile(w, req)
 	}
@@ -341,13 +335,12 @@ func doHeadUserFile(w http.ResponseWriter, req *http.Request) {
 	err := couchbase.Get(k, &got)
 	if err != nil {
 		log.Printf("Error getting file %#v: %v", path, err)
-		w.WriteHeader(404)
-		w.Write([]byte(err.Error()))
+		http.Error(w, err.Error(), 404)
 		return
 	}
 
 	if req.FormValue("rev") != "" {
-		w.WriteHeader(400)
+		http.Error(w, "rev parameter not specified", 400)
 		return
 	}
 
@@ -375,8 +368,8 @@ func doHeadUserFile(w http.ResponseWriter, req *http.Request) {
 func doHeadRawBlob(w http.ResponseWriter, req *http.Request, oid string) {
 	f, err := openBlob(oid)
 	if err != nil {
-		w.WriteHeader(404)
-		fmt.Fprintf(w, "Error opening blob: %v", err)
+		http.Error(w,
+			fmt.Sprintf("Error opening blob: %v", err), 404)
 		removeBlobOwnershipRecord(oid, serverId)
 		return
 	}
@@ -384,7 +377,7 @@ func doHeadRawBlob(w http.ResponseWriter, req *http.Request, oid string) {
 
 	length, err := f.Seek(0, os.SEEK_END)
 	if err != nil {
-		w.WriteHeader(500)
+		http.Error(w, err.Error(), 500)
 		log.Printf("Error seeking in %v: %v", oid, err)
 		return
 	}
@@ -399,7 +392,7 @@ func doHead(w http.ResponseWriter, req *http.Request) {
 	case strings.HasPrefix(req.URL.Path, blobPrefix):
 		doHeadRawBlob(w, req, minusPrefix(req.URL.Path, blobPrefix))
 	case strings.HasPrefix(req.URL.Path, "/.cbfs/"):
-		w.WriteHeader(400)
+		http.Error(w, "Can't HEAD here", 400)
 	default:
 		doHeadUserFile(w, req)
 	}
@@ -439,14 +432,12 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 	err := couchbase.Get(k, &got)
 	if err != nil {
 		log.Printf("Error getting file %#v: %v", path, err)
-		w.WriteHeader(404)
-		w.Write([]byte(err.Error()))
+		http.Error(w, err.Error(), 404)
 		return
 	}
 	if got.Type != "file" {
 		log.Printf("%v is not a file", path)
-		w.WriteHeader(404)
-		fmt.Fprintf(w, "Item at %v is not a file.", path)
+		http.Error(w, fmt.Sprintf("Item at %v is not a file.", path), 404)
 		return
 	}
 
@@ -464,8 +455,7 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 	if revnoStr != "" {
 		i, err := strconv.Atoi(revnoStr)
 		if err != nil {
-			w.WriteHeader(400)
-			fmt.Fprintf(w, "Invalid revno")
+			http.Error(w, "Invalid revno", 400)
 			return
 		}
 		revno = i
@@ -480,8 +470,8 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 		if oid == "" {
-			w.WriteHeader(410)
-			fmt.Fprintf(w, "Don't have this file with rev %v", revno)
+			http.Error(w,
+				fmt.Sprintf("Don't have this file with rev %v", revno), 410)
 			return
 		}
 	}
@@ -527,8 +517,7 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 func doServeRawBlob(w http.ResponseWriter, req *http.Request, oid string) {
 	f, err := openBlob(oid)
 	if err != nil {
-		w.WriteHeader(404)
-		fmt.Fprintf(w, "Error opening blob: %v", err)
+		http.Error(w, "Error opening blob: "+err.Error(), 404)
 		removeBlobOwnershipRecord(oid, serverId)
 		return
 	}
@@ -550,7 +539,7 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 	if err != nil {
 		log.Printf("Missing ownership record for %v", oid)
 		// Not sure 404 is the right response here
-		w.WriteHeader(404)
+		http.Error(w, "Can't find info for blob "+oid, 404)
 		return err
 	}
 
@@ -622,8 +611,7 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 	//if we got to this point, no node in the list actually had it
 	log.Printf("Don't have hash file: %v and no remote nodes could help",
 		oid)
-	w.WriteHeader(500)
-	fmt.Fprintf(w, "Cannot locate blob %v", oid)
+	http.Error(w, "Cannot locate blob "+oid, 500)
 	return fmt.Errorf("Can't locate blob %v", oid)
 }
 
@@ -660,21 +648,19 @@ func doFetchDoc(w http.ResponseWriter, req *http.Request,
 		log.Printf("Missing ownership record for OID: %v",
 			path)
 		// Not sure 404 is the right response here
-		w.WriteHeader(404)
+		http.Error(w, "Missing ownership record for OID: "+path, 404)
 		return
 	}
 
 	if availableSpace() < ownership.Length {
-		w.WriteHeader(500)
-		w.Write([]byte("No free space available."))
+		http.Error(w, "No free space available", 500)
 		log.Printf("Someone asked me to get %v, but I'm out of space",
 			path)
 		return
 	}
 
 	if !maybeQueueBlobFetch(path, req.Header.Get("X-Prevnode")) {
-		w.WriteHeader(503)
-		w.Write([]byte("Queue is full. Try later."))
+		http.Error(w, "Queue is full. Try later.", 503)
 		return
 	}
 
@@ -720,7 +706,7 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 	case strings.HasPrefix(req.URL.Path, fsckPrefix):
 		dofsck(w, req, minusPrefix(req.URL.Path, fsckPrefix))
 	case strings.HasPrefix(req.URL.Path, "/.cbfs/"):
-		w.WriteHeader(400)
+		http.Error(w, "Can't GET here", 400)
 	default:
 		doGetUserDoc(w, req)
 	}
@@ -737,8 +723,7 @@ func doDeleteOID(w http.ResponseWriter, req *http.Request) {
 	if err == nil {
 		w.WriteHeader(204)
 	} else {
-		w.WriteHeader(404)
-		w.Write([]byte(err.Error()))
+		http.Error(w, err.Error(), 404)
 	}
 }
 
@@ -748,8 +733,7 @@ func doDeleteUserDoc(w http.ResponseWriter, req *http.Request) {
 	if err == nil {
 		w.WriteHeader(204)
 	} else {
-		w.WriteHeader(404)
-		w.Write([]byte(err.Error()))
+		http.Error(w, err.Error(), 404)
 	}
 }
 
@@ -760,7 +744,7 @@ func doDelete(w http.ResponseWriter, req *http.Request) {
 	case *enableCRUDProxy && strings.HasPrefix(req.URL.Path, crudproxyPrefix):
 		proxyCRUDDelete(w, req, minusPrefix(req.URL.Path, crudproxyPrefix))
 	case strings.HasPrefix(req.URL.Path, "/.cbfs/"):
-		w.WriteHeader(400)
+		http.Error(w, "Can't DELETE here", 400)
 	default:
 		doDeleteUserDoc(w, req)
 	}
