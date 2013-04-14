@@ -271,7 +271,7 @@ func proxyViewRequest(w http.ResponseWriter, req *http.Request,
 func proxyCRUDGet(w http.ResponseWriter, req *http.Request,
 	path string) {
 
-	val, err := couchbase.GetRaw(path)
+	val, err := couchbase.GetRaw(shortName(path))
 	if err != nil {
 		w.WriteHeader(404)
 		fmt.Fprintf(w, "Error getting value: %v", err)
@@ -291,7 +291,7 @@ func proxyCRUDPut(w http.ResponseWriter, req *http.Request,
 		return
 	}
 
-	err = couchbase.SetRaw(path, 0, data)
+	err = couchbase.SetRaw(shortName(path), 0, data)
 	if err != nil {
 		w.WriteHeader(500)
 		fmt.Fprintf(w, "Error storing value: %v", err)
@@ -304,7 +304,7 @@ func proxyCRUDPut(w http.ResponseWriter, req *http.Request,
 func proxyCRUDDelete(w http.ResponseWriter, req *http.Request,
 	path string) {
 
-	err := couchbase.Delete(path)
+	err := couchbase.Delete(shortName(path))
 	if err != nil {
 		w.WriteHeader(500)
 		fmt.Fprintf(w, "Error deleting value: %v", err)
