@@ -151,13 +151,7 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	fn := resolvePath(req)
-	if len(fn) > 250 {
-		w.WriteHeader(400)
-		log.Printf("User supplied excessively long filename: %v", fn)
-		fmt.Fprintf(w, "Filename too long.")
-		return
-	}
+	fn, _ := resolvePath(req)
 
 	f, err := NewHashRecord(*root, req.Header.Get("X-CBFS-Hash"))
 	if err != nil {
@@ -325,8 +319,8 @@ func isResponseHeader(s string) bool {
 	return false
 }
 
-func resolvePath(req *http.Request) string {
-	path := req.URL.Path
+func resolvePath(req *http.Request) (path string, key string) {
+	path = req.URL.Path
 	// Ignore /, but remove leading / from /blah
 	for len(path) > 0 && path[0] == '/' {
 		path = path[1:]
@@ -338,13 +332,13 @@ func resolvePath(req *http.Request) string {
 		path = "index.html"
 	}
 
-	return path
+	return path, shortName(path)
 }
 
 func doHeadUserFile(w http.ResponseWriter, req *http.Request) {
-	path := resolvePath(req)
+	path, k := resolvePath(req)
 	got := fileMeta{}
-	err := couchbase.Get(path, &got)
+	err := couchbase.Get(k, &got)
 	if err != nil {
 		log.Printf("Error getting file %#v: %v", path, err)
 		w.WriteHeader(404)
@@ -440,9 +434,9 @@ func shouldGzip(f fileMeta) bool {
 }
 
 func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
-	path := resolvePath(req)
+	path, k := resolvePath(req)
 	got := fileMeta{}
-	err := couchbase.Get(path, &got)
+	err := couchbase.Get(k, &got)
 	if err != nil {
 		log.Printf("Error getting file %#v: %v", path, err)
 		w.WriteHeader(404)
@@ -749,7 +743,8 @@ func doDeleteOID(w http.ResponseWriter, req *http.Request) {
 }
 
 func doDeleteUserDoc(w http.ResponseWriter, req *http.Request) {
-	err := couchbase.Delete(resolvePath(req))
+	_, k := resolvePath(req)
+	err := couchbase.Delete(k)
 	if err == nil {
 		w.WriteHeader(204)
 	} else {

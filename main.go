@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -36,6 +38,11 @@ var useSyslog = flag.Bool("syslog", false, "Log to syslog")
 
 var globalConfig *cbfsconfig.CBFSConfig
 
+const (
+	maxFilename    = 250
+	truncateKeyLen = 32
+)
+
 func init() {
 	conf := cbfsconfig.DefaultConfig()
 	globalConfig = &conf
@@ -50,6 +57,7 @@ type prevMeta struct {
 }
 
 type fileMeta struct {
+	Name     string           `json:"name,omitempty"`
 	Headers  http.Header      `json:"headers"`
 	OID      string           `json:"oid"`
 	Length   int64            `json:"length"`
@@ -74,10 +82,23 @@ func (fm fileMeta) MarshalJSON() ([]byte, error) {
 	if fm.Userdata != nil {
 		m["userdata"] = fm.Userdata
 	}
+	if fm.Name != "" {
+		m["name"] = fm.Name
+	}
 	if len(fm.Previous) > 0 {
 		m["older"] = fm.Previous
 	}
 	return json.Marshal(m)
+}
+
+func shortName(k string) string {
+	if len(k) < maxFilename {
+		return k
+	}
+	h := sha1.New()
+	h.Write([]byte(k))
+	hs := hex.EncodeToString(h.Sum(nil))
+	return "/+" + k[:truncateKeyLen] + "-" + hs
 }
 
 func mustEncode(i interface{}) []byte {
@@ -88,7 +109,11 @@ func mustEncode(i interface{}) []byte {
 	return rv
 }
 
-func storeMeta(k string, fm fileMeta, revs int) error {
+func storeMeta(fn string, fm fileMeta, revs int) error {
+	k := shortName(fn)
+	if k != fn {
+		fm.Name = fn
+	}
 	return couchbase.Update(k, 0, func(in []byte) ([]byte, error) {
 		existing := fileMeta{}
 		err := json.Unmarshal(in, &existing)

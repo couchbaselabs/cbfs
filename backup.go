@@ -279,13 +279,6 @@ func doRestoreDocument(w http.ResponseWriter, req *http.Request, fn string) {
 		return
 	}
 
-	if len(fn) > 250 {
-		w.WriteHeader(400)
-		log.Printf("User supplied excessively long filename: %v", fn)
-		fmt.Fprintf(w, "Filename too long.")
-		return
-	}
-
 	force := false
 	err = maybeStoreMeta(fn, fm, force)
 	switch err {

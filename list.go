@@ -57,7 +57,7 @@ func listFiles(path string, includeMeta bool,
 	// use the view result to build a list of keys
 	keys := make([]string, len(viewRes.Rows), len(viewRes.Rows))
 	for i, r := range viewRes.Rows {
-		keys[i] = toStringJoin(r.Key, "/")
+		keys[i] = shortName(toStringJoin(r.Key, "/"))
 	}
 
 	// do a multi-get on the all the keys returned
@@ -67,7 +67,7 @@ func listFiles(path string, includeMeta bool,
 	files := map[string]interface{}{}
 	dirs := map[string]interface{}{}
 	for _, r := range viewRes.Rows {
-		key := toStringJoin(r.Key, "/")
+		key := shortName(toStringJoin(r.Key, "/"))
 		subkey := r.Key
 		if len(r.Key) > depth {
 			subkey = r.Key[len(r.Key)-depth:]

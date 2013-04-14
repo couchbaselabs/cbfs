@@ -20,7 +20,7 @@ type viewMarker struct {
 }
 
 const ddocKey = "/@ddocVersion"
-const ddocVersion = 2
+const ddocVersion = 3
 const designDoc = `
 {
     "spatialInfos": [],
@@ -69,10 +69,10 @@ const designDoc = `
     ],
     "views": {
         "file_blobs": {
-            "map": "function (doc, meta) {\n  if (doc.type === \"file\") {\n    var toEmit = {};\n    toEmit[doc.oid] = meta.id;\n    if (doc.older) {\n      for (var i = 0; i < doc.older.length; i++) {\n        toEmit[doc.older[i].oid] = meta.id;\n      }\n    }\n    for (var k in toEmit) {\n      emit([k, \"file\", meta.id], null);\n    }\n  } else if (doc.type === \"blob\") {\n    var replicas=0;\n    for (var node in doc.nodes) {\n      replicas++;\n      emit([doc.oid, \"blob\", node], null);\n    }\n    if (replicas === 0) {\n      emit([doc.oid, \"blob\", \"\"], null);\n    }\n  }\n}"
+            "map": "function (doc, meta) {\n  if (doc.type === \"file\") {\n    var toEmit = {};\n    toEmit[doc.oid] = doc.name ? doc.name : meta.id;\n    if (doc.older) {\n      for (var i = 0; i < doc.older.length; i++) {\n        toEmit[doc.older[i].oid] = doc.name ? doc.name : meta.id;\n      }\n    }\n    for (var k in toEmit) {\n      emit([k, \"file\", doc.name ? doc.name : meta.id], null);\n    }\n  } else if (doc.type === \"blob\") {\n    var replicas=0;\n    for (var node in doc.nodes) {\n      replicas++;\n      emit([doc.oid, \"blob\", node], null);\n    }\n    if (replicas === 0) {\n      emit([doc.oid, \"blob\", \"\"], null);\n    }\n  }\n}"
         },
         "file_browse": {
-            "map": "function (doc, meta) {\n  if(doc.type == \"file\") {  \n    var idarr = meta.id.split(\"/\");\n    emit(idarr, doc.length);\n  }\n}",
+            "map": "function (doc, meta) {\n  if(doc.type == \"file\") {  \n    var idarr = (doc.name ? doc.name : meta.id).split(\"/\");\n    emit(idarr, doc.length);\n  }\n}",
             "reduce": "_stats"
         },
         "garbage": {

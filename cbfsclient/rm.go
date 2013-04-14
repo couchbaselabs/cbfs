@@ -25,7 +25,7 @@ func rmDashR(baseUrl string) {
 
 	listing, err := cbfsclient.List(baseUrl)
 	if err != nil {
-		log.Fatalf("Error listing files: %v", err)
+		log.Fatalf("Error listing files at %q: %v", baseUrl, err)
 	}
 	for fn := range listing.Files {
 		rmCh <- baseUrl + "/" + quotingReplacer.Replace(fn)
