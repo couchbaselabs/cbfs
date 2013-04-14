@@ -39,6 +39,8 @@ var uploadRevs = uploadFlags.Int("revs", 0,
 var uploadNoop = uploadFlags.Bool("n", false, "Dry run")
 var uploadIgnore = uploadFlags.String("ignore", "",
 	"Path to ignore file")
+var uploadUnsafe = uploadFlags.Bool("unsafe", false,
+	"Unsafe (not synchronously replicated) uploads.")
 var uploadRevsSet = false
 
 var quotingReplacer = strings.NewReplacer("%", "%25",
@@ -198,6 +200,9 @@ func uploadFile(src, dest, localHash string) error {
 	}
 	if uploadRevsSet {
 		preq.Header.Set("X-CBFS-KeepRevs", strconv.Itoa(*uploadRevs))
+	}
+	if *uploadUnsafe {
+		preq.Header.Set("X-CBFS-Unsafe", "true")
 	}
 
 	ctype := http.DetectContentType(someBytes)
