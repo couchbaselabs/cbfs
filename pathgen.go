@@ -25,7 +25,7 @@ func pathDataFetcher(wg *sync.WaitGroup, quit <-chan bool,
 				return
 			}
 			ob := namedFile{name: s}
-			ob.err = couchbase.Get(s, &ob.meta)
+			ob.err = couchbase.Get(shortName(s), &ob.meta)
 			out <- &ob
 		case <-quit:
 			return
@@ -87,7 +87,7 @@ func pathGenerator(from string, ch chan *namedFile,
 		done = len(viewRes.Rows) < limit
 
 		for _, r := range viewRes.Rows {
-			k := r.Id
+			k := strings.Join(r.Key, "/")
 			if !strings.HasPrefix(k, from) {
 				done = true
 				break
