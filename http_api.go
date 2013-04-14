@@ -115,7 +115,7 @@ func doListTasks(w http.ResponseWriter, req *http.Request) {
 
 func doGetMeta(w http.ResponseWriter, req *http.Request, path string) {
 	got := fileMeta{}
-	err := couchbase.Get(path, &got)
+	err := couchbase.Get(shortName(path), &got)
 	if err != nil {
 		log.Printf("Error getting file %#v: %v", path, err)
 		w.WriteHeader(404)
@@ -135,7 +135,8 @@ func doGetMeta(w http.ResponseWriter, req *http.Request, path string) {
 func putMeta(w http.ResponseWriter, req *http.Request, path string) {
 	got := fileMeta{}
 	casid := uint64(0)
-	err := couchbase.Gets(path, &got, &casid)
+	k := shortName(path)
+	err := couchbase.Gets(k, &got, &casid)
 	if err != nil {
 		log.Printf("Error getting file %#v: %v", path, err)
 		w.WriteHeader(404)
@@ -154,7 +155,7 @@ func putMeta(w http.ResponseWriter, req *http.Request, path string) {
 	got.Userdata = &r
 	b := mustEncode(&got)
 
-	err = couchbase.Do(path, func(mc *memcached.Client, vb uint16) error {
+	err = couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
 		req := &gomemcached.MCRequest{
 			Opcode:  gomemcached.SET,
 			VBucket: vb,
