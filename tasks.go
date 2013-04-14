@@ -576,7 +576,7 @@ func moveSomeOffOf(n StorageNode, nl NodeList) {
 			}
 
 			candidates = candidates.withAtLeast(
-				uint64(globalConfig.TrimFullNodesSpace))
+				globalConfig.TrimFullNodesSpace)
 
 			if len(candidates) == 0 {
 				log.Printf("No candidates available to move %v",
@@ -604,12 +604,12 @@ func trimFullNodes() error {
 		return err
 	}
 
-	toRelieve := nl.withNoMoreThan(uint64(globalConfig.TrimFullNodesSpace))
+	toRelieve := nl.withNoMoreThan(globalConfig.TrimFullNodesSpace)
 	if len(toRelieve) == 0 {
 		return nil
 	}
 
-	hasSpace := nl.withAtLeast(uint64(globalConfig.TrimFullNodesSpace))
+	hasSpace := nl.withAtLeast(globalConfig.TrimFullNodesSpace)
 
 	if len(hasSpace) == 0 {
 		log.Printf("No needs have sufficient free space")

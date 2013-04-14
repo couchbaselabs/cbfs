@@ -25,7 +25,7 @@ type StorageNode struct {
 	BindAddr  string    `json:"bindaddr"`
 	FrameBind string    `json:"framebind"`
 	Used      int64     `json:"used"`
-	Free      uint64    `json:"free"`
+	Free      int64     `json:"free"`
 
 	name        string
 	storageSize int64
@@ -329,7 +329,7 @@ func (nl NodeList) named(name string) StorageNode {
 }
 
 // Find a node with at least this many bytes free.
-func (nl NodeList) withAtLeast(free uint64) NodeList {
+func (nl NodeList) withAtLeast(free int64) NodeList {
 	rv := NodeList{}
 	for _, node := range nl {
 		if node.Free > free {
@@ -340,7 +340,7 @@ func (nl NodeList) withAtLeast(free uint64) NodeList {
 }
 
 // Find nodes with no more than this much space free.
-func (nl NodeList) withNoMoreThan(free uint64) NodeList {
+func (nl NodeList) withNoMoreThan(free int64) NodeList {
 	rv := NodeList{}
 	for _, node := range nl {
 		if node.Free <= free {
@@ -363,7 +363,7 @@ func (nl NodeList) candidatesFor(oid string, exclude NodeList) NodeList {
 	owners := ownership.ResolveNodes()
 
 	// Find a good destination candidate.
-	return nl.minus(owners).withAtLeast(uint64(ownership.Length))
+	return nl.minus(owners).withAtLeast(ownership.Length)
 }
 
 func findRemoteNodes() (NodeList, error) {

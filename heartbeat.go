@@ -15,7 +15,7 @@ var noFSFree = errors.New("no filesystemFree")
 
 var spaceUsed int64
 
-func availableSpace() uint64 {
+func availableSpace() int64 {
 	freeSpace, err := filesystemFree()
 	if err != nil {
 		if err != noFSFree {
@@ -30,7 +30,7 @@ func availableSpace() uint64 {
 			avail = 0
 		}
 		if int64(freeSpace) > avail {
-			freeSpace = uint64(avail)
+			freeSpace = avail
 		}
 	}
 	return freeSpace

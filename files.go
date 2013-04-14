@@ -13,7 +13,7 @@ import (
 
 var maxStorageString = flag.String("maxSize", "",
 	"Approximate maximum amount of space to allocate")
-var maxStorage uint64
+var maxStorage int64
 
 func hashFilename(base, hstr string) string {
 	return base + "/" + hstr[:2] + "/" + hstr

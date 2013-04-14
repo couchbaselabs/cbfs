@@ -51,7 +51,7 @@ type storInfo struct {
 // it's closed.  If it's closed without yielding a storInfo, there are
 // no remote nodes available.
 func altStoreFile(name string, r io.Reader,
-	length uint64) (io.Reader, <-chan storInfo) {
+	length int64) (io.Reader, <-chan storInfo) {
 
 	bgch := make(chan storInfo, 2)
 
@@ -584,7 +584,7 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 		var hw *hashRecord
 
 		if cachePerc == 100 || (cachePerc > rand.Intn(100) &&
-			availableSpace() > uint64(ownership.Length)) {
+			availableSpace() > ownership.Length) {
 			hw, err = NewHashRecord(*root, oid)
 			if err == nil {
 				writeTo = io.MultiWriter(hw, w)
@@ -662,7 +662,7 @@ func doFetchDoc(w http.ResponseWriter, req *http.Request,
 		return
 	}
 
-	if availableSpace() < uint64(ownership.Length) {
+	if availableSpace() < ownership.Length {
 		w.WriteHeader(500)
 		w.Write([]byte("No free space available."))
 		log.Printf("Someone asked me to get %v, but I'm out of space",

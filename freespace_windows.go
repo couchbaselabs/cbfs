@@ -6,6 +6,6 @@ import (
 	"math"
 )
 
-func filesystemFree() (uint64, error) {
-	return uint64(math.MaxInt64), noFSFree
+func filesystemFree() (int64, error) {
+	return math.MaxInt64, noFSFree
 }

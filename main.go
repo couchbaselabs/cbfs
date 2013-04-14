@@ -142,11 +142,12 @@ func main() {
 	}
 
 	if *maxStorageString != "" {
-		maxStorage, err = humanize.ParseBytes(*maxStorageString)
+		ms, err := humanize.ParseBytes(*maxStorageString)
 		if err != nil {
 			log.Fatalf("Error parsing max storage parameter: %v",
 				err)
 		}
+		maxStorage = int64(ms)
 	}
 
 	couchbase, err = dbConnect()
