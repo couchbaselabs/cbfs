@@ -45,7 +45,7 @@ func doTarDocs(w http.ResponseWriter, req *http.Request,
 
 		err := tw.WriteHeader(&fh)
 		if err != nil {
-			log.Printf("Error writing header %#v", fh)
+			log.Printf("Error writing header %#v: %v", fh, err)
 			continue
 		}
 
