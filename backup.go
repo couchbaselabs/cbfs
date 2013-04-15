@@ -132,10 +132,22 @@ func storeBackupObject(fn, h string) error {
 
 	ob := backupItem{fn, h, time.Now().UTC(), *globalConfig}
 
+	// Keep only backups we're pretty sure still exist.
+	obn := b.Backups
+	b.Backups = nil
+	for _, bi := range obn {
+		fm := fileMeta{}
+		err := couchbase.Get(shortName(bi.Fn), &fm)
+		if gomemcached.IsNotFound(err) {
+			log.Printf("Dropping previous (deleted) backup: %v",
+				bi.Fn)
+		} else {
+			b.Backups = append(b.Backups, bi)
+		}
+	}
+
 	b.Latest = ob
 	b.Backups = append(b.Backups, ob)
-
-	// TODO:  Verify existing backups
 
 	return couchbase.Set(backupKey, 0, &b)
 }
