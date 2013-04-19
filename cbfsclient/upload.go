@@ -41,6 +41,8 @@ var uploadIgnore = uploadFlags.String("ignore", "",
 	"Path to ignore file")
 var uploadUnsafe = uploadFlags.Bool("unsafe", false,
 	"Unsafe (not synchronously replicated) uploads.")
+var uploadNoHash = uploadFlags.Bool("nohash", false,
+	"Don't include the hash in the upload request")
 var uploadRevsSet = false
 
 var quotingReplacer = strings.NewReplacer("%", "%25",
@@ -213,7 +215,9 @@ func uploadFile(src, dest, localHash string) error {
 
 	preq.Header.Set("Content-Length", strconv.FormatInt(length, 10))
 	preq.Header.Set("Content-Type", ctype)
-	preq.Header.Set("X-CBFS-Hash", localHash)
+	if !*uploadNoHash {
+		preq.Header.Set("X-CBFS-Hash", localHash)
+	}
 
 	resp, err := http.DefaultClient.Do(preq)
 	if err != nil {
