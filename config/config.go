@@ -33,6 +33,8 @@ type CBFSConfig struct {
 	NodeCleanCount int `json:"cleanCount"`
 	// Reconciliation frequency
 	ReconcileFreq time.Duration `json:"reconcileFreq"`
+	// Quick reconciliation frequency
+	QuickReconcileFreq time.Duration `json:"quickReconcileFreq"`
 	// How often to verify we have all the blobs for which we're registered
 	LocalValidationFreq time.Duration `json:"localValidationFreq"`
 	// How often to check for stale nodes
@@ -67,7 +69,8 @@ func DefaultConfig() CBFSConfig {
 		MinReplicas:           3,
 		MaxReplicas:           5,
 		NodeCleanCount:        5000,
-		ReconcileFreq:         time.Hour * 27,
+		ReconcileFreq:         time.Hour * 24 * 7,
+		QuickReconcileFreq:    time.Hour * 27,
 		LocalValidationFreq:   time.Hour * 31,
 		StaleNodeCheckFreq:    time.Minute,
 		StaleNodeLimit:        time.Minute * 10,

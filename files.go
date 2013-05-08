@@ -87,14 +87,20 @@ func verifyWorker(ch chan os.FileInfo) {
 	}
 }
 
-func reconcile() error {
+func quickVerifyWorker(ch chan os.FileInfo) {
+	for info := range ch {
+		recordBlobOwnership(info.Name(), info.Size(), false)
+	}
+}
+
+func reconcileWith(wf func(chan os.FileInfo)) error {
 	explen := getHash().Size() * 2
 
 	vch := make(chan os.FileInfo)
 	defer close(vch)
 
 	for i := 0; i < *verifyWorkers; i++ {
-		go verifyWorker(vch)
+		go wf(vch)
 	}
 
 	return filepath.Walk(*root, func(path string, info os.FileInfo, err error) error {
@@ -110,4 +116,12 @@ func reconcile() error {
 		}
 		return nil
 	})
+}
+
+func reconcile() error {
+	return reconcileWith(verifyWorker)
+}
+
+func quickReconcile() error {
+	return reconcileWith(quickVerifyWorker)
 }

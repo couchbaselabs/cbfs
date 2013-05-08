@@ -96,14 +96,21 @@ func init() {
 				return globalConfig.LocalValidationFreq
 			},
 			validateLocal,
-			[]string{"reconcile"},
+			[]string{"reconcile", "quickReconcile"},
 		},
 		"reconcile": {
 			func() time.Duration {
 				return globalConfig.ReconcileFreq
 			},
 			reconcile,
-			[]string{"validateLocal"},
+			[]string{"validateLocal", "quickReconcile"},
+		},
+		"quickReconcile": {
+			func() time.Duration {
+				return globalConfig.QuickReconcileFreq
+			},
+			quickReconcile,
+			[]string{"reconcile", "validateLocal"},
 		},
 		"cleanTmp": {
 			func() time.Duration {
