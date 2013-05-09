@@ -124,6 +124,12 @@ func dofsck(w http.ResponseWriter, req *http.Request,
 		}
 
 		for k, v := range unprocessed {
+			// If we didn't get it in the first pass, try harder.
+			_, err := getBlobOwnership(v)
+			if err == nil {
+				log.Printf("Got %v on the second try", v)
+				continue
+			}
 			if err := e.Encode(status{
 				Path:  k,
 				OID:   v,
