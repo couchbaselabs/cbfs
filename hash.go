@@ -1,10 +1,7 @@
 package main
 
 import (
-	"crypto/md5"
-	"crypto/sha1"
-	"crypto/sha256"
-	"crypto/sha512"
+	"crypto"
 	"encoding/hex"
 	"fmt"
 	"hash"
@@ -15,13 +12,22 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	_ "crypto/md5"
+	_ "crypto/sha1"
+	_ "crypto/sha256"
+	_ "crypto/sha512"
 )
 
-var hashBuilders = map[string]func() hash.Hash{
-	"sha1":   sha1.New,
-	"sha256": sha256.New,
-	"sha512": sha512.New,
-	"md5":    md5.New,
+var hashBuilders = map[string]crypto.Hash{
+	"md4":       crypto.MD4,
+	"md5":       crypto.MD5,
+	"sha1":      crypto.SHA1,
+	"sha224":    crypto.SHA224,
+	"sha256":    crypto.SHA256,
+	"sha384":    crypto.SHA384,
+	"sha512":    crypto.SHA512,
+	"ripemd160": crypto.RIPEMD160,
 }
 
 func getHash() hash.Hash {
@@ -29,7 +35,11 @@ func getHash() hash.Hash {
 	if !ok {
 		return nil
 	}
-	return h()
+	if !h.Available() {
+		log.Printf("Hash %v is not available", globalConfig.Hash)
+		return nil
+	}
+	return h.New()
 }
 
 type hashRecord struct {
