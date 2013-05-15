@@ -27,7 +27,7 @@ func doGetConfig(w http.ResponseWriter, req *http.Request) {
 		log.Printf("Error updating config: %v", err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 
 	e := json.NewEncoder(w)
@@ -87,7 +87,7 @@ func doListTasks(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 
 	// Reformat for more APIish output.
@@ -123,7 +123,7 @@ func doGetMeta(w http.ResponseWriter, req *http.Request, path string) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 	if got.Userdata == nil {
 		w.Write([]byte("{}"))
@@ -216,12 +216,12 @@ func doListNodes(w http.ResponseWriter, req *http.Request) {
 
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Write(mustEncode(respob))
 }
 
 func doGetFramesData(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 	w.Write(mustEncode(getFramesInfos()))
 }
@@ -348,7 +348,7 @@ func doListDocs(w http.ResponseWriter, req *http.Request,
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 
 	e := json.NewEncoder(w)

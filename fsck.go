@@ -46,7 +46,7 @@ func dofsck(w http.ResponseWriter, req *http.Request,
 		}
 	}()
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 
 	e := json.NewEncoder(w)
