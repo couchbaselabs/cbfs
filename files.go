@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 var maxStorageString = flag.String("maxSize", "",
@@ -66,6 +67,15 @@ func verifyObjectHash(h string) error {
 	return nil
 }
 
+func shouldVerifyObject(h string) bool {
+	b, err := getBlobOwnership(h)
+	if err != nil {
+		return true
+	}
+	// True if we haven't checked the object in 30 days.
+	return b.Nodes[serverId].Add(30 * 24 * time.Hour).After(time.Now())
+}
+
 func verifyWorker(ch chan os.FileInfo) {
 	nl, err := findAllNodes()
 	if err != nil {
@@ -73,9 +83,14 @@ func verifyWorker(ch chan os.FileInfo) {
 		nl = NodeList{}
 	}
 	for info := range ch {
-		err := verifyObjectHash(info.Name())
+		var err error
+		force := false
+		if shouldVerifyObject(info.Name()) {
+			err = verifyObjectHash(info.Name())
+			force = true
+		}
 		if err == nil {
-			recordBlobOwnership(info.Name(), info.Size(), false)
+			recordBlobOwnership(info.Name(), info.Size(), force)
 		} else {
 			log.Printf("Invalid hash for object %v found at verification: %v",
 				info.Name(), err)
