@@ -2,9 +2,10 @@
 *.6
 *.a
 *~
+/.serverguid
 /cbfs
+/cbfsclient/cbfsclient
 /storage
 6.out
 _*
-/.serverguid
-/cbfsclient/cbfsclient
+dist/*.gz

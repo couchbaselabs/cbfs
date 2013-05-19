@@ -1,0 +1,78 @@
+<html>
+  <head>
+    <title>CBFS Downloads</title>
+    <script type="text/javascript" src="/monitor/jquery.min.js"></script>
+    <script type="text/javascript" src="/monitor/d3.v2.min.js"></script>
+    <script type="text/javascript" src="/monitor/monitor.js"></script>
+
+    <style type="text/css">
+#bubbles {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 500px;
+  font-size: 10px;
+}
+    </style>
+  </head>
+
+  <body>
+    <h1>Download CBFS</h1>
+
+    <ul>
+      <li><a href="cbfs.mac.gz">MacOS X</a></li>
+      <li><a href="cbfs.win32.exe.gz">Windows (32-bit)</a> (or
+        <a href="cbfs.win64.exe.gz">64-bit</a>)</li>
+      <li><a href="cbfs.lin64.gz">Linux (64-bit)</a></li>
+      <li><a href="cbfs.lin32.gz">Linux (32-bit)</a></li>
+      <li><a href="cbfs.arm.gz">Linux (arm)</a>
+          (or <a href="cbfs.arm5.gz">arm5</a>)
+      </li>
+      <li><a href="cbfs.fbsd.gz">FreeBSD (64-bit)</a></li>
+    </ul>
+
+    <h2>Usage</h2>
+
+    <p>
+      Make some space, find a couchbase server.  Point an instance to
+      it.  Enjoy.
+    </p>
+
+    <pre>
+      mkdir /tmp/cbfs
+      ./cbfs -bucket=cbfs -couchbase=http://mango.hq.northscale.net:8091/ \
+          -root=/tmp/cbfs -cachePercent=10 -nodeID=YOURNAMEHERE3
+    </pre>
+
+    <h2>Client</h2>
+
+    <p>
+      If you want to do cool client stuff, you'll need <tt>cbfsclient</tt>.
+    </p>
+
+    <ul>
+      <li><a href="cbfsclient.mac.gz">MacOS X</a></li>
+      <li><a href="cbfsclient.win32.exe.gz">Windows (32-bit)</a> (or
+        <a href="cbfsclient.win64.exe.gz">64-bit</a>)</li>
+      <li><a href="cbfsclient.lin64.gz">Linux (64-bit)</a></li>
+      <li><a href="cbfsclient.lin32.gz">Linux (32-bit)</a></li>
+      <li><a href="cbfsclient.arm.gz">Linux (arm)</a>
+          (or <a href="cbfsclient.arm5.gz">arm5</a>)
+      </li>
+      <li><a href="cbfsclient.fbsd.gz">FreeBSD (64-bit)</a></li>
+    </ul>
+
+    <div id="bubbles">
+    </div>
+
+  </body>
+
+  <script type="text/javascript">
+    $(function() {
+      d3.json("/.cbfs/nodes/", function(d) {
+        drawBubbles(d, 500);
+      } );
+    });
+  </script>
+
+</html>
