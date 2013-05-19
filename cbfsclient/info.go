@@ -47,6 +47,7 @@ type Nodes map[string]StorageNode
 var infoFlags = flag.NewFlagSet("info", flag.ExitOnError)
 var infoTemplate = infoFlags.String("t", "", "Display template")
 var infoTemplateFile = infoFlags.String("T", "", "Display template filename")
+var infoJSON = infoFlags.Bool("json", false, "Dump as json")
 
 const defaultInfoTemplate = `nodes:
 {{ range $name, $nodeinfo := .Nodes }}  {{$name}} up {{$nodeinfo.UptimeStr}} (age: {{$nodeinfo.HBAgeStr}})
@@ -138,8 +139,16 @@ func infoCommand(base string, args []string) {
 
 	wg.Wait()
 
-	err = tmpl.Execute(os.Stdout, result)
-	if err != nil {
-		log.Fatalf("Error executing template: %v", err)
+	if *infoJSON {
+		data, err := json.MarshalIndent(result, "", "  ")
+		if err != nil {
+			log.Fatalf("Error marshaling rseult: %v", err)
+		}
+		os.Stdout.Write(data)
+	} else {
+		err = tmpl.Execute(os.Stdout, result)
+		if err != nil {
+			log.Fatalf("Error executing template: %v", err)
+		}
 	}
 }
