@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/couchbaselabs/cbfs/config"
+	"sync"
 )
 
 type StorageNode struct {
@@ -91,13 +92,21 @@ func infoCommand(base string, args []string) {
 		"/.cbfs/config/": &result.Conf,
 	}
 
+	wg := sync.WaitGroup{}
+
 	for k, v := range todo {
 		u.Path = k
-		err = getJsonData(u.String(), v)
-		if err != nil {
-			log.Fatalf("Error getting node info: %v", err)
-		}
+		wg.Add(1)
+		go func(s string, to interface{}) {
+			defer wg.Done()
+			err = getJsonData(s, to)
+			if err != nil {
+				log.Fatalf("Error getting node info: %v", err)
+			}
+		}(u.String(), v)
 	}
+
+	wg.Wait()
 
 	err = tmpl.Execute(os.Stdout, result)
 	if err != nil {
