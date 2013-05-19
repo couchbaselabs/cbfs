@@ -35,6 +35,13 @@ type Tasks map[string]map[string]struct {
 	TS    time.Time
 }
 
+type Backup struct {
+	Filename string
+	OID      string
+	When     time.Time
+	Conf     cbfsconfig.CBFSConfig
+}
+
 type Nodes map[string]StorageNode
 
 var infoFlags = flag.NewFlagSet("info", flag.ExitOnError)
@@ -48,6 +55,11 @@ const defaultInfoTemplate = `nodes:
   {{$node}}
   {{ range $task, $info := $tasks }}    {{$task}} - {{$info.State}} - {{$info.TS}}
   {{end}}{{end}}
+backups:
+  Found {{len .Backups.Previous }} backups.
+  Current:  {{.Backups.Latest.Filename}} ({{.Backups.Latest.OID}})
+            as of {{.Backups.Latest.When}}
+
 config:
 {{ range $k, $v := .Conf.ToMap}}  {{$k}}: {{$v}}
 {{end}}
@@ -94,14 +106,19 @@ func infoCommand(base string, args []string) {
 	}
 
 	result := struct {
-		Nodes Nodes
-		Tasks Tasks
-		Conf  cbfsconfig.CBFSConfig
+		Nodes   Nodes
+		Tasks   Tasks
+		Backups struct {
+			Previous []Backup `json:"backups"`
+			Latest   Backup
+		}
+		Conf cbfsconfig.CBFSConfig
 	}{}
 
 	todo := map[string]interface{}{
 		"/.cbfs/nodes/":  &result.Nodes,
 		"/.cbfs/tasks/":  &result.Tasks,
+		"/.cbfs/backup/": &result.Backups,
 		"/.cbfs/config/": &result.Conf,
 	}
 
