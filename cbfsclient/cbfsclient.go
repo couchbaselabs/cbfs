@@ -20,6 +20,7 @@ var commands = map[string]struct {
 	"rm":      {0, rmCommand, "path"},
 	"getconf": {0, getConfCommand, ""},
 	"setconf": {2, setConfCommand, "prop value"},
+	"info":    {0, infoCommand, ""},
 	"fsck":    {0, fsckCommand, ""},
 	"backup":  {-1, backupCommand, "filename"},
 	"restore": {-1, restoreCommand, "filename"},
