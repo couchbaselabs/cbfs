@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -38,6 +39,7 @@ type Nodes map[string]StorageNode
 
 var infoFlags = flag.NewFlagSet("info", flag.ExitOnError)
 var infoTemplate = infoFlags.String("t", "", "Display template")
+var infoTemplateFile = infoFlags.String("T", "", "Display template filename")
 
 const defaultInfoTemplate = `nodes:
 {{ range $name, $nodeinfo := .Nodes }}  {{$name}} up {{$nodeinfo.HBAgeStr}}
@@ -70,7 +72,15 @@ func infoCommand(base string, args []string) {
 
 	tmplstr := *infoTemplate
 	if tmplstr == "" {
-		tmplstr = defaultInfoTemplate
+		if *infoTemplateFile == "" {
+			tmplstr = defaultInfoTemplate
+		} else {
+			td, err := ioutil.ReadFile(*infoTemplateFile)
+			if err != nil {
+				log.Fatalf("Error reading template file: %v", err)
+			}
+			tmplstr = string(td)
+		}
 	}
 
 	tmpl, err := template.New("").Parse(tmplstr)
