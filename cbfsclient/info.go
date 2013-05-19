@@ -36,14 +36,14 @@ var infoFlags = flag.NewFlagSet("info", flag.ExitOnError)
 var infoTemplate = infoFlags.String("t", "", "Display template")
 
 const defaultInfoTemplate = `nodes:
-{{ range $name, $nodeinfo := .nodes }}  {{$name}} up {{$nodeinfo.HBAgeStr}}
+{{ range $name, $nodeinfo := .Nodes }}  {{$name}} up {{$nodeinfo.HBAgeStr}}
 {{ end }}
-{{if .tasks}}tasks{{end}}{{ range $node, $tasks := .tasks }}
+{{if .Tasks}}tasks:{{end}}{{ range $node, $tasks := .Tasks }}
   {{$node}}
   {{ range $task, $info := $tasks }}    {{$task}} - {{$info.state}} - {{$info.ts}}
   {{end}}{{end}}
 config:
-{{ range $k, $v := .conf}}  {{$k}}: {{$v}}
+{{ range $k, $v := .Conf.ToMap}}  {{$k}}: {{$v}}
 {{end}}
 `
 
@@ -79,31 +79,27 @@ func infoCommand(base string, args []string) {
 		log.Fatalf("Error parsing URL: %v", err)
 	}
 
-	type namedThing struct {
-		name  string
-		thing interface{}
-	}
+	result := struct {
+		Nodes Nodes
+		Tasks Tasks
+		Conf  cbfsconfig.CBFSConfig
+	}{}
 
-	todo := map[string]namedThing{
-		"/.cbfs/nodes/":  {"nodes", Nodes{}},
-		"/.cbfs/tasks/":  {"tasks", Tasks{}},
-		"/.cbfs/config/": {"conf", cbfsconfig.CBFSConfig{}},
-	}
-
-	results := map[string]interface{}{
-		"STDOUT": os.Stdout,
+	todo := map[string]interface{}{
+		"/.cbfs/nodes/":  &result.Nodes,
+		"/.cbfs/tasks/":  &result.Tasks,
+		"/.cbfs/config/": &result.Conf,
 	}
 
 	for k, v := range todo {
 		u.Path = k
-		err = getJsonData(u.String(), &v.thing)
+		err = getJsonData(u.String(), v)
 		if err != nil {
 			log.Fatalf("Error getting node info: %v", err)
 		}
-		results[v.name] = v.thing
 	}
 
-	err = tmpl.Execute(os.Stdout, results)
+	err = tmpl.Execute(os.Stdout, result)
 	if err != nil {
 		log.Fatalf("Error executing template: %v", err)
 	}
