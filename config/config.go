@@ -93,9 +93,7 @@ func jsonFieldName(sf reflect.StructField) string {
 	return fieldName
 }
 
-// Basically, vanilla marshaling, but return the durations in their
-// string forms.
-func (conf CBFSConfig) MarshalJSON() ([]byte, error) {
+func (conf CBFSConfig) ToMap() map[string]interface{} {
 	m := map[string]interface{}{}
 
 	val := reflect.ValueOf(conf)
@@ -108,7 +106,13 @@ func (conf CBFSConfig) MarshalJSON() ([]byte, error) {
 		m[jsonFieldName(val.Type().Field(i))] = v
 	}
 
-	return json.Marshal(m)
+	return m
+}
+
+// Basically, vanilla marshaling, but return the durations in their
+// string forms.
+func (conf CBFSConfig) MarshalJSON() ([]byte, error) {
+	return json.Marshal(conf.ToMap())
 }
 
 // And here's how you undo the above.
