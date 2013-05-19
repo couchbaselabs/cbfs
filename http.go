@@ -33,6 +33,7 @@ const (
 	markBackupPrefix = "/.cbfs/backup/mark/"
 	restorePrefix    = "/.cbfs/backup/restore/"
 	backupPrefix     = "/.cbfs/backup/"
+	quitPrefix       = "/.cbfs/exit/"
 )
 
 type storInfo struct {
@@ -750,6 +751,15 @@ func doDelete(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func doExit(w http.ResponseWriter, req *http.Request) {
+	time.AfterFunc(time.Second, func() {
+		log.Printf("Quitting per user request from %v",
+			req.RemoteAddr)
+		os.Exit(0)
+	})
+	w.WriteHeader(202)
+}
+
 func doPost(w http.ResponseWriter, req *http.Request) {
 	if req.URL.Path == blobPrefix {
 		doPostRawBlob(w, req)
@@ -761,6 +771,8 @@ func doPost(w http.ResponseWriter, req *http.Request) {
 		doInduceTask(w, req, minusPrefix(req.URL.Path, taskPrefix))
 	} else if strings.HasPrefix(req.URL.Path, backupPrefix) {
 		doBackupDocs(w, req)
+	} else if strings.HasPrefix(req.URL.Path, quitPrefix) {
+		doExit(w, req)
 	} else {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
