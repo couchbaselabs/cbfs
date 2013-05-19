@@ -49,7 +49,7 @@ var infoTemplate = infoFlags.String("t", "", "Display template")
 var infoTemplateFile = infoFlags.String("T", "", "Display template filename")
 
 const defaultInfoTemplate = `nodes:
-{{ range $name, $nodeinfo := .Nodes }}  {{$name}} up {{$nodeinfo.HBAgeStr}}
+{{ range $name, $nodeinfo := .Nodes }}  {{$name}} up {{$nodeinfo.UptimeStr}} (age: {{$nodeinfo.HBAgeStr}})
 {{ end }}
 {{if .Tasks}}tasks:{{end}}{{ range $node, $tasks := .Tasks }}
   {{$node}}
