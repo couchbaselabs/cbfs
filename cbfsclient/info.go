@@ -29,7 +29,10 @@ type StorageNode struct {
 	UptimeStr string `json:"uptime_str"`
 }
 
-type Tasks map[string]interface{}
+type Tasks map[string]map[string]struct {
+	State string
+	TS    time.Time
+}
 
 type Nodes map[string]StorageNode
 
@@ -41,7 +44,7 @@ const defaultInfoTemplate = `nodes:
 {{ end }}
 {{if .Tasks}}tasks:{{end}}{{ range $node, $tasks := .Tasks }}
   {{$node}}
-  {{ range $task, $info := $tasks }}    {{$task}} - {{$info.state}} - {{$info.ts}}
+  {{ range $task, $info := $tasks }}    {{$task}} - {{$info.State}} - {{$info.TS}}
   {{end}}{{end}}
 config:
 {{ range $k, $v := .Conf.ToMap}}  {{$k}}: {{$v}}
