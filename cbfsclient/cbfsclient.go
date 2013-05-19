@@ -51,6 +51,8 @@ func init() {
 		uploadFlags.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nfsck:\n")
 		fsckFlags.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "\ninfo:\n")
+		infoFlags.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nbackup <filename>:\n")
 		backupFlags.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nrestore <filename>:\n")
