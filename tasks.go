@@ -844,7 +844,15 @@ func startTasks() {
 	// Forget the last time we did local validation. We're
 	// restarting, so things have changed.
 	couchbase.Delete("/@" + serverId + "/validateLocal")
+	// And quick reconcile...
+	couchbase.Delete("/@" + serverId + "/quickReconcile")
 	runPeriodicJobs()
+	// Immediately induce local reconciliation to get our blobs
+	// registered.
+	err := induceTask("quickReconcile")
+	if err != nil {
+		log.Printf("Error inducing initial reconciliation: %v", err)
+	}
 }
 
 var noSuchTask = errors.New("no such task")
