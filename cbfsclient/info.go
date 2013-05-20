@@ -81,18 +81,27 @@ func getJsonData(u string, into interface{}) error {
 	return d.Decode(into)
 }
 
+func maybeFatal(err error, msg string, args ...interface{}) {
+	if err != nil {
+		log.Fatalf(msg, args...)
+	}
+}
+
 func infoCommand(base string, args []string) {
 	infoFlags.Parse(args)
 
 	tmplstr := *infoTemplate
 	if tmplstr == "" {
-		if *infoTemplateFile == "" {
+		switch *infoTemplateFile {
+		case "":
 			tmplstr = defaultInfoTemplate
-		} else {
+		case "-":
+			td, err := ioutil.ReadAll(os.Stdin)
+			maybeFatal(err, "Error reading template from stdin: %v", err)
+			tmplstr = string(td)
+		default:
 			td, err := ioutil.ReadFile(*infoTemplateFile)
-			if err != nil {
-				log.Fatalf("Error reading template file: %v", err)
-			}
+			maybeFatal(err, "Error reading template file: %v", err)
 			tmplstr = string(td)
 		}
 	}
