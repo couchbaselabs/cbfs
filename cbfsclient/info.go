@@ -28,6 +28,7 @@ type StorageNode struct {
 	Free      int64
 	Size      int64
 	UptimeStr string `json:"uptime_str"`
+	Version   string
 }
 
 type Tasks map[string]map[string]struct {
@@ -50,7 +51,7 @@ var infoTemplateFile = infoFlags.String("T", "", "Display template filename")
 var infoJSON = infoFlags.Bool("json", false, "Dump as json")
 
 const defaultInfoTemplate = `nodes:
-{{ range $name, $nodeinfo := .Nodes }}  {{$name}} up {{$nodeinfo.UptimeStr}} (age: {{$nodeinfo.HBAgeStr}})
+{{ range $name, $info := .Nodes }}  {{$name}} {{$info.Version}} up {{$info.UptimeStr}} (age: {{$info.HBAgeStr}})
 {{ end }}
 {{if .Tasks}}tasks:{{end}}{{ range $node, $tasks := .Tasks }}
   {{$node}}
