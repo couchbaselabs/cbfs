@@ -101,6 +101,7 @@ func oneHeartbeat(startTime time.Time) {
 		FrameBind: *framesBind,
 		Used:      spaceUsed,
 		Free:      availableSpace(),
+		Version:   VERSION,
 	}
 
 	err = couchbase.Set("/"+serverId, 0, aboutMe)

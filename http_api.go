@@ -206,6 +206,7 @@ func doListNodes(w http.ResponseWriter, req *http.Request) {
 			"addr_raw":   node.Addr,
 			"bindaddr":   node.BindAddr,
 			"framesbind": node.FrameBind,
+			"version":    node.Version,
 		}
 		// Grandfathering these in.
 		if !node.Started.IsZero() {

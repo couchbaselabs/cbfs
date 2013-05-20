@@ -15,6 +15,8 @@ import (
 	"github.com/dustin/gomemcached"
 )
 
+var VERSION = "0.0.0"
+
 var nodeTooOld = errors.New("Node information is too stale")
 
 type StorageNode struct {
@@ -26,6 +28,7 @@ type StorageNode struct {
 	FrameBind string    `json:"framebind"`
 	Used      int64     `json:"used"`
 	Free      int64     `json:"free"`
+	Version   string    `json:"version"`
 
 	name        string
 	storageSize int64
