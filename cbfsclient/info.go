@@ -107,14 +107,10 @@ func infoCommand(base string, args []string) {
 	}
 
 	tmpl, err := template.New("").Parse(tmplstr)
-	if err != nil {
-		log.Fatalf("Error parsing template: %v", err)
-	}
+	maybeFatal(err, "Error parsing template: %v", err)
 
 	u, err := url.Parse(base)
-	if err != nil {
-		log.Fatalf("Error parsing URL: %v", err)
-	}
+	maybeFatal(err, "Error parsing URL: %v", err)
 
 	result := struct {
 		Nodes   Nodes
@@ -141,9 +137,7 @@ func infoCommand(base string, args []string) {
 		go func(s string, to interface{}) {
 			defer wg.Done()
 			err = getJsonData(s, to)
-			if err != nil {
-				log.Fatalf("Error getting node info: %v", err)
-			}
+			maybeFatal(err, "Error getting node info: %v", err)
 		}(u.String(), v)
 	}
 
@@ -151,14 +145,10 @@ func infoCommand(base string, args []string) {
 
 	if *infoJSON {
 		data, err := json.MarshalIndent(result, "", "  ")
-		if err != nil {
-			log.Fatalf("Error marshaling rseult: %v", err)
-		}
+		maybeFatal(err, "Error marshaling rseult: %v", err)
 		os.Stdout.Write(data)
 	} else {
 		err = tmpl.Execute(os.Stdout, result)
-		if err != nil {
-			log.Fatalf("Error executing template: %v", err)
-		}
+		maybeFatal(err, "Error executing template: %v", err)
 	}
 }
