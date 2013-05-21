@@ -777,6 +777,11 @@ func runPeriodicJob(name string, job *PeriodicJob, inducer chan time.Time,
 
 	time.Sleep(time.Second * time.Duration(5+rand.Intn(60)))
 	period := job.period()
+	if period < time.Second {
+		log.Printf("Period for %v is too short (%v), going reasonable",
+			name, period)
+		period = time.Hour * 24
+	}
 	job.ticker = time.NewTicker(period)
 
 	for {
@@ -814,23 +819,19 @@ func launchJobs(m map[string]*periodicJobRecipe,
 	executor func(string, *PeriodicJob, bool) error) {
 
 	for n, recipe := range m {
-		if recipe.period() == 0 {
-			log.Printf("job %v is misconfigured, ignoring", n)
-		} else {
-			inducer := make(chan time.Time, 1)
-			j := &PeriodicJob{
-				period:       recipe.period,
-				f:            recipe.f,
-				excl:         recipe.excl,
-				configChange: make(chan interface{}),
-			}
-			if _, exists := taskInducers[n]; exists {
-				log.Fatalf("Duplicate task launching: %v", n)
-			}
-			taskInducers[n] = inducer
-			confBroadcaster.Register(j.configChange)
-			go runPeriodicJob(n, j, inducer, executor)
+		inducer := make(chan time.Time, 1)
+		j := &PeriodicJob{
+			period:       recipe.period,
+			f:            recipe.f,
+			excl:         recipe.excl,
+			configChange: make(chan interface{}),
 		}
+		if _, exists := taskInducers[n]; exists {
+			log.Fatalf("Duplicate task launching: %v", n)
+		}
+		taskInducers[n] = inducer
+		confBroadcaster.Register(j.configChange)
+		go runPeriodicJob(n, j, inducer, executor)
 	}
 }
 
