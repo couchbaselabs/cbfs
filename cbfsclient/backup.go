@@ -19,9 +19,7 @@ func backupCommand(ustr string, args []string) {
 	backupFlags.Parse(args)
 
 	u, err := url.Parse(ustr)
-	if err != nil {
-		log.Fatalf("Error parsing URL: %v", err)
-	}
+	maybeFatal(err, "Error parsing URL: %v", err)
 
 	if backupFlags.NArg() < 1 {
 		log.Fatalf("Filename is required")
@@ -39,9 +37,8 @@ func backupCommand(ustr string, args []string) {
 	res, err := http.Post(u.String(),
 		"application/x-www-form-urlencoded",
 		strings.NewReader(form.Encode()))
-	if err != nil {
-		log.Fatalf("Error executing POST to %v - %v", u, err)
-	}
+	maybeFatal(err, "Error executing POST to %v - %v", u, err)
+
 	defer res.Body.Close()
 	if !(res.StatusCode == 202 || res.StatusCode == 201) {
 		log.Printf("backup error: %v", res.Status)

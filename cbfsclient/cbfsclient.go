@@ -62,11 +62,15 @@ func init() {
 
 }
 
+func maybeFatal(err error, msg string, args ...interface{}) {
+	if err != nil {
+		log.Fatalf(msg, args...)
+	}
+}
+
 func relativeUrl(u, path string) string {
 	du, err := url.Parse(u)
-	if err != nil {
-		log.Fatalf("Error parsing url: %v", err)
-	}
+	maybeFatal(err, "Error parsing url: %v", err)
 
 	du.Path = path
 	if du.Path[0] != '/' {
@@ -78,17 +82,13 @@ func relativeUrl(u, path string) string {
 
 func parseDuration(s string) time.Duration {
 	d, err := time.ParseDuration(s)
-	if err != nil {
-		log.Fatalf("Unable to parse duration: %v", err)
-	}
+	maybeFatal(err, "Unable to parse duration: %v", err)
 	return d
 }
 
 func parseInt(s string) int {
 	i, err := strconv.Atoi(s)
-	if err != nil {
-		log.Fatalf("Error parsing int: %v", err)
-	}
+	maybeFatal(err, "Error parsing int: %v", err)
 	return i
 }
 

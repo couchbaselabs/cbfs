@@ -472,9 +472,7 @@ func syncUp(src, u string, ch chan<- uploadReq) {
 			}
 			return err
 		})
-	if err != nil {
-		log.Fatalf("Traversal error: %v", err)
-	}
+	maybeFatal(err, "Traversal error: %v", err)
 }
 
 func uploadCommand(u string, args []string) {
@@ -492,17 +490,13 @@ func uploadCommand(u string, args []string) {
 
 	if *uploadIgnore != "" {
 		err := loadIgnorePatternsFromFile(*uploadIgnore)
-		if err != nil {
-			log.Fatalf("Error loading ignores: %v", err)
-		}
+		maybeFatal(err, "Error loading ignores: %v", err)
 	}
 
 	du := relativeUrl(u, uploadFlags.Arg(1))
 
 	fi, err := os.Stat(uploadFlags.Arg(0))
-	if err != nil {
-		log.Fatal(err)
-	}
+	maybeFatal(err, "Error statting %v: %v", uploadFlags.Arg(0), err)
 
 	if fi.IsDir() {
 		ch := make(chan uploadReq, 1000)
@@ -522,8 +516,6 @@ func uploadCommand(u string, args []string) {
 	} else {
 		err = uploadFile(uploadFlags.Arg(0), du,
 			localHash(uploadFlags.Arg(0)))
-		if err != nil {
-			log.Fatalf("Error uploading file: %v", err)
-		}
+		maybeFatal(err, "Error uploading file: %v", err)
 	}
 }

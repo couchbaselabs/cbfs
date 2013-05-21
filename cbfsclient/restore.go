@@ -35,9 +35,7 @@ func restoreFile(base, path string, data interface{}) error {
 	}
 
 	u, err := url.Parse(base)
-	if err != nil {
-		log.Fatalf("Error parsing URL: %v", err)
-	}
+	maybeFatal(err, "Error parsing URL: %v", err)
 
 	fileMetaBytes, err := json.Marshal(data)
 	if err != nil {
@@ -48,9 +46,8 @@ func restoreFile(base, path string, data interface{}) error {
 	res, err := http.Post(u.String(),
 		"application/json",
 		bytes.NewReader(fileMetaBytes))
-	if err != nil {
-		log.Fatalf("Error executing POST to %v - %v", u, err)
-	}
+	maybeFatal(err, "Error executing POST to %v - %v", u, err)
+
 	defer res.Body.Close()
 	switch {
 	case res.StatusCode == 201:
@@ -83,9 +80,7 @@ func restoreCommand(ustr string, args []string) {
 	restoreFlags.Parse(args)
 
 	regex, err := regexp.Compile(*restorePat)
-	if err != nil {
-		log.Fatalf("Error parsing match pattern: %v", err)
-	}
+	maybeFatal(err, "Error parsing match pattern: %v", err)
 
 	if restoreFlags.NArg() < 1 {
 		log.Fatalf("Filename is required")
@@ -95,14 +90,11 @@ func restoreCommand(ustr string, args []string) {
 	start := time.Now()
 
 	f, err := os.Open(fn)
-	if err != nil {
-		log.Fatalf("Error opening restore file: %v", err)
-	}
+	maybeFatal(err, "Error opening restore file: %v", err)
+
 	defer f.Close()
 	gz, err := gzip.NewReader(f)
-	if err != nil {
-		log.Fatalf("Error uncompressing restore file: %v", err)
-	}
+	maybeFatal(err, "Error uncompressing restore file: %v", err)
 
 	wg := &sync.WaitGroup{}
 

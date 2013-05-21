@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -79,12 +78,6 @@ func getJsonData(u string, into interface{}) error {
 
 	d := json.NewDecoder(res.Body)
 	return d.Decode(into)
-}
-
-func maybeFatal(err error, msg string, args ...interface{}) {
-	if err != nil {
-		log.Fatalf(msg, args...)
-	}
 }
 
 func infoCommand(base string, args []string) {

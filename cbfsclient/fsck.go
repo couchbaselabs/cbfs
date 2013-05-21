@@ -20,9 +20,7 @@ func fsckCommand(ustr string, args []string) {
 	fsckFlags.Parse(args)
 
 	u, err := url.Parse(ustr)
-	if err != nil {
-		log.Fatalf("Error parsing URL: %v", err)
-	}
+	maybeFatal(err, "Error parsing URL: %v", err)
 
 	u.Path = "/.cbfs/fsck/"
 	if !*fsckVerbose {
@@ -30,9 +28,8 @@ func fsckCommand(ustr string, args []string) {
 	}
 
 	res, err := http.Get(u.String())
-	if err != nil {
-		log.Fatalf("Error executing GET of %v - %v", u, err)
-	}
+	maybeFatal(err, "Error executing GET of %v - %v", u, err)
+
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
 		log.Printf("fsck error: %v", res.Status)

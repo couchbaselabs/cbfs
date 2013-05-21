@@ -24,9 +24,8 @@ func rmDashR(baseUrl string) {
 	}
 
 	listing, err := cbfsclient.List(baseUrl)
-	if err != nil {
-		log.Fatalf("Error listing files at %q: %v", baseUrl, err)
-	}
+	maybeFatal(err, "Error listing files at %q: %v", baseUrl, err)
+
 	for fn := range listing.Files {
 		rmCh <- baseUrl + "/" + quotingReplacer.Replace(fn)
 	}
@@ -67,9 +66,7 @@ func rmWorker() {
 		}
 
 		err := rmFile(u)
-		if err != nil {
-			log.Fatalf("Error removing %v: %v", u, err)
-		}
+		maybeFatal(err, "Error removing %v: %v", u, err)
 	}
 }
 

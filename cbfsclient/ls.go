@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"sort"
 	"text/tabwriter"
@@ -23,9 +22,7 @@ func lsCommand(u string, args []string) {
 	}
 
 	result, err := cbfsclient.List(u)
-	if err != nil {
-		log.Fatalf("Error listing directory: %v", err)
-	}
+	maybeFatal(err, "Error listing directory: %v", err)
 
 	dirnames := sort.StringSlice{}
 	filenames := sort.StringSlice{}
