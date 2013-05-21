@@ -103,7 +103,7 @@ func copyBlob(w io.Writer, oid string) error {
 		return err
 	} else {
 		// Doing it remotely
-		c := captureResponseWriter{w: w}
+		c := captureResponseWriter{w: w, hdr: http.Header{}}
 		return getBlobFromRemote(&c, oid, http.Header{}, *cachePercentage)
 	}
 	panic("unreachable")
@@ -447,7 +447,7 @@ func hasBlob(oid string) bool {
 var fetchLocks namedLock
 
 func performFetch(oid, prev string) {
-	c := captureResponseWriter{w: ioutil.Discard}
+	c := captureResponseWriter{w: ioutil.Discard, hdr: http.Header{}}
 
 	// If we already have it, we don't need it more.
 	st, err := os.Stat(hashFilename(*root, oid))
