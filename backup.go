@@ -37,6 +37,34 @@ func logDuration(m string, startTime time.Time) {
 	log.Printf("Completed %v in %v", m, time.Since(startTime))
 }
 
+func streamFileMeta(w io.Writer,
+	fch chan *namedFile,
+	ech chan error) error {
+
+	enc := json.NewEncoder(w)
+	for {
+		select {
+		case f, ok := <-fch:
+			if !ok {
+				return nil
+			}
+			err := enc.Encode(map[string]interface{}{
+				"path": f.name,
+				"meta": f.meta,
+			})
+			if err != nil {
+				return err
+			}
+		case e, ok := <-ech:
+			if ok {
+				return e
+			}
+			ech = nil
+		}
+	}
+	panic("unreachable")
+}
+
 func backupTo(w io.Writer) (err error) {
 	fch := make(chan *namedFile)
 	ech := make(chan error)
@@ -56,31 +84,7 @@ func backupTo(w io.Writer) (err error) {
 		}
 	}()
 
-	enc := json.NewEncoder(gz)
-
-	for {
-		select {
-		case f, ok := <-fch:
-			if !ok {
-				return nil
-			}
-			log.Printf("backing up %v", f.name)
-			err := enc.Encode(map[string]interface{}{
-				"path": f.name,
-				"meta": f.meta,
-			})
-			if err != nil {
-				return err
-			}
-		case e, ok := <-ech:
-			if ok {
-				return e
-			}
-			ech = nil
-		}
-	}
-
-	panic("unreachable")
+	return streamFileMeta(gz, fch, ech)
 }
 
 func recordBackupObject() error {
