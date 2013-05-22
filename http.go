@@ -32,6 +32,7 @@ const (
 	framePrefix      = "/.cbfs/info/frames/"
 	markBackupPrefix = "/.cbfs/backup/mark/"
 	restorePrefix    = "/.cbfs/backup/restore/"
+	backupStrmPrefix = "/.cbfs/backup/stream/"
 	backupPrefix     = "/.cbfs/backup/"
 	quitPrefix       = "/.cbfs/exit/"
 )
@@ -684,6 +685,8 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 		doListTasks(w, req)
 	case req.URL.Path == configPrefix:
 		doGetConfig(w, req)
+	case strings.HasPrefix(req.URL.Path, backupStrmPrefix):
+		doExport(w, req, minusPrefix(req.URL.Path, backupStrmPrefix))
 	case req.URL.Path == backupPrefix:
 		doGetBackupInfo(w, req)
 	case strings.HasPrefix(req.URL.Path, fetchPrefix):
