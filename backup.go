@@ -62,7 +62,6 @@ func streamFileMeta(w io.Writer,
 			ech = nil
 		}
 	}
-	panic("unreachable")
 }
 
 func backupTo(w io.Writer) (err error) {

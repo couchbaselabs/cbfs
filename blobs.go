@@ -106,7 +106,6 @@ func copyBlob(w io.Writer, oid string) error {
 		c := captureResponseWriter{w: w, hdr: http.Header{}}
 		return getBlobFromRemote(&c, oid, http.Header{}, *cachePercentage)
 	}
-	panic("unreachable")
 }
 
 func recordBlobOwnership(h string, l int64, force bool) error {
@@ -579,7 +578,6 @@ func maybeQueueBlobAcquire(n StorageNode, oid string, prev string) bool {
 	default:
 		return false
 	}
-	panic("unreachable")
 }
 
 // Ask this node to go get a blob
@@ -602,5 +600,4 @@ func maybeQueueBlobFetch(oid, prev string) bool {
 	default:
 		return false
 	}
-	panic("unreachable")
 }
