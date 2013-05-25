@@ -21,7 +21,6 @@ func loadIgnorePatternsFromFile(fn string) error {
 }
 
 func loadIgnorePatterns(r io.Reader) error {
-
 	b := bufio.NewReader(r)
 
 	for {
@@ -45,7 +44,6 @@ func loadIgnorePatterns(r io.Reader) error {
 			ignorePatterns = append(ignorePatterns, line)
 		}
 	}
-	panic("unreachable")
 }
 
 func isIgnored(input string) bool {
@@ -60,9 +58,8 @@ func isIgnored(input string) bool {
 			pat = pat[1:]
 		}
 		matched, err := filepath.Match(pat, in)
-		if err != nil {
-			panic(err) // already checked
-		}
+		// The pattern was checked at load time.
+		maybeFatal(err, "Error processing match %v: %v", pat, err)
 		if matched {
 			return true
 		}
