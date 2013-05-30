@@ -72,3 +72,138 @@ func TestFileMetaRoundNoJSON(t *testing.T) {
 			fmin, fmout)
 	}
 }
+
+func TestConditionalStore(t *testing.T) {
+	existing := fileMeta{}
+	header := http.Header{}
+	if !shouldStoreMeta(header, false, existing) {
+		t.Errorf("Expected allow (%v, nonexist)", header)
+	}
+
+	existing = fileMeta{}
+	header = http.Header{}
+	existing.OID = "a"
+	if !shouldStoreMeta(header, true, existing) {
+		t.Errorf("Expected allow (%v, OID:%q)", header, existing.OID)
+	}
+
+	existing = fileMeta{}
+	header = http.Header{}
+	header.Set("If-None-Match", `*`)
+	if !shouldStoreMeta(header, false, existing) {
+		t.Errorf("Expected allow (%v, nonexist)", header)
+	}
+
+	existing = fileMeta{}
+	header = http.Header{}
+	existing.OID = "a"
+	header.Set("If-None-Match", `*`)
+	if shouldStoreMeta(header, true, existing) {
+		t.Errorf("Expected deny (%v, OID:%q)", header, existing.OID)
+	}
+
+	existing = fileMeta{}
+	header = http.Header{}
+	header.Set("If-None-Match", `"a"`)
+	if !shouldStoreMeta(header, false, existing) {
+		t.Errorf("Expected allow (%v, nonexist)", header)
+	}
+
+	existing = fileMeta{}
+	header = http.Header{}
+	existing.OID = "a"
+	header.Set("If-None-Match", `"a"`)
+	if shouldStoreMeta(header, true, existing) {
+		t.Errorf("Expected deny (%v, OID:%q)", header, existing.OID)
+	}
+
+	existing = fileMeta{}
+	header = http.Header{}
+	header.Set("If-None-Match", `"b"`)
+	if !shouldStoreMeta(header, false, existing) {
+		t.Errorf("Expected allow (%v, nonexist)", header)
+	}
+
+	existing = fileMeta{}
+	header = http.Header{}
+	existing.OID = "a"
+	header.Set("If-None-Match", `"b"`)
+	if !shouldStoreMeta(header, true, existing) {
+		t.Errorf("Expected allow (%v, OID:%q)", header, existing.OID)
+	}
+
+	existing = fileMeta{}
+	header = http.Header{}
+	header.Set("If-None-Match", `"a", "b"`)
+	if !shouldStoreMeta(header, false, existing) {
+		t.Errorf("Expected allow (%v, nonexist)", header)
+	}
+
+	existing = fileMeta{}
+	header = http.Header{}
+	existing.OID = "a"
+	header.Set("If-None-Match", `"a", "b"`)
+	if shouldStoreMeta(header, true, existing) {
+		t.Errorf("Expected deny (%v, OID:%q)", header, existing.OID)
+	}
+
+	existing = fileMeta{}
+	header = http.Header{}
+	header.Set("If-Match", `*`)
+	if shouldStoreMeta(header, false, existing) {
+		t.Errorf("Expected deny (%v, nonexist)", header)
+	}
+
+	existing = fileMeta{}
+	header = http.Header{}
+	existing.OID = "a"
+	header.Set("If-Match", `*`)
+	if !shouldStoreMeta(header, true, existing) {
+		t.Errorf("Expected allow (%v, OID:%q)", header, existing.OID)
+	}
+
+	existing = fileMeta{}
+	header = http.Header{}
+	header.Set("If-Match", `"a"`)
+	if shouldStoreMeta(header, false, existing) {
+		t.Errorf("Expected deny (%v, nonexist)", header)
+	}
+
+	existing = fileMeta{}
+	header = http.Header{}
+	existing.OID = "a"
+	header.Set("If-Match", `"a"`)
+	if !shouldStoreMeta(header, true, existing) {
+		t.Errorf("Expected allow (%v, OID:%q)", header, existing.OID)
+	}
+
+	existing = fileMeta{}
+	header = http.Header{}
+	header.Set("If-Match", `"b"`)
+	if shouldStoreMeta(header, false, existing) {
+		t.Errorf("Expected deny (%v, nonexist)", header)
+	}
+
+	existing = fileMeta{}
+	header = http.Header{}
+	existing.OID = "a"
+	header.Set("If-Match", `"b"`)
+	if shouldStoreMeta(header, true, existing) {
+		t.Errorf("Expected deny (%v, OID:%q)", header, existing.OID)
+	}
+
+	existing = fileMeta{}
+	header = http.Header{}
+	header.Set("If-Match", `"a", "b"`)
+	if shouldStoreMeta(header, false, existing) {
+		t.Errorf("Expected deny (%v, nonexist)", header)
+	}
+
+	existing = fileMeta{}
+	header = http.Header{}
+	existing.OID = "a"
+	header.Set("If-Match", `"a", "b"`)
+	if !shouldStoreMeta(header, true, existing) {
+		t.Errorf("Expected allow (%v, OID:%q)", header, existing.OID)
+	}
+}
