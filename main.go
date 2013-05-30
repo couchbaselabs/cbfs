@@ -4,12 +4,14 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/couchbaselabs/cbfs/config"
@@ -37,6 +39,8 @@ var internodeTimeout = flag.Duration("internodeTimeout", 5*time.Second,
 var useSyslog = flag.Bool("syslog", false, "Log to syslog")
 
 var globalConfig *cbfsconfig.CBFSConfig
+
+var errUploadPrecondition = errors.New("cbfs: upload precondition failed")
 
 const (
 	maxFilename    = 250
@@ -109,7 +113,30 @@ func mustEncode(i interface{}) []byte {
 	return rv
 }
 
-func storeMeta(fn string, fm fileMeta, revs int) error {
+func shouldStoreMeta(header http.Header, exists bool, fm fileMeta) bool {
+	if ifmatch := header.Get("If-Match"); ifmatch != "" {
+		if !exists {
+			return false
+		}
+		if ifmatch != "*" {
+			if !strings.Contains(ifmatch, `"`+fm.OID+`"`) {
+				return false
+			}
+		}
+	}
+	if ifnonematch := header.Get("If-None-Match"); ifnonematch != "" && exists {
+		if ifnonematch == "*" {
+			return false
+		}
+		if strings.Contains(ifnonematch, `"`+fm.OID+`"`) {
+			return false
+		}
+	}
+	// TODO: If-Unmodified-Since
+	return true
+}
+
+func storeMeta(fn string, fm fileMeta, revs int, header http.Header) error {
 	k := shortName(fn)
 	if k != fn {
 		fm.Name = fn
@@ -117,6 +144,9 @@ func storeMeta(fn string, fm fileMeta, revs int) error {
 	return couchbase.Update(k, 0, func(in []byte) ([]byte, error) {
 		existing := fileMeta{}
 		err := json.Unmarshal(in, &existing)
+		if !shouldStoreMeta(header, err == nil, existing) {
+			return in, errUploadPrecondition
+		}
 		if err == nil {
 			fm.Userdata = existing.Userdata
 			fm.Revno = existing.Revno + 1

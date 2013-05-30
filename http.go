@@ -232,7 +232,12 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	err = storeMeta(fn, fm, revs)
+	err = storeMeta(fn, fm, revs, req.Header)
+	if err == errUploadPrecondition {
+		log.Printf("Upload precondition failed: %v -> %v", fn, h)
+		http.Error(w, "precondition failed", 412)
+		return
+	}
 	if err != nil {
 		log.Printf("Error storing file meta of %v -> %v: %v",
 			fn, h, err)
