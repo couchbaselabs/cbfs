@@ -94,6 +94,12 @@ func getBlobOwnership(oid string) (BlobOwnership, error) {
 	return rv, err
 }
 
+func blobReader(oid string) io.ReadCloser {
+	pr, pw := io.Pipe()
+	go func() { pw.CloseWithError(copyBlob(pw, oid)) }()
+	return pr
+}
+
 func copyBlob(w io.Writer, oid string) error {
 	f, err := openBlob(oid)
 	if err == nil {

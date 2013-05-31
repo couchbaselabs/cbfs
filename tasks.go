@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"encoding/hex"
 	cb "github.com/couchbaselabs/go-couchbase"
 	"github.com/dustin/gomemcached"
 	"github.com/dustin/gomemcached/client"
@@ -642,6 +643,11 @@ func garbageCollectBlobs() error {
 
 	log.Printf("Garbage collecting blobs without any file references")
 
+	backedup, err := loadExistingHashes()
+	if err != nil {
+		return err
+	}
+
 	viewRes := struct {
 		Rows []struct {
 			Key []string
@@ -654,7 +660,7 @@ func garbageCollectBlobs() error {
 		return err
 	}
 
-	count, skipped := 0, 0
+	count, skipped, inBackup := 0, 0, 0
 	startKey := "g"
 	done := false
 	for !done {
@@ -700,7 +706,11 @@ func garbageCollectBlobs() error {
 						removeBlobOwnershipRecord(blobId, serverId)
 						count++
 					case ok:
-						if okToClean(blobId) {
+						if b, err := hex.DecodeString(blobId); err == nil &&
+							backedup.Contains(b) {
+
+							inBackup++
+						} else if okToClean(blobId) {
 							queueBlobRemoval(n, blobId)
 							count++
 						} else {
@@ -722,7 +732,8 @@ func garbageCollectBlobs() error {
 		}
 	}
 
-	log.Printf("Scheduled %d blobs for deletion, skipped %d", count, skipped)
+	log.Printf("Scheduled %d blobs for deletion, skipped %d, in backup %d",
+		count, skipped, inBackup)
 	return nil
 }
 

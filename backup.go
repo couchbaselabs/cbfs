@@ -14,8 +14,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dustin/go-hashset"
 	"github.com/dustin/gomemcached"
 
+	"encoding/hex"
 	"github.com/couchbaselabs/cbfs/config"
 )
 
@@ -311,4 +313,69 @@ func doRestoreDocument(w http.ResponseWriter, req *http.Request, fn string) {
 	log.Printf("Restored %v -> %v", fn, fm.OID)
 
 	w.WriteHeader(201)
+}
+
+func loadExistingHashes() (*hashset.Hashset, error) {
+	b := backups{}
+	err := couchbase.Get(backupKey, &b)
+	if err != nil && !gomemcached.IsNotFound(err) {
+		return nil, err
+	}
+
+	visited := 0
+
+	hs := &hashset.Hashset{}
+
+	for _, i := range b.Backups {
+		r := blobReader(i.Oid)
+		defer r.Close()
+		gz, err := gzip.NewReader(r)
+		if err != nil {
+			return nil, err
+		}
+		defer gz.Close()
+
+		d := json.NewDecoder(gz)
+
+		done := false
+		for !done {
+			ob := struct {
+				Meta struct {
+					OID   string
+					Older []struct {
+						OID string
+					}
+				}
+			}{}
+
+			err := d.Decode(&ob)
+			switch err {
+			case nil:
+				oid, err := hex.DecodeString(ob.Meta.OID)
+				if err != nil {
+					return nil, err
+				}
+				hs.Add(oid)
+				visited++
+				for _, obs := range ob.Meta.Older {
+					oid, err = hex.DecodeString(obs.OID)
+					if err != nil {
+						return nil, err
+					}
+					hs.Add(oid)
+					visited++
+				}
+			case io.EOF:
+				done = true
+				break
+			default:
+				return nil, err
+			}
+
+		}
+	}
+
+	log.Printf("Visited %v obs, kept %v", visited, hs.Len())
+
+	return hs, nil
 }
