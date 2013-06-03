@@ -19,6 +19,7 @@ import (
 
 	"encoding/hex"
 	"github.com/couchbaselabs/cbfs/config"
+	"sync"
 )
 
 const backupKey = "/@backup"
@@ -315,6 +316,55 @@ func doRestoreDocument(w http.ResponseWriter, req *http.Request, fn string) {
 	w.WriteHeader(201)
 }
 
+func loadBackupHashes(oid string) (*hashset.Hashset, int, error) {
+	rv := &hashset.Hashset{}
+
+	r := blobReader(oid)
+	defer r.Close()
+	gz, err := gzip.NewReader(r)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer gz.Close()
+
+	d := json.NewDecoder(gz)
+
+	visited := 0
+	for {
+		ob := struct {
+			Meta struct {
+				OID   string
+				Older []struct {
+					OID string
+				}
+			}
+		}{}
+
+		err := d.Decode(&ob)
+		switch err {
+		case nil:
+			oid, err := hex.DecodeString(ob.Meta.OID)
+			if err != nil {
+				return nil, visited, err
+			}
+			rv.Add(oid)
+			visited++
+			for _, obs := range ob.Meta.Older {
+				oid, err = hex.DecodeString(obs.OID)
+				if err != nil {
+					return nil, visited, err
+				}
+				rv.Add(oid)
+				visited++
+			}
+		case io.EOF:
+			return rv, visited, nil
+		default:
+			return nil, visited, err
+		}
+	}
+}
+
 func loadExistingHashes() (*hashset.Hashset, error) {
 	b := backups{}
 	err := couchbase.Get(backupKey, &b)
@@ -322,60 +372,67 @@ func loadExistingHashes() (*hashset.Hashset, error) {
 		return nil, err
 	}
 
-	visited := 0
+	oids := make(chan string)
+	hsch := make(chan *hashset.Hashset)
+	visitch := make(chan int)
+	errch := make(chan error)
 
-	hs := &hashset.Hashset{}
+	wg := sync.WaitGroup{}
+
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for o := range oids {
+				h, v, e := loadBackupHashes(o)
+				hsch <- h
+				if e != nil {
+					errch <- e
+				}
+				visitch <- v
+			}
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(hsch)
+		close(visitch)
+		close(errch)
+	}()
 
 	for _, i := range b.Backups {
-		r := blobReader(i.Oid)
-		defer r.Close()
-		gz, err := gzip.NewReader(r)
-		if err != nil {
-			return nil, err
+		oids <- i.Oid
+	}
+	close(oids)
+
+	visited := 0
+	hs := &hashset.Hashset{}
+	for {
+		// Done getting all the things
+		if hsch == nil && visitch == nil && errch == nil {
+			break
 		}
-		defer gz.Close()
-
-		d := json.NewDecoder(gz)
-
-		done := false
-		for !done {
-			ob := struct {
-				Meta struct {
-					OID   string
-					Older []struct {
-						OID string
-					}
-				}
-			}{}
-
-			err := d.Decode(&ob)
-			switch err {
-			case nil:
-				oid, err := hex.DecodeString(ob.Meta.OID)
-				if err != nil {
-					return nil, err
-				}
-				hs.Add(oid)
-				visited++
-				for _, obs := range ob.Meta.Older {
-					oid, err = hex.DecodeString(obs.OID)
-					if err != nil {
-						return nil, err
-					}
-					hs.Add(oid)
-					visited++
-				}
-			case io.EOF:
-				done = true
-				break
-			default:
-				return nil, err
+		select {
+		case v, ok := <-visitch:
+			visited += v
+			if !ok {
+				visitch = nil
 			}
-
+		case e, ok := <-errch:
+			err = e
+			if !ok {
+				errch = nil
+			}
+		case h, ok := <-hsch:
+			if ok {
+				hs.AddAll(h)
+			} else {
+				hsch = nil
+			}
 		}
 	}
 
 	log.Printf("Visited %v obs, kept %v", visited, hs.Len())
 
-	return hs, nil
+	return hs, err
 }
