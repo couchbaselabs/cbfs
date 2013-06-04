@@ -400,10 +400,13 @@ func loadExistingHashes() (*hashset.Hashset, error) {
 		close(errch)
 	}()
 
-	for _, i := range b.Backups {
-		oids <- i.Oid
-	}
-	close(oids)
+	go func() {
+		for _, i := range b.Backups {
+			log.Printf("Loading backups from %v / %v", i.Oid, i.Fn)
+			oids <- i.Oid
+		}
+		close(oids)
+	}()
 
 	visited := 0
 	hs := &hashset.Hashset{}
@@ -425,6 +428,8 @@ func loadExistingHashes() (*hashset.Hashset, error) {
 			}
 		case h, ok := <-hsch:
 			if ok {
+				log.Printf("Got %v hashes from a backup",
+					h.Len())
 				hs.AddAll(h)
 			} else {
 				hsch = nil
