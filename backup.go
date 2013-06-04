@@ -385,8 +385,9 @@ func loadExistingHashes() (*hashset.Hashset, error) {
 			defer wg.Done()
 			for o := range oids {
 				h, v, e := loadBackupHashes(o)
-				hsch <- h
-				if e != nil {
+				if e == nil {
+					hsch <- h
+				} else {
 					errch <- e
 				}
 				visitch <- v
