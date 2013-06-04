@@ -314,7 +314,7 @@ func doPut(w http.ResponseWriter, req *http.Request) {
 
 func isResponseHeader(s string) bool {
 	switch s {
-	case "Content-Type", "Content-Length":
+	case "Content-Type":
 		return true
 	}
 	return false
