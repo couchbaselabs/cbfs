@@ -26,7 +26,9 @@ func listFiles(path string, includeMeta bool,
 	viewRes := struct {
 		Rows []struct {
 			Key   []interface{}
-			Value map[string]interface{}
+			Value struct {
+				Count, Sum, Min, Max int64
+			}
 		}
 	}{}
 
@@ -88,12 +90,12 @@ func listFiles(path string, includeMeta bool,
 				}
 			}
 		} else {
-			// no record in the multi-get metans this is a directory
-			dirs[name] = map[string]interface{}{
-				"descendants": r.Value["count"],
-				"size":        int64(r.Value["sum"].(float64)),
-				"smallest":    int64(r.Value["min"].(float64)),
-				"largest":     int64(r.Value["max"].(float64)),
+			// no record in the multi-get means this is a directory
+			dirs[name] = map[string]int64{
+				"descendants": r.Value.Count,
+				"size":        r.Value.Sum,
+				"smallest":    r.Value.Min,
+				"largest":     r.Value.Max,
 			}
 		}
 	}
