@@ -33,15 +33,14 @@ func listFiles(path string, includeMeta bool,
 	}{}
 
 	// use the requested path to build our view query parameters
-	startKey := []interface{}{}
+	endKey := []interface{}{}
 	if path != "" {
 		for _, k := range strings.Split(path, "/") {
-			startKey = append(startKey, k)
+			endKey = append(endKey, k)
 		}
 	}
-	endKey := make([]interface{}, len(startKey)+1, len(startKey)+1)
-	copy(endKey, startKey)
-	endKey[len(startKey)] = emptyObject
+	endKey = append(endKey, emptyObject)
+	startKey := endKey[:len(endKey)-1]
 	groupLevel := len(startKey) + depth
 
 	// query the view
