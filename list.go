@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"log"
 	"strings"
 )
 
@@ -23,6 +22,7 @@ func toStringJoin(in []interface{}, sep string) string {
 func listFiles(path string, includeMeta bool,
 	depth int) (fileListing, error) {
 
+	emptyObject := &(json.RawMessage{'{', '}'})
 	viewRes := struct {
 		Rows []struct {
 			Key   []interface{}
@@ -41,8 +41,7 @@ func listFiles(path string, includeMeta bool,
 	}
 	endKey := make([]interface{}, len(startKey)+1, len(startKey)+1)
 	copy(endKey, startKey)
-	endMarker := json.RawMessage([]byte{'{', '}'})
-	endKey[len(startKey)] = &endMarker
+	endKey[len(startKey)] = emptyObject
 	groupLevel := len(startKey) + depth
 
 	// query the view
@@ -78,25 +77,20 @@ func listFiles(path string, includeMeta bool,
 		res, ok := bulkResult[key]
 		if ok == true {
 			// this means we have a file
-			rv := map[string]interface{}{}
-			err := json.Unmarshal(res.Body, &rv)
-			if err != nil {
-				log.Printf("Error deserializing json, ignoring: %v", err)
+			if includeMeta {
+				rm := json.RawMessage(res.Body)
+				files[name] = &rm
 			} else {
-				if includeMeta {
-					files[name] = rv
-				} else {
-					files[name] = map[string]interface{}{}
-				}
+				files[name] = emptyObject
 			}
 		} else {
 			// no record in the multi-get means this is a directory
-			dirs[name] = map[string]int64{
-				"descendants": r.Value.Count,
-				"size":        r.Value.Sum,
-				"smallest":    r.Value.Min,
-				"largest":     r.Value.Max,
-			}
+			dirs[name] = struct {
+				Count int64 `json:"descendants"`
+				Sum   int64 `json:"size"`
+				Min   int64 `json:"smallest"`
+				Max   int64 `json:"largest"`
+			}{r.Value.Count, r.Value.Sum, r.Value.Min, r.Value.Max}
 		}
 	}
 
