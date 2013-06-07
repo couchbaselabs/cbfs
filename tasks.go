@@ -44,15 +44,13 @@ var localPeriodicJobRecipes = map[string]*periodicJobRecipe{}
 var taskInducers = map[string]chan time.Time{}
 
 func init() {
-	none := []string{}
-
 	globalPeriodicJobRecipes = map[string]*periodicJobRecipe{
 		"checkStaleNodes": {
 			func() time.Duration {
 				return globalConfig.StaleNodeCheckFreq
 			},
 			checkStaleNodes,
-			none,
+			nil,
 		},
 		"garbageCollectBlobs": {
 			func() time.Duration {
@@ -73,14 +71,14 @@ func init() {
 				return globalConfig.OverReplicaCheckFreq
 			},
 			pruneExcessiveReplicas,
-			none,
+			nil,
 		},
 		"updateNodeSizes": {
 			func() time.Duration {
 				return globalConfig.UpdateNodeSizesFreq
 			},
 			updateNodeSizes,
-			none,
+			nil,
 		},
 		"trimFullNodes": {
 			func() time.Duration {
@@ -118,7 +116,7 @@ func init() {
 				return time.Hour
 			},
 			cleanTmpFiles,
-			none,
+			nil,
 		},
 	}
 }
