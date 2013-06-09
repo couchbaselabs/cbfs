@@ -23,6 +23,7 @@ var commands = map[string]struct {
 	"info":    {0, infoCommand, ""},
 	"fsck":    {0, fsckCommand, ""},
 	"backup":  {-1, backupCommand, "filename"},
+	"rmbak":   {0, rmBakCommand, ""},
 	"restore": {-1, restoreCommand, "filename"},
 	"induce":  {1, induceCommand, "taskname"},
 }
@@ -57,6 +58,8 @@ func init() {
 		backupFlags.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nrestore <filename>:\n")
 		restoreFlags.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "\nrmbak:\n")
+		rmbakFlags.PrintDefaults()
 		os.Exit(1)
 	}
 
