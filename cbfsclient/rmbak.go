@@ -45,6 +45,13 @@ func rmBakCommand(ustr string, args []string) {
 
 	sort.Sort(data.Backups)
 
+	if len(data.Backups) < *rmbakKeep {
+		if *rmbakVerbose {
+			log.Printf("Only %v backups. Not cleaning", len(data.Backups))
+		}
+		return
+	}
+
 	torm := data.Backups[:len(data.Backups)-*rmbakKeep]
 	if *rmbakVerbose {
 		log.Printf("Removing %v backups, keeping %v",
