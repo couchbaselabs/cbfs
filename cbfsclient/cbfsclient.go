@@ -83,6 +83,12 @@ func relativeUrl(u, path string) string {
 	return du.String()
 }
 
+func verbose(v bool, f string, a ...interface{}) {
+	if v {
+		log.Printf(f, a...)
+	}
+}
+
 func parseDuration(s string) time.Duration {
 	d, err := time.ParseDuration(s)
 	maybeFatal(err, "Unable to parse duration: %v", err)

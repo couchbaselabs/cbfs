@@ -46,17 +46,13 @@ func rmBakCommand(ustr string, args []string) {
 	sort.Sort(data.Backups)
 
 	if len(data.Backups) < *rmbakKeep {
-		if *rmbakVerbose {
-			log.Printf("Only %v backups. Not cleaning", len(data.Backups))
-		}
+		verbose(*rmbakVerbose, "Only %v backups. Not cleaning", len(data.Backups))
 		return
 	}
 
 	torm := data.Backups[:len(data.Backups)-*rmbakKeep]
-	if *rmbakVerbose {
-		log.Printf("Removing %v backups, keeping %v",
-			len(torm), len(data.Backups)-len(torm))
-	}
+	verbose(*rmbakVerbose, "Removing %v backups, keeping %v",
+		len(torm), len(data.Backups)-len(torm))
 
 	for i := 0; i < 4; i++ {
 		rmWg.Add(1)
@@ -64,9 +60,7 @@ func rmBakCommand(ustr string, args []string) {
 	}
 
 	for _, b := range torm {
-		if *rmbakVerbose {
-			log.Printf("Removing %v", b.Filename)
-		}
+		verbose(*rmbakVerbose, "Removing %v", b.Filename)
 		rmCh <- relativeUrl(u.String(), b.Filename)
 	}
 	close(rmCh)

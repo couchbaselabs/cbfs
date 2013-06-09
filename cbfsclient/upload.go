@@ -149,9 +149,7 @@ func processMeta(src, dest string) error {
 
 	preq.Header.Set("Content-Type", "application/json")
 
-	if *uploadVerbose {
-		log.Printf("Uploading meta info to %v", udest)
-	}
+	verbose(*uploadVerbose, "Uploading meta info to %v", udest)
 
 	resp, err := http.DefaultClient.Do(preq)
 	if err != nil {
@@ -166,9 +164,7 @@ func processMeta(src, dest string) error {
 }
 
 func uploadFile(src, dest, localHash string) error {
-	if *uploadVerbose {
-		log.Printf("Uploading %v -> %v (%v)", src, dest, localHash)
-	}
+	verbose(*uploadVerbose, "Uploading %v -> %v (%v)", src, dest, localHash)
 	if *uploadNoop {
 		return nil
 	}
@@ -242,9 +238,7 @@ func uploadFile(src, dest, localHash string) error {
 // This is very similar to rm's version, but uses different channel
 // signaling.
 func uploadRmDir(baseUrl string) ([]string, error) {
-	if *uploadVerbose {
-		log.Printf("Removing directory: %v", baseUrl)
-	}
+	verbose(*uploadVerbose, "Removing directory: %v", baseUrl)
 	r := quotingReplacer
 	for strings.HasSuffix(baseUrl, "/") {
 		baseUrl = baseUrl[:len(baseUrl)-1]
@@ -255,9 +249,7 @@ func uploadRmDir(baseUrl string) ([]string, error) {
 		return []string{}, err
 	}
 	for fn := range listing.Files {
-		if *uploadVerbose {
-			log.Printf("Removing file %v/%v", baseUrl, fn)
-		}
+		verbose(*uploadVerbose, "Removing file %v/%v", baseUrl, fn)
 		if !*uploadNoop {
 			err = rmFile(baseUrl + "/" + r.Replace(fn))
 			if err != nil {
@@ -273,9 +265,7 @@ func uploadRmDir(baseUrl string) ([]string, error) {
 }
 
 func uploadRmDashR(d string) error {
-	if *uploadVerbose {
-		log.Printf("Removing (recursively) %v", d)
-	}
+	verbose(*uploadVerbose, "Removing (recursively) %v", d)
 
 	children, err := uploadRmDir(d)
 	if err == nil && len(children) > 0 {
@@ -316,17 +306,13 @@ func uploadWorker(ch chan uploadReq) {
 					err = uploadFile(req.src, req.dest, lh)
 				} else {
 					if lh != req.remoteHash {
-						if *uploadVerbose {
-							log.Printf("%v has changed, reupping",
-								req.src)
-						}
+						verbose(*uploadVerbose, "%v has changed, reupping",
+							req.src)
 						err = uploadFile(req.src, req.dest, lh)
 					}
 				}
 			case removeFileOp:
-				if *uploadVerbose {
-					log.Printf("Removing file %v", req.dest)
-				}
+				verbose(*uploadVerbose, "Removing file %v", req.dest)
 				if !*uploadNoop {
 					err = rmFile(req.dest)
 				}
@@ -382,18 +368,14 @@ func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
 		switch c.Mode() & os.ModeType {
 		case os.ModeCharDevice, os.ModeDevice,
 			os.ModeNamedPipe, os.ModeSocket, os.ModeSymlink:
-			if *uploadVerbose {
-				log.Printf("Ignoring special file: %v - %v",
-					filepath.Join(path, c.Name()), c.Mode())
-			}
+			verbose(*uploadVerbose, "Ignoring special file: %v - %v",
+				filepath.Join(path, c.Name()), c.Mode())
 		default:
 			fullPath := filepath.Join(path, c.Name())
 			if !isIgnored(fullPath) {
 				localNames[c.Name()] = c
 			} else {
-				if *uploadVerbose {
-					log.Printf("Ignoring %v", fullPath)
-				}
+				verbose(*uploadVerbose, "Ignoring %v", fullPath)
 			}
 		}
 	}
@@ -461,10 +443,8 @@ func syncUp(src, u string, ch chan<- uploadReq) {
 		func(path string, info os.FileInfo, err error) error {
 			if err == nil && info.IsDir() {
 				if isIgnored(path) {
-					if *uploadVerbose {
-						log.Printf("Skipping dir %v",
-							path)
-					}
+					verbose(*uploadVerbose, "Skipping dir %v",
+						path)
 					return filepath.SkipDir
 				}
 				shortPath := path[len(src):]

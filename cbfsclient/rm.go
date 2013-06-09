@@ -30,9 +30,7 @@ func rmDashR(baseUrl string) {
 		rmCh <- baseUrl + "/" + quotingReplacer.Replace(fn)
 	}
 	for dn := range listing.Dirs {
-		if *rmVerbose {
-			log.Printf("Recursing into %v/%v", baseUrl, dn)
-		}
+		verbose(*rmVerbose, "Recursing into %v/%v", baseUrl, dn)
 		rmDashR(baseUrl + "/" + quotingReplacer.Replace(dn))
 	}
 }
@@ -61,9 +59,7 @@ func rmWorker() {
 	defer rmWg.Done()
 
 	for u := range rmCh {
-		if *rmVerbose {
-			log.Printf("Deleting %v", u)
-		}
+		verbose(*rmVerbose, "Deleting %v", u)
 
 		err := rmFile(u)
 		maybeFatal(err, "Error removing %v: %v", u, err)
