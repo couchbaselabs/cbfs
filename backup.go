@@ -209,6 +209,9 @@ func backupToCBFS(fn string) error {
 }
 
 func doMarkBackup(w http.ResponseWriter, req *http.Request) {
+	if req.FormValue("all") == "true" {
+		go recordRemoteBackupObjects()
+	}
 	err := recordBackupObject()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error marking backup; %v", err), 500)
