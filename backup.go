@@ -96,6 +96,8 @@ func recordBackupObject() error {
 		return err
 	}
 
+	removeDeadBackups(&b)
+
 	f, err := os.Create(filepath.Join(*root, ".backup.json"))
 	if err != nil {
 		return err
@@ -128,16 +130,7 @@ func recordRemoteBackupObjects() {
 	}
 }
 
-func storeBackupObject(fn, h string) error {
-	b := backups{}
-	err := couchbase.Get(backupKey, &b)
-	if err != nil && !gomemcached.IsNotFound(err) {
-		log.Printf("Weird: %v", err)
-		// return err
-	}
-
-	ob := backupItem{fn, h, time.Now().UTC(), *globalConfig}
-
+func removeDeadBackups(b *backups) {
 	// Keep only backups we're pretty sure still exist.
 	obn := b.Backups
 	b.Backups = nil
@@ -151,6 +144,20 @@ func storeBackupObject(fn, h string) error {
 			b.Backups = append(b.Backups, bi)
 		}
 	}
+
+}
+
+func storeBackupObject(fn, h string) error {
+	b := backups{}
+	err := couchbase.Get(backupKey, &b)
+	if err != nil && !gomemcached.IsNotFound(err) {
+		log.Printf("Weird: %v", err)
+		// return err
+	}
+
+	removeDeadBackups(&b)
+
+	ob := backupItem{fn, h, time.Now().UTC(), *globalConfig}
 
 	b.Latest = ob
 	b.Backups = append(b.Backups, ob)
@@ -258,6 +265,8 @@ func doGetBackupInfo(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), code)
 		return
 	}
+
+	removeDeadBackups(&b)
 
 	w.Write(mustEncode(&b))
 }
