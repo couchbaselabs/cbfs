@@ -2,6 +2,7 @@ package main
 
 import (
 	"compress/gzip"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -738,9 +739,18 @@ func doDeleteOID(w http.ResponseWriter, req *http.Request) {
 
 func doDeleteUserDoc(w http.ResponseWriter, req *http.Request) {
 	_, k := resolvePath(req)
-	err := couchbase.Delete(k)
+	err := couchbase.Update(k, 0, func(in []byte) ([]byte, error) {
+		existing := fileMeta{}
+		err := json.Unmarshal(in, &existing)
+		if !shouldStoreMeta(req.Header, err == nil, existing) {
+			return in, errUploadPrecondition
+		}
+		return nil, nil
+	})
 	if err == nil {
 		w.WriteHeader(204)
+	} else if err == errUploadPrecondition {
+		http.Error(w, "precondition failed", 412)
 	} else {
 		http.Error(w, err.Error(), 404)
 	}
