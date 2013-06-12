@@ -349,6 +349,13 @@ func doListDocs(w http.ResponseWriter, req *http.Request,
 		return
 	}
 
+	if canGzip(req) {
+		w.Header().Set("Content-Encoding", "gzip")
+		gz := gzip.NewWriter(w)
+		defer gz.Close()
+		w = &geezyWriter{w, gz}
+	}
+
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 
