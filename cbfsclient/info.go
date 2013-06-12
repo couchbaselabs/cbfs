@@ -3,9 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"io/ioutil"
-	"net/http"
 	"net/url"
 	"os"
 	"text/template"
@@ -65,20 +63,6 @@ config:
 {{ range $k, $v := .Conf.ToMap}}  {{$k}}: {{$v}}
 {{end}}
 `
-
-func getJsonData(u string, into interface{}) error {
-	res, err := http.Get(u)
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		return fmt.Errorf("HTTP Error: %v", res.Status)
-	}
-
-	d := json.NewDecoder(res.Body)
-	return d.Decode(into)
-}
 
 func infoCommand(base string, args []string) {
 	infoFlags.Parse(args)
