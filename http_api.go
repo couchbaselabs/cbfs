@@ -64,6 +64,13 @@ func putConfig(w http.ResponseWriter, req *http.Request) {
 }
 
 func doList(w http.ResponseWriter, req *http.Request) {
+	if canGzip(req) {
+		w.Header().Set("Content-Encoding", "gzip")
+		gz := gzip.NewWriter(w)
+		defer gz.Close()
+		w = &geezyWriter{w, gz}
+	}
+
 	w.WriteHeader(200)
 	explen := getHash().Size() * 2
 	filepath.Walk(*root, func(path string, info os.FileInfo, err error) error {
