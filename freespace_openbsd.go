@@ -1,4 +1,4 @@
-// +build !windows,!openbsd
+// +build openbsd
 
 package main
 
@@ -9,5 +9,5 @@ import (
 func filesystemFree() (int64, error) {
 	fs := syscall.Statfs_t{}
 	err := syscall.Statfs(*root, &fs)
-	return int64(fs.Bfree) * int64(fs.Bsize), err
+	return int64(fs.F_bfree) * int64(fs.F_bsize), err
 }
