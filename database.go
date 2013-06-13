@@ -1,23 +1,15 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
-	"time"
 
 	// Alias this because we call our connection couchbase
 	cb "github.com/couchbaselabs/go-couchbase"
+	"github.com/couchbaselabs/go-couchbase/util"
 )
 
 var couchbase *cb.Bucket
-
-type viewMarker struct {
-	Version   int       `json:"version"`
-	Node      string    `json:"node"`
-	Timestamp time.Time `json:"timestamp"`
-	Type      string    `json:"type"`
-}
 
 const ddocKey = "/@ddocVersion"
 const ddocVersion = 3
@@ -96,7 +88,6 @@ const designDoc = `
 `
 
 func dbConnect() (*cb.Bucket, error) {
-
 	cb.HttpClient = &http.Client{
 		Transport: TimeoutTransport(*viewTimeout),
 	}
@@ -108,26 +99,6 @@ func dbConnect() (*cb.Bucket, error) {
 		return nil, err
 	}
 
-	marker := viewMarker{}
-	err = rv.Get(ddocKey, &marker)
-	if err != nil {
-		log.Printf("Error checking view version: %v", err)
-	}
-	if marker.Version < ddocVersion {
-		log.Printf("Installing new version of views (old version=%v)",
-			marker.Version)
-		doc := json.RawMessage([]byte(designDoc))
-		err = rv.PutDDoc("cbfs", &doc)
-		if err != nil {
-			return nil, err
-		}
-		marker.Version = ddocVersion
-		marker.Node = serverId
-		marker.Timestamp = time.Now().UTC()
-		marker.Type = "ddocmarker"
-
-		rv.Set(ddocKey, 0, &marker)
-	}
-
-	return rv, nil
+	return rv, couchbaseutil.UpdateView(rv, "cbfs",
+		ddocKey, designDoc, ddocVersion)
 }
