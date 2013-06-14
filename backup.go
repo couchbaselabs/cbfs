@@ -192,7 +192,7 @@ func backupToCBFS(fn string) error {
 		Modified: time.Now().UTC(),
 	}
 
-	err = storeMeta(fn, fm, 1, nil)
+	err = storeMeta(fn, 0, fm, 1, nil)
 	if err != nil {
 		return err
 	}

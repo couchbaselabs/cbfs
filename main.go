@@ -136,12 +136,12 @@ func shouldStoreMeta(header http.Header, exists bool, fm fileMeta) bool {
 	return true
 }
 
-func storeMeta(fn string, fm fileMeta, revs int, header http.Header) error {
+func storeMeta(fn string, exp int, fm fileMeta, revs int, header http.Header) error {
 	k := shortName(fn)
 	if k != fn {
 		fm.Name = fn
 	}
-	return couchbase.Update(k, 0, func(in []byte) ([]byte, error) {
+	return couchbase.Update(k, exp, func(in []byte) ([]byte, error) {
 		existing := fileMeta{}
 		err := json.Unmarshal(in, &existing)
 		if !shouldStoreMeta(header, err == nil, existing) {

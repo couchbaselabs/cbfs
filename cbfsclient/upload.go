@@ -43,6 +43,8 @@ var uploadUnsafe = uploadFlags.Bool("unsafe", false,
 	"Unsafe (not synchronously replicated) uploads.")
 var uploadNoHash = uploadFlags.Bool("nohash", false,
 	"Don't include the hash in the upload request")
+var uploadExpiration = uploadFlags.Int("expire", 0,
+	"Expiration time (in seconds, or abs unix time)")
 var uploadRevsSet = false
 
 var quotingReplacer = strings.NewReplacer("%", "%25",
@@ -201,6 +203,10 @@ func uploadFile(src, dest, localHash string) error {
 	}
 	if *uploadUnsafe {
 		preq.Header.Set("X-CBFS-Unsafe", "true")
+	}
+	if *uploadExpiration > 0 {
+		preq.Header.Set("X-CBFS-Expiration",
+			strconv.Itoa(*uploadExpiration))
 	}
 
 	ctype := http.DetectContentType(someBytes)

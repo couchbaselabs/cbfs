@@ -233,7 +233,16 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	err = storeMeta(fn, fm, revs, req.Header)
+	exp := 0
+	eheader := req.Header.Get("X-CBFS-Expiration")
+	if eheader != "" {
+		i, err := strconv.Atoi(eheader)
+		if err == nil {
+			exp = i
+		}
+	}
+
+	err = storeMeta(fn, exp, fm, revs, req.Header)
 	if err == errUploadPrecondition {
 		log.Printf("Upload precondition failed: %v -> %v", fn, h)
 		http.Error(w, "precondition failed", 412)
