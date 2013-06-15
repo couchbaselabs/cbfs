@@ -27,7 +27,7 @@ var commands = map[string]struct {
 	"backup":  {-1, backupCommand, "filename"},
 	"rmbak":   {0, rmBakCommand, ""},
 	"restore": {-1, restoreCommand, "filename"},
-	"induce":  {1, induceCommand, "taskname"},
+	"induce":  {0, induceCommand, "taskname"},
 }
 
 func init() {
