@@ -86,6 +86,24 @@ func doList(w http.ResponseWriter, req *http.Request) {
 	})
 }
 
+func doListTaskInfo(w http.ResponseWriter, req *http.Request) {
+	res := struct {
+		Global map[string][]string `json:"global"`
+		Local  map[string][]string `json:"local"`
+	}{make(map[string][]string), make(map[string][]string)}
+
+	for k, v := range globalPeriodicJobRecipes {
+		res.Global[k] = v.excl
+	}
+	for k, v := range localPeriodicJobRecipes {
+		res.Local[k] = v.excl
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+	w.Write(mustEncode(res))
+}
+
 func doListTasks(w http.ResponseWriter, req *http.Request) {
 	tasks, err := listRunningTasks()
 	if err != nil {

@@ -29,6 +29,7 @@ const (
 	tarPrefix        = "/.cbfs/tar/"
 	fsckPrefix       = "/.cbfs/fsck/"
 	taskPrefix       = "/.cbfs/tasks/"
+	taskinfoPrefix   = "/.cbfs/tasks/info/"
 	pingPrefix       = "/.cbfs/ping/"
 	framePrefix      = "/.cbfs/info/frames/"
 	markBackupPrefix = "/.cbfs/backup/mark/"
@@ -696,6 +697,8 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 		doList(w, req)
 	case req.URL.Path == nodePrefix:
 		doListNodes(w, req)
+	case req.URL.Path == taskinfoPrefix:
+		doListTaskInfo(w, req)
 	case req.URL.Path == taskPrefix:
 		doListTasks(w, req)
 	case req.URL.Path == configPrefix:
