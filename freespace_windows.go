@@ -1,4 +1,4 @@
-// +build windows !darwin !freebsd !linux !openbsd !netbsd
+// +build windows
 
 package main
 
