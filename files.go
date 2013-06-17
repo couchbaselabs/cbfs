@@ -73,7 +73,7 @@ func shouldVerifyObject(h string) bool {
 		return true
 	}
 	// True if we haven't checked the object in 30 days.
-	return b.Nodes[serverId].Add(30 * 24 * time.Hour).Before(time.Now())
+	return b.Nodes[serverId].Add(globalConfig.ReconcileAge).Before(time.Now())
 }
 
 func verifyWorker(ch chan os.FileInfo) {
