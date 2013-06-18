@@ -194,7 +194,7 @@ func uploadFile(src, dest, localHash string) error {
 		return err
 	}
 
-	preq, err := http.NewRequest("PUT", dest, f)
+	preq, err := http.NewRequest("PUT", dest, maybeCrypt(f))
 	if err != nil {
 		return err
 	}
@@ -463,6 +463,8 @@ func syncUp(src, u string, ch chan<- uploadReq) {
 
 func uploadCommand(u string, args []string) {
 	uploadFlags.Parse(args)
+
+	initCrypto()
 
 	uploadFlags.Visit(func(f *flag.Flag) {
 		if f.Name == "revs" {
