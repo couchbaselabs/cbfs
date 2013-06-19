@@ -54,7 +54,7 @@ compress() {
 }
 
 upload() {
-    cbfsclient ${cbfsserver:-http://cbfs.hq.couchbase.com:8484/} upload \
+    cbfsclient ${cbfsserver:-http://cbfs:8484/} upload \
         -ignore=$DIST/.cbfsclient.ignore -delete -v \
         $DIST/ dist/
 }
