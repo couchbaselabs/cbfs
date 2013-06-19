@@ -177,24 +177,44 @@ func uploadFile(src, dest, localHash string) error {
 	}
 	defer f.Close()
 
+	err = uploadStream(f, src, dest, localHash)
+	if err != nil {
+		return err
+	}
+
+	if *uploadMeta {
+		err = processMeta(src, dest)
+		if err != nil {
+			log.Printf("Error processing meta info: %v", err)
+		}
+	}
+	return nil
+}
+
+func uploadStream(r io.Reader, srcName, dest, localHash string) error {
 	someBytes := make([]byte, 512)
-	n, err := f.Read(someBytes)
+	n, err := r.Read(someBytes)
 	if err != nil && err != io.EOF {
 		return err
 	}
 	someBytes = someBytes[:n]
 
-	length, err := f.Seek(0, 2)
-	if err != nil {
-		return err
+	length := int64(-1)
+	if s, ok := r.(io.Seeker); r != os.Stdin && ok {
+		length, err = s.Seek(0, 2)
+		if err != nil {
+			return err
+		}
+
+		_, err = s.Seek(0, 0)
+		if err != nil {
+			return err
+		}
+	} else {
+		r = io.MultiReader(bytes.NewReader(someBytes), r)
 	}
 
-	_, err = f.Seek(0, 0)
-	if err != nil {
-		return err
-	}
-
-	preq, err := http.NewRequest("PUT", dest, maybeCrypt(f))
+	preq, err := http.NewRequest("PUT", dest, maybeCrypt(r))
 	if err != nil {
 		return err
 	}
@@ -212,10 +232,12 @@ func uploadFile(src, dest, localHash string) error {
 	ctype := http.DetectContentType(someBytes)
 	if strings.HasPrefix(ctype, "text/plain") ||
 		strings.HasPrefix(ctype, "application/octet-stream") {
-		ctype = recognizeTypeByName(src, ctype)
+		ctype = recognizeTypeByName(srcName, ctype)
 	}
 
-	preq.Header.Set("Content-Length", strconv.FormatInt(length, 10))
+	if length >= 0 {
+		preq.Header.Set("Content-Length", strconv.FormatInt(length, 10))
+	}
 	preq.Header.Set("Content-Type", ctype)
 	if !*uploadNoHash {
 		preq.Header.Set("X-CBFS-Hash", localHash)
@@ -229,13 +251,6 @@ func uploadFile(src, dest, localHash string) error {
 	if resp.StatusCode != 201 {
 		r, _ := ioutil.ReadAll(resp.Body)
 		return fmt.Errorf("HTTP Error:  %v: %s", resp.Status, r)
-	}
-
-	if *uploadMeta {
-		err = processMeta(src, dest)
-		if err != nil {
-			log.Printf("Error processing meta info: %v", err)
-		}
 	}
 
 	return nil
@@ -483,8 +498,16 @@ func uploadCommand(u string, args []string) {
 
 	du := relativeUrl(u, uploadFlags.Arg(1))
 
-	fi, err := os.Stat(uploadFlags.Arg(0))
-	maybeFatal(err, "Error statting %v: %v", uploadFlags.Arg(0), err)
+	srcFn := uploadFlags.Arg(0)
+	// Special case stdin.
+	if srcFn == "-" {
+		err := uploadStream(os.Stdin, "", du, "")
+		maybeFatal(err, "Error uploading stdin: %v", err)
+		return
+	}
+
+	fi, err := os.Stat(srcFn)
+	maybeFatal(err, "Error statting %v: %v", srcFn, err)
 
 	if fi.IsDir() {
 		ch := make(chan uploadReq, 1000)
@@ -495,15 +518,14 @@ func uploadCommand(u string, args []string) {
 		}
 
 		start := time.Now()
-		syncUp(uploadFlags.Arg(0), du, ch)
+		syncUp(srcFn, du, ch)
 
 		close(ch)
 		log.Printf("Finished traversal in %v", time.Since(start))
 		uploadWg.Wait()
 		log.Printf("Finished sync in %v", time.Since(start))
 	} else {
-		err = uploadFile(uploadFlags.Arg(0), du,
-			localHash(uploadFlags.Arg(0)))
+		err = uploadFile(srcFn, du, localHash(srcFn))
 		maybeFatal(err, "Error uploading file: %v", err)
 	}
 }

@@ -6,7 +6,7 @@ import (
 	"io"
 )
 
-func maybeCrypt(r io.ReadCloser) io.ReadCloser {
+func maybeCrypt(r io.Reader) io.Reader {
 	return r
 }
 

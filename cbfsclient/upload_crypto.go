@@ -114,7 +114,7 @@ func initCrypto() {
 	}
 }
 
-func maybeCrypt(r io.ReadCloser) io.ReadCloser {
+func maybeCrypt(r io.Reader) io.Reader {
 	if len(encryptKeys) == 0 {
 		return r
 	}
