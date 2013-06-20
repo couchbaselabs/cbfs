@@ -61,7 +61,7 @@ buildcbfsadm() {
 
 compress() {
     rm -f $DIST/cbfs.*.gz $DIST/cbfsclient.*.gz $DIST/cbfsadm.*.gz || true
-    for i in $DIST/cbfs.* $DIST/cbfsclient.* $DIST/cbfsadm.*.gz
+    for i in $DIST/cbfs.* $DIST/cbfsclient.* $DIST/cbfsadm.*
     do
         gzip -9v $i &
     done
