@@ -15,10 +15,13 @@ var commands = map[string]struct {
 	f      func(url string, args []string)
 	argstr string
 }{
-	"upload": {-1, uploadCommand, "/src/dir /dest/dir"},
-	"ls":     {0, lsCommand, "[path]"},
-	"rm":     {0, rmCommand, "path"},
-	"info":   {0, infoCommand, ""},
+	"getconf": {0, getConfCommand, ""},
+	"setconf": {2, setConfCommand, "prop value"},
+	"fsck":    {0, fsckCommand, ""},
+	"backup":  {-1, backupCommand, "filename"},
+	"rmbak":   {0, rmBakCommand, ""},
+	"restore": {-1, restoreCommand, "filename"},
+	"induce":  {0, induceCommand, "taskname"},
 }
 
 func init() {
@@ -37,14 +40,14 @@ func init() {
 
 		fmt.Fprintf(os.Stderr, "\n---- Subcommand Options ----\n")
 
-		fmt.Fprintf(os.Stderr, "\nls:\n")
-		lsFlags.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "\nrm:\n")
-		rmFlags.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "\nupload:\n")
-		uploadFlags.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "\ninfo:\n")
-		infoFlags.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "\nfsck:\n")
+		fsckFlags.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "\nbackup <filename>:\n")
+		backupFlags.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "\nrestore <filename>:\n")
+		restoreFlags.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "\nrmbak:\n")
+		rmbakFlags.PrintDefaults()
 		os.Exit(1)
 	}
 

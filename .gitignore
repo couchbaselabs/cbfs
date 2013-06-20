@@ -4,6 +4,7 @@
 *~
 /.serverguid
 /cbfs
+/cbfsadm/cbfsadm
 /cbfsclient/cbfsclient
 /storage
 6.out

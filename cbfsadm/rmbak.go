@@ -2,10 +2,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
 	"sort"
+	"sync"
 )
 
 var rmbakFlags = flag.NewFlagSet("rmbak", flag.ExitOnError)
@@ -15,6 +17,9 @@ var rmbakKeep = rmbakFlags.Int("keep", 14, "Number of old backups to keep")
 var rmbakVerbose = rmbakFlags.Bool("v", false, "Verbose logging")
 
 type backups []Backup
+
+var rmbakWg sync.WaitGroup
+var rmbakCh = make(chan string, 100)
 
 func (b backups) Len() int {
 	return len(b)
@@ -28,10 +33,39 @@ func (b backups) Swap(i, j int) {
 	b[i], b[j] = b[j], b[i]
 }
 
+func rmFile(u string) error {
+	if *rmbakNoop {
+		return nil
+	}
+	req, err := http.NewRequest("DELETE", u, nil)
+	if err != nil {
+		return err
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	res.Body.Close()
+	if res.StatusCode != 204 && res.StatusCode != 404 {
+		return fmt.Errorf("Unexpected status deleting %v: %v",
+			u, res.Status)
+	}
+	return nil
+}
+
+func rmBakWorker() {
+	defer rmbakWg.Done()
+
+	for u := range rmbakCh {
+		verbose(*rmbakVerbose, "Deleting %v", u)
+
+		err := rmFile(u)
+		maybeFatal(err, "Error removing %v: %v", u, err)
+	}
+}
+
 func rmBakCommand(ustr string, args []string) {
 	rmbakFlags.Parse(args)
-	*rmVerbose = *rmbakVerbose
-	*rmNoop = *rmbakNoop
 
 	u, err := url.Parse(ustr)
 	maybeFatal(err, "Error parsing URL: %v", err)
@@ -55,17 +89,17 @@ func rmBakCommand(ustr string, args []string) {
 		len(torm), len(data.Backups)-len(torm))
 
 	for i := 0; i < 4; i++ {
-		rmWg.Add(1)
-		go rmWorker()
+		rmbakWg.Add(1)
+		go rmBakWorker()
 	}
 
 	for _, b := range torm {
 		verbose(*rmbakVerbose, "Removing %v", b.Filename)
-		rmCh <- relativeUrl(u.String(), b.Filename)
+		rmbakCh <- relativeUrl(u.String(), b.Filename)
 	}
-	close(rmCh)
+	close(rmbakCh)
 
-	rmWg.Wait()
+	rmbakWg.Wait()
 
 	// Issue a backup cleanup request.
 

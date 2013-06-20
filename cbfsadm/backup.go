@@ -10,10 +10,19 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/couchbaselabs/cbfs/config"
 )
 
 var backupFlags = flag.NewFlagSet("backup", flag.ExitOnError)
 var backupWait = backupFlags.Bool("w", false, "Wait for backup to complete")
+
+type Backup struct {
+	Filename string
+	OID      string
+	When     time.Time
+	Conf     cbfsconfig.CBFSConfig
+}
 
 func backupCommand(ustr string, args []string) {
 	backupFlags.Parse(args)

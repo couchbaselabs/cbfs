@@ -43,9 +43,25 @@ buildcbfsclient() {
     wait
 }
 
+buildcbfsadm() {
+    pkg=$project/cbfsadm
+    goflags="-v -ldflags '-X main.VERSION $version'"
+
+    eval env GOARCH=386   GOOS=linux CGO_ENABLED=0 go build $goflags -o $DIST/cbfsadm.lin32 $pkg &
+    eval env GOARCH=arm   GOOS=linux CGO_ENABLED=0 go build $goflags -o $DIST/cbfsadm.arm $pkg &
+    eval env GOARCH=arm   GOARM=5 GOOS=linux CGO_ENABLED=0 go build $goflags -o $DIST/cbfsadm.arm5 $pkg &
+    eval env GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go build $goflags -o $DIST/cbfsadm.lin64 $pkg &
+    eval env GOARCH=amd64 GOOS=freebsd CGO_ENABLED=0 go build $goflags -o $DIST/cbfsadm.fbsd $pkg &&
+    eval env GOARCH=386   GOOS=windows go build $goflags -o $DIST/cbfsadm.win32.exe $pkg &
+    eval env GOARCH=amd64 GOOS=windows go build $goflags -o $DIST/cbfsadm.win64.exe $pkg &
+    eval env GOARCH=amd64 GOOS=darwin go build $goflags -o $DIST/cbfsadm.mac $pkg &
+    
+    wait
+}
+
 compress() {
-    rm -f $DIST/cbfs.*.gz $DIST/cbfsclient.*.gz || true
-    for i in $DIST/cbfs.* $DIST/cbfsclient.*
+    rm -f $DIST/cbfs.*.gz $DIST/cbfsclient.*.gz $DIST/cbfsadm.*.gz || true
+    for i in $DIST/cbfs.* $DIST/cbfsclient.* $DIST/cbfsadm.*.gz
     do
         gzip -9v $i &
     done
@@ -62,5 +78,6 @@ upload() {
 testpkg
 buildcbfs
 buildcbfsclient
+buildcbfsadm
 compress
 upload
