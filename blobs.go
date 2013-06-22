@@ -87,6 +87,27 @@ func (b BlobOwnership) ResolveRemoteNodes() NodeList {
 	return b.ResolveNodes().minusLocal()
 }
 
+func getBlobs(oids []string) (map[string]BlobOwnership, error) {
+	keys := make([]string, len(oids))
+	for _, b := range oids {
+		keys = append(keys, "/"+b)
+	}
+
+	res := map[string]BlobOwnership{}
+	for k, v := range couchbase.GetBulk(keys) {
+		if v.Status == gomemcached.SUCCESS {
+			bo := BlobOwnership{}
+			err := json.Unmarshal(v.Body, &bo)
+			if err != nil {
+				return res, err
+			}
+			res[k[1:]] = bo
+		}
+	}
+
+	return res, nil
+}
+
 func getBlobOwnership(oid string) (BlobOwnership, error) {
 	rv := BlobOwnership{}
 	oidkey := "/" + oid

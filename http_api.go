@@ -63,6 +63,30 @@ func putConfig(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(204)
 }
 
+func doBlobInfo(w http.ResponseWriter, req *http.Request) {
+	if err := req.ParseForm(); err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+
+	blobs, err := getBlobs(req.Form["blob"])
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	res := map[string]interface{}{}
+	for k, v := range blobs {
+		res[k] = struct {
+			Nodes map[string]time.Time `json:"nodes"`
+		}{v.Nodes}
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+	w.Write(mustEncode(res))
+}
+
 func doList(w http.ResponseWriter, req *http.Request) {
 	if canGzip(req) {
 		w.Header().Set("Content-Encoding", "gzip")

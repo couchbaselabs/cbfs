@@ -18,6 +18,7 @@ import (
 
 const (
 	blobPrefix       = "/.cbfs/blob/"
+	blobInfoPath     = "/.cbfs/blob/info/"
 	nodePrefix       = "/.cbfs/nodes/"
 	metaPrefix       = "/.cbfs/meta/"
 	proxyPrefix      = "/.cbfs/viewproxy/"
@@ -793,6 +794,8 @@ func doExit(w http.ResponseWriter, req *http.Request) {
 func doPost(w http.ResponseWriter, req *http.Request) {
 	if req.URL.Path == blobPrefix {
 		doPostRawBlob(w, req)
+	} else if req.URL.Path == blobInfoPath {
+		doBlobInfo(w, req)
 	} else if strings.HasPrefix(req.URL.Path, markBackupPrefix) {
 		doMarkBackup(w, req)
 	} else if strings.HasPrefix(req.URL.Path, restorePrefix) {
