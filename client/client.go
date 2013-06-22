@@ -5,6 +5,9 @@
 package cbfsclient
 
 import (
+	"encoding/json"
+	"fmt"
+	"net/http"
 	"net/url"
 )
 
@@ -20,4 +23,18 @@ func New(u string) (*Client, error) {
 	uc.Path = "/"
 	rv := Client(uc.String())
 	return &rv, nil
+}
+
+func getJsonData(u string, into interface{}) error {
+	res, err := http.Get(u)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		return fmt.Errorf("HTTP Error: %v", res.Status)
+	}
+
+	d := json.NewDecoder(res.Body)
+	return d.Decode(into)
 }

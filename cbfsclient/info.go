@@ -9,24 +9,10 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/couchbaselabs/cbfs/client"
 	"github.com/couchbaselabs/cbfs/config"
 	"sync"
 )
-
-type StorageNode struct {
-	Addr      string
-	AddrRaw   string    `json:"addr_raw"`
-	Started   time.Time `json:"starttime"`
-	HBTime    time.Time `json:"hbtime"`
-	BindAddr  string
-	FrameBind string
-	HBAgeStr  string `json:"hbage_str"`
-	Used      int64
-	Free      int64
-	Size      int64
-	UptimeStr string `json:"uptime_str"`
-	Version   string
-}
 
 type Tasks map[string]map[string]struct {
 	State string
@@ -40,7 +26,7 @@ type Backup struct {
 	Conf     cbfsconfig.CBFSConfig
 }
 
-type Nodes map[string]StorageNode
+type Nodes map[string]cbfsclient.StorageNode
 
 var infoFlags = flag.NewFlagSet("info", flag.ExitOnError)
 var infoTemplate = infoFlags.String("t", "", "Display template")
