@@ -104,9 +104,5 @@ func List(ustr string) (ListResult, error) {
 
 	d := json.NewDecoder(res.Body)
 	err = d.Decode(&result)
-	if err != nil {
-		return result, err
-	}
-
-	return result, nil
+	return result, err
 }
