@@ -14,20 +14,9 @@ func (c Client) confURL() string {
 }
 
 // Get the current configuration.
-func (c Client) GetConfig() (cbfsconfig.CBFSConfig, error) {
-	conf := cbfsconfig.CBFSConfig{}
-
-	res, err := http.Get(c.confURL())
-	if err != nil {
-		return conf, err
-	}
-	defer res.Body.Close()
-	d := json.NewDecoder(res.Body)
-	err = d.Decode(&conf)
-	if err != nil {
-		return conf, err
-	}
-	return conf, nil
+func (c Client) GetConfig() (rv cbfsconfig.CBFSConfig, err error) {
+	err = getJsonData(c.confURL(), &rv)
+	return
 }
 
 // Set a configuration parameter by name.
