@@ -82,9 +82,7 @@ func doBlobInfo(w http.ResponseWriter, req *http.Request) {
 		}{v.Nodes}
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-	w.Write(mustEncode(res))
+	sendJson(w, req, res)
 }
 
 func doList(w http.ResponseWriter, req *http.Request) {
@@ -123,9 +121,7 @@ func doListTaskInfo(w http.ResponseWriter, req *http.Request) {
 		res.Local[k] = v.excl
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-	w.Write(mustEncode(res))
+	sendJson(w, req, res)
 }
 
 func doListTasks(w http.ResponseWriter, req *http.Request) {
@@ -266,14 +262,11 @@ func doListNodes(w http.ResponseWriter, req *http.Request) {
 
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Write(mustEncode(respob))
+	sendJson(w, req, respob)
 }
 
 func doGetFramesData(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(200)
-	w.Write(mustEncode(getFramesInfos()))
+	sendJson(w, req, getFramesInfos())
 }
 
 func proxyViewRequest(w http.ResponseWriter, req *http.Request,

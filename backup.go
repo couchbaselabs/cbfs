@@ -268,7 +268,7 @@ func doGetBackupInfo(w http.ResponseWriter, req *http.Request) {
 
 	removeDeadBackups(&b)
 
-	w.Write(mustEncode(&b))
+	sendJson(w, req, &b)
 }
 
 var errExists = errors.New("item exists")

@@ -46,6 +46,22 @@ type storInfo struct {
 	err  error
 }
 
+func sendJson(w http.ResponseWriter, req *http.Request, ob interface{}) {
+	if canGzip(req) {
+		w.Header().Set("Content-Encoding", "gzip")
+		gz := gzip.NewWriter(w)
+		defer gz.Close()
+		w = &geezyWriter{w, gz}
+	}
+
+	w.Header().Set("Content-Type", "application/octet-stream; charset=utf-8")
+	e := json.NewEncoder(w)
+	err := e.Encode(ob)
+	if err != nil {
+		log.Printf("Error encoding JSON output: %v", err)
+	}
+}
+
 // Given a Reader, we produce a new reader that will duplicate the
 // stream into the next available node and reproduce that content into
 // another node.  Iff that node successfully stores the content, we
