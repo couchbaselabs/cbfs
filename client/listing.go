@@ -5,11 +5,9 @@
 package cbfsclient
 
 import (
-	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -89,8 +87,6 @@ func List(ustr string) (ListResult, error) {
 		return result, err
 	}
 
-	req.Header.Set("Accept-Encoding", "gzip")
-
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return result, err
@@ -106,17 +102,7 @@ func List(ustr string) (ListResult, error) {
 			inputUrl, res.Status)
 	}
 
-	r := io.Reader(res.Body)
-
-	if res.Header.Get("Content-Encoding") == "gzip" {
-		gzr, err := gzip.NewReader(res.Body)
-		if err != nil {
-			return result, err
-		}
-		r = gzr
-	}
-
-	d := json.NewDecoder(r)
+	d := json.NewDecoder(res.Body)
 	err = d.Decode(&result)
 	if err != nil {
 		return result, err
