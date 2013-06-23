@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	"github.com/couchbaselabs/cbfs/client"
 	"github.com/dustin/go-humanize"
@@ -17,6 +19,8 @@ var dlFlags = flag.NewFlagSet("download", flag.ExitOnError)
 var dlVerbose = dlFlags.Bool("v", false, "Verbose download")
 var dlConcurrency = dlFlags.Int("c", 4, "Number of concurrent downloaders")
 var dlNoop = dlFlags.Bool("n", false, "Noop")
+
+var totalBytes int64
 
 func saveDownload(filenames []string, oid string, r io.Reader) error {
 	var w io.Writer
@@ -40,6 +44,7 @@ func saveDownload(filenames []string, oid string, r io.Reader) error {
 	}
 	n, err := io.Copy(w, r)
 	if err == nil {
+		atomic.AddInt64(&totalBytes, n)
 		verbose(*dlVerbose, "Downloaded %s into %v",
 			humanize.Bytes(uint64(n)), strings.Join(filenames, ", "))
 	} else {
@@ -69,6 +74,7 @@ func downloadCommand(u string, args []string) {
 	things, err := cbfsclient.ListDepth(u, 4096)
 	maybeFatal(err, "Can't list things: %v", err)
 
+	start := time.Now()
 	oids := []string{}
 	dests := map[string][]string{}
 	for fn, inf := range things.Files {
@@ -84,4 +90,9 @@ func downloadCommand(u string, args []string) {
 		}, oids...)
 
 	maybeFatal(err, "Error getting blobs: %v", err)
+
+	b := atomic.AddInt64(&totalBytes, 0)
+	d := time.Since(start)
+	verbose(*dlVerbose, "Moved %s in %v (%s/s)", humanize.Bytes(uint64(b)),
+		d, humanize.Bytes(uint64(float64(b)/d.Seconds())))
 }
