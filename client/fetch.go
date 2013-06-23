@@ -64,7 +64,7 @@ func fetchOne(oid string, si StorageNode, cb FetchCallback) error {
 }
 
 func fetchWorker(cb FetchCallback, nodes map[string]StorageNode,
-	ch chan fetchWork, wg *sync.WaitGroup) {
+	ch chan fetchWork, errch chan<- error, wg *sync.WaitGroup) {
 
 	defer wg.Done()
 	for w := range ch {
@@ -76,6 +76,10 @@ func fetchWorker(cb FetchCallback, nodes map[string]StorageNode,
 			}
 		}
 		if err != nil {
+			select {
+			case errch <- err:
+			default:
+			}
 			cb(w.oid,
 				brokenReader{fmt.Errorf("couldn't find %v", w.oid)})
 		}
@@ -97,11 +101,12 @@ func (c Client) GetBlobs(concurrency int,
 	}
 
 	workch := make(chan fetchWork)
+	errch := make(chan error, 1)
 
 	wg := &sync.WaitGroup{}
 	for i := 0; i < concurrency; i++ {
 		wg.Add(1)
-		go fetchWorker(cb, nodes, workch, wg)
+		go fetchWorker(cb, nodes, workch, errch, wg)
 	}
 
 	for oid, info := range infos {
@@ -109,6 +114,10 @@ func (c Client) GetBlobs(concurrency int,
 	}
 	close(workch)
 
-	wg.Done()
-	return nil
+	go func() {
+		wg.Wait()
+		close(errch)
+	}()
+
+	return <-errch
 }
