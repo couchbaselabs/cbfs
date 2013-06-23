@@ -6,14 +6,15 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
 	"sync"
 	"time"
 )
 
 type FetchCallback func(oid string, r io.Reader) error
 
-type blobInfo map[string]time.Time
+type blobInfo struct {
+	Nodes map[string]time.Time
+}
 
 func (c Client) getBlobInfos(oids ...string) (map[string]blobInfo, error) {
 	inputUrl, err := url.Parse(string(c))
@@ -23,13 +24,7 @@ func (c Client) getBlobInfos(oids ...string) (map[string]blobInfo, error) {
 
 	inputUrl.Path = "/.cbfs/blob/info/"
 	form := url.Values{"blob": oids}
-	req, err := http.NewRequest("POST", inputUrl.String(),
-		strings.NewReader(form.Encode()))
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := http.DefaultClient.Do(req)
+	res, err := http.PostForm(inputUrl.String(), form)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +69,7 @@ func fetchWorker(cb FetchCallback, nodes map[string]StorageNode,
 	defer wg.Done()
 	for w := range ch {
 		var err error
-		for n := range w.bi {
+		for n := range w.bi.Nodes {
 			err = fetchOne(w.oid, nodes[n], cb)
 			if err == nil {
 				break

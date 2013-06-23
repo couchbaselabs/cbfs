@@ -3,7 +3,6 @@ package cbfsclient
 import (
 	"fmt"
 	"net/url"
-	"strings"
 	"time"
 )
 
@@ -23,16 +22,8 @@ type StorageNode struct {
 	Version   string
 }
 
-func (a StorageNode) Address() string {
-	if strings.HasPrefix(a.BindAddr, ":") {
-		return a.Addr + a.BindAddr
-	}
-	return a.BindAddr
-}
-
 func (a StorageNode) BlobURL(h string) string {
-	return fmt.Sprintf("http://%s/.cbfs/blob/%s",
-		a.Address(), h)
+	return fmt.Sprintf("http://%s/.cbfs/blob/%s", a.Addr, h)
 }
 
 // Get the information about the nodes in a cluster.
