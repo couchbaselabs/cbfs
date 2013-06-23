@@ -14,6 +14,7 @@ import (
 
 var dlFlags = flag.NewFlagSet("download", flag.ExitOnError)
 var dlVerbose = dlFlags.Bool("v", false, "Verbose download")
+var dlConcurrency = dlFlags.Int("c", 4, "Number of concurrent downloaders")
 
 func saveDownload(filenames []string, oid string, r io.Reader) error {
 	ws := []io.Writer{}
@@ -70,9 +71,10 @@ func downloadCommand(u string, args []string) {
 		oids = append(oids, inf.OID)
 	}
 
-	err = client.GetBlobs(4, func(oid string, r io.Reader) error {
-		return saveDownload(dests[oid], oid, r)
-	}, oids...)
+	err = client.GetBlobs(*dlConcurrency,
+		func(oid string, r io.Reader) error {
+			return saveDownload(dests[oid], oid, r)
+		}, oids...)
 
 	maybeFatal(err, "Error getting blobs: %v", err)
 }
