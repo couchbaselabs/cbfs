@@ -49,20 +49,22 @@ func downloadCommand(u string, args []string) {
 		log.Fatalf("src and dest required")
 	}
 
+	src := dlFlags.Arg(0)
 	destbase := dlFlags.Arg(1)
 
 	client, err := cbfsclient.New(u)
 	maybeFatal(err, "Can't build a client: %v", err)
 
-	u = relativeUrl(u, dlFlags.Arg(0))
+	u = relativeUrl(u, src)
 	log.Printf("Listing from %v with %v", u, client)
 
-	things, err := cbfsclient.List(u)
+	things, err := cbfsclient.ListDepth(u, 4096)
 	maybeFatal(err, "Can't list things: %v", err)
 
 	oids := []string{}
 	dests := map[string][]string{}
 	for fn, inf := range things.Files {
+		fn = fn[len(src):]
 		dests[inf.OID] = append(dests[inf.OID],
 			filepath.Join(destbase, fn))
 		oids = append(oids, inf.OID)

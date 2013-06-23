@@ -64,8 +64,12 @@ func ListOrEmpty(ustr string) (ListResult, error) {
 	return listing, err
 }
 
-// List the contents below the given location.
 func List(ustr string) (ListResult, error) {
+	return ListDepth(ustr, 1)
+}
+
+// List the contents below the given location.
+func ListDepth(ustr string, depth int) (ListResult, error) {
 	result := ListResult{}
 
 	inputUrl, err := url.Parse(ustr)
@@ -80,7 +84,7 @@ func List(ustr string) (ListResult, error) {
 	if inputUrl.Path == "/.cbfs/list" {
 		inputUrl.Path = "/.cbfs/list/"
 	}
-	inputUrl.RawQuery = "includeMeta=true"
+	inputUrl.RawQuery = fmt.Sprintf("includeMeta=true&depth=%d", depth)
 
 	req, err := http.NewRequest("GET", inputUrl.String(), nil)
 	if err != nil {
