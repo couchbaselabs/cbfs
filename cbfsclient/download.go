@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -15,22 +16,28 @@ import (
 var dlFlags = flag.NewFlagSet("download", flag.ExitOnError)
 var dlVerbose = dlFlags.Bool("v", false, "Verbose download")
 var dlConcurrency = dlFlags.Int("c", 4, "Number of concurrent downloaders")
+var dlNoop = dlFlags.Bool("n", false, "Noop")
 
 func saveDownload(filenames []string, oid string, r io.Reader) error {
-	ws := []io.Writer{}
-	for _, fn := range filenames {
-		f, err := os.Create(fn)
-		if err != nil {
-			os.MkdirAll(filepath.Dir(fn), 0777)
-			f, err = os.Create(fn)
+	var w io.Writer
+	if *dlNoop {
+		w = ioutil.Discard
+	} else {
+		ws := []io.Writer{}
+		for _, fn := range filenames {
+			f, err := os.Create(fn)
+			if err != nil {
+				os.MkdirAll(filepath.Dir(fn), 0777)
+				f, err = os.Create(fn)
+			}
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+			ws = append(ws, f)
 		}
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		ws = append(ws, f)
+		w = io.MultiWriter(ws...)
 	}
-	w := io.MultiWriter(ws...)
 	n, err := io.Copy(w, r)
 	if err == nil {
 		verbose(*dlVerbose, "Downloaded %s into %v",
