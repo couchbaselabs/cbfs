@@ -15,10 +15,11 @@ var commands = map[string]struct {
 	f      func(url string, args []string)
 	argstr string
 }{
-	"upload": {-1, uploadCommand, "/src/dir /dest/dir"},
-	"ls":     {0, lsCommand, "[path]"},
-	"rm":     {0, rmCommand, "path"},
-	"info":   {0, infoCommand, ""},
+	"upload":   {-1, uploadCommand, "/src/dir /dest/dir"},
+	"download": {-1, downloadCommand, "/src/dir /dest/dir"},
+	"ls":       {0, lsCommand, "[path]"},
+	"rm":       {0, rmCommand, "path"},
+	"info":     {0, infoCommand, ""},
 }
 
 func init() {
