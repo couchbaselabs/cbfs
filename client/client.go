@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // A cbfs client.
@@ -23,6 +24,14 @@ func New(u string) (*Client, error) {
 	uc.Path = "/"
 	rv := Client(uc.String())
 	return &rv, nil
+}
+
+// Get the full path for the given filename.
+func (c Client) Path(fn string) string {
+	for strings.HasPrefix(fn, "/") {
+		fn = fn[1:]
+	}
+	return string(c) + fn
 }
 
 func getJsonData(u string, into interface{}) error {

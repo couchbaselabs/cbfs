@@ -2,7 +2,6 @@ package cbfsclient
 
 import (
 	"fmt"
-	"net/url"
 	"time"
 )
 
@@ -28,13 +27,7 @@ func (a StorageNode) BlobURL(h string) string {
 
 // Get the information about the nodes in a cluster.
 func (c Client) Nodes() (map[string]StorageNode, error) {
-	inputUrl, err := url.Parse(string(c))
-	if err != nil {
-		return nil, err
-	}
-
-	inputUrl.Path = "/.cbfs/nodes/"
 	rv := map[string]StorageNode{}
-	err = getJsonData(inputUrl.String(), &rv)
+	err := getJsonData(c.Path("/.cbfs/nodes/"), &rv)
 	return rv, err
 }

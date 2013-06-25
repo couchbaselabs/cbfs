@@ -55,8 +55,8 @@ type ListResult struct {
 var fourOhFour = errors.New("not found")
 
 // Same as List, but return an empty result on 404.
-func ListOrEmpty(ustr string) (ListResult, error) {
-	listing, err := List(ustr)
+func (c Client) ListOrEmpty(ustr string) (ListResult, error) {
+	listing, err := c.List(ustr)
 	if err == fourOhFour {
 		err = nil
 	}
@@ -64,20 +64,24 @@ func ListOrEmpty(ustr string) (ListResult, error) {
 	return listing, err
 }
 
-func List(ustr string) (ListResult, error) {
-	return ListDepth(ustr, 1)
+func (c Client) List(ustr string) (ListResult, error) {
+	return c.ListDepth(ustr, 1)
 }
 
 // List the contents below the given location.
-func ListDepth(ustr string, depth int) (ListResult, error) {
+func (c Client) ListDepth(ustr string, depth int) (ListResult, error) {
 	result := ListResult{}
 
-	inputUrl, err := url.Parse(ustr)
+	inputUrl, err := url.Parse(string(c))
 	if err != nil {
 		return result, err
 	}
 
-	inputUrl.Path = "/.cbfs/list" + inputUrl.Path
+	for strings.HasPrefix(ustr, "/") {
+		ustr = ustr[1:]
+	}
+
+	inputUrl.Path = "/.cbfs/list/" + ustr
 	for strings.HasSuffix(inputUrl.Path, "/") {
 		inputUrl.Path = inputUrl.Path[:len(inputUrl.Path)-1]
 	}

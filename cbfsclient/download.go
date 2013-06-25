@@ -68,10 +68,7 @@ func downloadCommand(u string, args []string) {
 	client, err := cbfsclient.New(u)
 	maybeFatal(err, "Can't build a client: %v", err)
 
-	u = relativeUrl(u, src)
-	log.Printf("Listing from %v with %v", u, client)
-
-	things, err := cbfsclient.ListDepth(u, 4096)
+	things, err := client.ListDepth(src, 4096)
 	maybeFatal(err, "Can't list things: %v", err)
 
 	start := time.Now()
@@ -84,7 +81,7 @@ func downloadCommand(u string, args []string) {
 		oids = append(oids, inf.OID)
 	}
 
-	err = client.GetBlobs(*dlConcurrency,
+	err = client.Blobs(*dlConcurrency,
 		func(oid string, r io.Reader) error {
 			return saveDownload(dests[oid], oid, r)
 		}, oids...)

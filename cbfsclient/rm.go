@@ -2,10 +2,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
-	"net/http"
-	"strings"
 	"sync"
 
 	"github.com/couchbaselabs/cbfs/client"
@@ -18,50 +15,33 @@ var rmNoop = rmFlags.Bool("n", false, "Dry run")
 var rmWg = sync.WaitGroup{}
 var rmCh = make(chan string, 100)
 
-func rmDashR(baseUrl string) {
-	for strings.HasSuffix(baseUrl, "/") {
-		baseUrl = baseUrl[:len(baseUrl)-1]
-	}
-
-	listing, err := cbfsclient.List(baseUrl)
-	maybeFatal(err, "Error listing files at %q: %v", baseUrl, err)
+func rmDashR(client *cbfsclient.Client, under string) {
+	listing, err := client.ListDepth(under, 8192)
+	maybeFatal(err, "Error listing files at %q: %v", under, err)
 
 	for fn := range listing.Files {
-		rmCh <- baseUrl + "/" + quotingReplacer.Replace(fn)
-	}
-	for dn := range listing.Dirs {
-		verbose(*rmVerbose, "Recursing into %v/%v", baseUrl, dn)
-		rmDashR(baseUrl + "/" + quotingReplacer.Replace(dn))
+		rmCh <- quotingReplacer.Replace(fn)
 	}
 }
 
-func rmFile(u string) error {
+func rmFile(client *cbfsclient.Client, u string) error {
 	if *rmNoop {
 		return nil
 	}
-	req, err := http.NewRequest("DELETE", u, nil)
-	if err != nil {
-		return err
+	err := client.Rm(u)
+	if err == cbfsclient.Missing {
+		err = nil
 	}
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	res.Body.Close()
-	if res.StatusCode != 204 && res.StatusCode != 404 {
-		return fmt.Errorf("Unexpected status deleting %v: %v",
-			u, res.Status)
-	}
-	return nil
+	return err
 }
 
-func rmWorker() {
+func rmWorker(client *cbfsclient.Client) {
 	defer rmWg.Done()
 
 	for u := range rmCh {
 		verbose(*rmVerbose, "Deleting %v", u)
 
-		err := rmFile(u)
+		err := rmFile(client, u)
 		maybeFatal(err, "Error removing %v: %v", u, err)
 	}
 }
@@ -69,21 +49,23 @@ func rmWorker() {
 func rmCommand(u string, args []string) {
 	rmFlags.Parse(args)
 
+	client, err := cbfsclient.New(u)
+	maybeFatal(err, "Error creating cbfs client: %v", err)
+
 	if rmFlags.NArg() < 1 {
 		log.Fatalf("Filename is required")
 	}
 
 	for i := 0; i < 4; i++ {
 		rmWg.Add(1)
-		go rmWorker()
+		go rmWorker(client)
 	}
 
 	for _, path := range rmFlags.Args() {
-		ru := relativeUrl(u, path)
 		if *rmRecurse {
-			rmDashR(ru)
+			rmDashR(client, path)
 		} else {
-			rmCh <- ru
+			rmCh <- path
 		}
 	}
 	close(rmCh)

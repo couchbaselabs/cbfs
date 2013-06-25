@@ -17,14 +17,9 @@ type blobInfo struct {
 }
 
 func (c Client) getBlobInfos(oids ...string) (map[string]blobInfo, error) {
-	inputUrl, err := url.Parse(string(c))
-	if err != nil {
-		return nil, err
-	}
-
-	inputUrl.Path = "/.cbfs/blob/info/"
+	u := c.Path("/.cbfs/blob/info/")
 	form := url.Values{"blob": oids}
-	res, err := http.PostForm(inputUrl.String(), form)
+	res, err := http.PostForm(u, form)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +82,7 @@ func fetchWorker(cb FetchCallback, nodes map[string]StorageNode,
 }
 
 // Fetch many blobs in bulk.
-func (c Client) GetBlobs(concurrency int,
+func (c Client) Blobs(concurrency int,
 	cb FetchCallback, oids ...string) error {
 
 	nodes, err := c.Nodes()

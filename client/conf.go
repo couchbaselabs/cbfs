@@ -10,7 +10,7 @@ import (
 )
 
 func (c Client) confURL() string {
-	return string(c) + ".cbfs/config/"
+	return c.Path(".cbfs/config/")
 }
 
 // Get the current configuration.

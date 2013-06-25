@@ -115,7 +115,7 @@ func processEXIFMeta(src, dest string) (interface{}, error) {
 	return exif.Decode(f)
 }
 
-func processMeta(src, dest string) error {
+func processMeta(client *cbfsclient.Client, src, dest string) error {
 	var data interface{}
 	var err error
 
@@ -138,7 +138,7 @@ func processMeta(src, dest string) error {
 		return err
 	}
 
-	udest, err := url.Parse(dest)
+	udest, err := url.Parse(client.Path(dest))
 	if err != nil {
 		return err
 	}
@@ -165,7 +165,7 @@ func processMeta(src, dest string) error {
 	return nil
 }
 
-func uploadFile(src, dest, localHash string) error {
+func uploadFile(client *cbfsclient.Client, src, dest, localHash string) error {
 	verbose(*uploadVerbose, "Uploading %v -> %v (%v)", src, dest, localHash)
 	if *uploadNoop {
 		return nil
@@ -177,13 +177,13 @@ func uploadFile(src, dest, localHash string) error {
 	}
 	defer f.Close()
 
-	err = uploadStream(f, src, dest, localHash)
+	err = uploadStream(client, f, src, dest, localHash)
 	if err != nil {
 		return err
 	}
 
 	if *uploadMeta {
-		err = processMeta(src, dest)
+		err = processMeta(client, src, dest)
 		if err != nil {
 			log.Printf("Error processing meta info: %v", err)
 		}
@@ -191,7 +191,9 @@ func uploadFile(src, dest, localHash string) error {
 	return nil
 }
 
-func uploadStream(r io.Reader, srcName, dest, localHash string) error {
+func uploadStream(client *cbfsclient.Client, r io.Reader,
+	srcName, dest, localHash string) error {
+
 	someBytes := make([]byte, 512)
 	n, err := r.Read(someBytes)
 	if err != nil && err != io.EOF {
@@ -214,7 +216,8 @@ func uploadStream(r io.Reader, srcName, dest, localHash string) error {
 		r = io.MultiReader(bytes.NewReader(someBytes), r)
 	}
 
-	preq, err := http.NewRequest("PUT", dest, maybeCrypt(r))
+	du := client.Path(dest)
+	preq, err := http.NewRequest("PUT", du, maybeCrypt(r))
 	if err != nil {
 		return err
 	}
@@ -258,43 +261,31 @@ func uploadStream(r io.Reader, srcName, dest, localHash string) error {
 
 // This is very similar to rm's version, but uses different channel
 // signaling.
-func uploadRmDir(baseUrl string) ([]string, error) {
-	verbose(*uploadVerbose, "Removing directory: %v", baseUrl)
-	r := quotingReplacer
-	for strings.HasSuffix(baseUrl, "/") {
-		baseUrl = baseUrl[:len(baseUrl)-1]
+func uploadRmDir(client *cbfsclient.Client, under string) error {
+	verbose(*uploadVerbose, "Removing directory: %v", under)
+
+	listing, err := client.ListDepth(under, 8192)
+	if err != nil {
+		return nil
 	}
 
-	listing, err := cbfsclient.ListOrEmpty(baseUrl)
-	for err != nil {
-		return []string{}, err
-	}
+	r := quotingReplacer
 	for fn := range listing.Files {
-		verbose(*uploadVerbose, "Removing file %v/%v", baseUrl, fn)
+		verbose(*uploadVerbose, "Removing file %v", fn)
 		if !*uploadNoop {
-			err = rmFile(baseUrl + "/" + r.Replace(fn))
+			err = rmFile(client, r.Replace(fn))
 			if err != nil {
-				return []string{}, err
+				return err
 			}
 		}
 	}
-	children := make([]string, 0, len(listing.Dirs))
-	for dn := range listing.Dirs {
-		children = append(children, baseUrl+"/"+r.Replace(dn))
-	}
-	return children, nil
+	return nil
 }
 
-func uploadRmDashR(d string) error {
+func uploadRmDashR(client *cbfsclient.Client, d string) error {
 	verbose(*uploadVerbose, "Removing (recursively) %v", d)
 
-	children, err := uploadRmDir(d)
-	if err == nil && len(children) > 0 {
-		for _, child := range children {
-			err = uploadRmDashR(child)
-		}
-	}
-	return err
+	return uploadRmDir(client, d)
 }
 
 func localHash(fn string) string {
@@ -313,7 +304,7 @@ func localHash(fn string) string {
 	return hex.EncodeToString(h.Sum([]byte{}))
 }
 
-func uploadWorker(ch chan uploadReq) {
+func uploadWorker(client *cbfsclient.Client, ch chan uploadReq) {
 	defer uploadWg.Done()
 	for req := range ch {
 		retries := 0
@@ -324,21 +315,21 @@ func uploadWorker(ch chan uploadReq) {
 			case uploadFileOp:
 				lh := localHash(req.src)
 				if req.remoteHash == "" {
-					err = uploadFile(req.src, req.dest, lh)
+					err = uploadFile(client, req.src, req.dest, lh)
 				} else {
 					if lh != req.remoteHash {
 						verbose(*uploadVerbose, "%v has changed, reupping",
 							req.src)
-						err = uploadFile(req.src, req.dest, lh)
+						err = uploadFile(client, req.src, req.dest, lh)
 					}
 				}
 			case removeFileOp:
 				verbose(*uploadVerbose, "Removing file %v", req.dest)
 				if !*uploadNoop {
-					err = rmFile(req.dest)
+					err = rmFile(client, req.dest)
 				}
 			case removeRecurseOp:
-				err = uploadRmDashR(req.dest)
+				err = uploadRmDashR(client, req.dest)
 			default:
 				log.Fatalf("Unhandled case")
 			}
@@ -360,7 +351,9 @@ func uploadWorker(ch chan uploadReq) {
 	}
 }
 
-func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
+func syncPath(client *cbfsclient.Client, path, dest string,
+	info os.FileInfo, ch chan<- uploadReq) error {
+
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -374,9 +367,9 @@ func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
 	dest = quotingReplacer.Replace(dest)
 
 	retries := 3
-	serverListing, err := cbfsclient.ListOrEmpty(dest)
+	serverListing, err := client.ListOrEmpty(dest)
 	for err != nil && retries > 0 {
-		serverListing, err = cbfsclient.ListOrEmpty(dest)
+		serverListing, err = client.ListOrEmpty(dest)
 		time.Sleep(time.Second)
 		retries--
 	}
@@ -452,7 +445,7 @@ func syncPath(path, dest string, info os.FileInfo, ch chan<- uploadReq) error {
 	return nil
 }
 
-func syncUp(src, u string, ch chan<- uploadReq) {
+func syncUp(client *cbfsclient.Client, src, u string, ch chan<- uploadReq) {
 	for strings.HasSuffix(u, "/") {
 		u = u[:len(u)-1]
 	}
@@ -469,7 +462,7 @@ func syncUp(src, u string, ch chan<- uploadReq) {
 					return filepath.SkipDir
 				}
 				shortPath := path[len(src):]
-				err = syncPath(path, u+shortPath, info, ch)
+				err = syncPath(client, path, u+shortPath, info, ch)
 			}
 			return err
 		})
@@ -496,12 +489,14 @@ func uploadCommand(u string, args []string) {
 		maybeFatal(err, "Error loading ignores: %v", err)
 	}
 
-	du := relativeUrl(u, uploadFlags.Arg(1))
+	client, err := cbfsclient.New(u)
+	maybeFatal(err, "Error setting up client: %v", err)
 
 	srcFn := uploadFlags.Arg(0)
+	dest := uploadFlags.Arg(1)
 	// Special case stdin.
 	if srcFn == "-" {
-		err := uploadStream(os.Stdin, "", du, "")
+		err := uploadStream(client, os.Stdin, "", dest, "")
 		maybeFatal(err, "Error uploading stdin: %v", err)
 		return
 	}
@@ -514,18 +509,18 @@ func uploadCommand(u string, args []string) {
 
 		for i := 0; i < *uploadWorkers; i++ {
 			uploadWg.Add(1)
-			go uploadWorker(ch)
+			go uploadWorker(client, ch)
 		}
 
 		start := time.Now()
-		syncUp(srcFn, du, ch)
+		syncUp(client, srcFn, dest, ch)
 
 		close(ch)
 		log.Printf("Finished traversal in %v", time.Since(start))
 		uploadWg.Wait()
 		log.Printf("Finished sync in %v", time.Since(start))
 	} else {
-		err = uploadFile(srcFn, du, localHash(srcFn))
+		err = uploadFile(client, srcFn, dest, localHash(srcFn))
 		maybeFatal(err, "Error uploading file: %v", err)
 	}
 }
