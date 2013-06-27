@@ -541,11 +541,17 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		urls := bo.ResolveNodes().BlobURLs(oid)
+		if len(urls) == 0 {
+			http.Error(w, "No alt URLs found", 500)
+			return
+		}
+		w.Header().Set("Location", urls[0])
 		w.Header().Set("Content-Type",
 			"application/octet-stream; charset=utf-8")
 		w.WriteHeader(300)
 		e := json.NewEncoder(w)
-		e.Encode(bo.ResolveNodes().BlobURLs(oid))
+		e.Encode(urls)
 		return
 	default:
 		getBlobFromRemote(w, oid, respHeaders, *cachePercentage)
