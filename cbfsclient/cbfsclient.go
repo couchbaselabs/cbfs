@@ -44,6 +44,8 @@ func init() {
 		rmFlags.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nupload:\n")
 		uploadFlags.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "\ndownload:\n")
+		dlFlags.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\ninfo:\n")
 		infoFlags.PrintDefaults()
 		os.Exit(1)
