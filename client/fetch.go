@@ -135,19 +135,8 @@ func (c Client) Get(path string) (io.ReadCloser, error) {
 
 	if res.StatusCode == 300 {
 		defer res.Body.Close()
-
-		sources := []string{}
-		d := json.NewDecoder(res.Body)
-		err = d.Decode(&sources)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(sources) == 0 {
-			return nil, fmt.Errorf("No sources found")
-		}
-
-		res, err = http.Get(sources[0])
+		nu := res.Header.Get("Location")
+		res, err = http.Get(nu)
 		if err != nil {
 			return nil, err
 		}
