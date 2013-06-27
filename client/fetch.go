@@ -116,3 +116,42 @@ func (c Client) Blobs(concurrency int,
 
 	return <-errch
 }
+
+// Grab a file.
+//
+// This ensures the request is coming directly from a node that
+// already has the blob vs. proxying.
+func (c Client) Get(path string) (io.ReadCloser, error) {
+	req, err := http.NewRequest("GET", c.Path(path), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-CBFS-LocalOnly", "true")
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode == 300 {
+		defer res.Body.Close()
+
+		sources := []string{}
+		d := json.NewDecoder(res.Body)
+		err = d.Decode(&sources)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(sources) == 0 {
+			return nil, fmt.Errorf("No sources found")
+		}
+
+		res, err = http.Get(sources[0])
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return res.Body, nil
+}
