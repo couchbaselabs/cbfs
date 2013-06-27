@@ -54,7 +54,7 @@ func sendJson(w http.ResponseWriter, req *http.Request, ob interface{}) {
 		w = &geezyWriter{w, gz}
 	}
 
-	w.Header().Set("Content-Type", "application/octet-stream; charset=utf-8")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	e := json.NewEncoder(w)
 	err := e.Encode(ob)
 	if err != nil {
@@ -547,8 +547,7 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		w.Header().Set("Location", urls[0])
-		w.Header().Set("Content-Type",
-			"application/octet-stream; charset=utf-8")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(300)
 		e := json.NewEncoder(w)
 		e.Encode(urls)
