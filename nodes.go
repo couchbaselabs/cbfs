@@ -369,6 +369,14 @@ func (nl NodeList) candidatesFor(oid string, exclude NodeList) NodeList {
 	return nl.minus(owners).withAtLeast(ownership.Length)
 }
 
+func (nl NodeList) BlobURLs(h string) []string {
+	rv := make([]string, 0, len(h))
+	for _, n := range nl {
+		rv = append(rv, n.BlobURL(h))
+	}
+	return rv
+}
+
 func findRemoteNodes() (NodeList, error) {
 	allNodes, err := findAllNodes()
 	if err != nil {

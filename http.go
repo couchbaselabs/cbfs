@@ -531,7 +531,23 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 	}
 
 	f, err := openBlob(oid)
-	if err != nil {
+	switch {
+	case err == nil:
+		// normal path
+	case req.Header.Get("X-CBFS-LocalOnly") != "":
+		// Special case, just describe where things are.
+		bo, err := getBlobOwnership(oid)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		w.Header().Set("Content-Type",
+			"application/octet-stream; charset=utf-8")
+		w.WriteHeader(300)
+		e := json.NewEncoder(w)
+		e.Encode(bo.ResolveNodes().BlobURLs(oid))
+		return
+	default:
 		getBlobFromRemote(w, oid, respHeaders, *cachePercentage)
 		return
 	}
