@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 )
 
 var commands = map[string]struct {
@@ -94,13 +95,19 @@ func verbose(v bool, f string, a ...interface{}) {
 func main() {
 	flag.Parse()
 
-	if flag.NArg() < 2 {
+	if flag.NArg() < 1 {
 		flag.Usage()
 	}
 
-	u := flag.Arg(0)
+	off := 0
+	u := "http://cbfs:8484/"
 
-	cmdName := flag.Arg(1)
+	if strings.HasPrefix(flag.Arg(0), "http://") {
+		u = flag.Arg(0)
+		off++
+	}
+
+	cmdName := flag.Arg(off)
 	cmd, ok := commands[cmdName]
 	if !ok {
 		fmt.Fprintf(os.Stderr, "Unknown command: %v\n", cmdName)
@@ -109,16 +116,16 @@ func main() {
 	if cmd.nargs == 0 {
 	} else if cmd.nargs < 0 {
 		reqargs := -cmd.nargs
-		if flag.NArg()-2 < reqargs {
+		if flag.NArg()-1-off < reqargs {
 			fmt.Fprintf(os.Stderr, "Incorrect arguments for %v\n", cmdName)
 			flag.Usage()
 		}
 	} else {
-		if flag.NArg()-2 != cmd.nargs {
+		if flag.NArg()-1-off != cmd.nargs {
 			fmt.Fprintf(os.Stderr, "Incorrect arguments for %v\n", cmdName)
 			flag.Usage()
 		}
 	}
 
-	cmd.f(u, flag.Args()[2:])
+	cmd.f(u, flag.Args()[off+1:])
 }
