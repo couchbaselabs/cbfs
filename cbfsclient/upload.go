@@ -8,14 +8,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
-	"mime"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -78,21 +75,6 @@ type uploadReq struct {
 	dest       string
 	op         uploadOpType
 	remoteHash string
-}
-
-func recognizeTypeByName(n, def string) string {
-	byname := mime.TypeByExtension(n)
-	switch {
-	case byname != "":
-		return byname
-	case strings.HasSuffix(n, ".js"):
-		return "application/javascript"
-	case strings.HasSuffix(n, ".json"):
-		return "application/json"
-	case strings.HasSuffix(n, ".css"):
-		return "text/css"
-	}
-	return def
 }
 
 func processMP3Meta(src, dest string) (interface{}, error) {
@@ -167,7 +149,8 @@ func processMeta(client *cbfsclient.Client, src, dest string) error {
 }
 
 func uploadFile(client *cbfsclient.Client, src, dest, localHash string) error {
-	cbfstool.Verbose(*uploadVerbose, "Uploading %v -> %v (%v)", src, dest, localHash)
+	cbfstool.Verbose(*uploadVerbose, "Uploading %v -> %v (%v)",
+		src, dest, localHash)
 	if *uploadNoop {
 		return nil
 	}
@@ -195,69 +178,22 @@ func uploadFile(client *cbfsclient.Client, src, dest, localHash string) error {
 func uploadStream(client *cbfsclient.Client, r io.Reader,
 	srcName, dest, localHash string) error {
 
-	someBytes := make([]byte, 512)
-	n, err := r.Read(someBytes)
-	if err != nil && err != io.EOF {
-		return err
-	}
-	someBytes = someBytes[:n]
-
-	length := int64(-1)
-	if s, ok := r.(io.Seeker); r != os.Stdin && ok {
-		length, err = s.Seek(0, 2)
-		if err != nil {
-			return err
-		}
-
-		_, err = s.Seek(0, 0)
-		if err != nil {
-			return err
-		}
-	} else {
-		r = io.MultiReader(bytes.NewReader(someBytes), r)
+	opts := cbfsclient.PutOptions{
+		Unsafe:           *uploadUnsafe,
+		Expiration:       *uploadExpiration,
+		Hash:             localHash,
+		ContentTransform: maybeCrypt,
 	}
 
-	du := client.URLFor(dest)
-	preq, err := http.NewRequest("PUT", du, maybeCrypt(r))
-	if err != nil {
-		return err
-	}
 	if uploadRevsSet {
-		preq.Header.Set("X-CBFS-KeepRevs", strconv.Itoa(*uploadRevs))
-	}
-	if *uploadUnsafe {
-		preq.Header.Set("X-CBFS-Unsafe", "true")
-	}
-	if *uploadExpiration > 0 {
-		preq.Header.Set("X-CBFS-Expiration",
-			strconv.Itoa(*uploadExpiration))
+		opts.SetKeepRevs(*uploadRevs)
 	}
 
-	ctype := http.DetectContentType(someBytes)
-	if strings.HasPrefix(ctype, "text/plain") ||
-		strings.HasPrefix(ctype, "application/octet-stream") {
-		ctype = recognizeTypeByName(srcName, ctype)
+	if *uploadNoHash {
+		opts.Hash = ""
 	}
 
-	if length >= 0 {
-		preq.Header.Set("Content-Length", strconv.FormatInt(length, 10))
-	}
-	preq.Header.Set("Content-Type", ctype)
-	if !*uploadNoHash {
-		preq.Header.Set("X-CBFS-Hash", localHash)
-	}
-
-	resp, err := http.DefaultClient.Do(preq)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 201 {
-		r, _ := ioutil.ReadAll(resp.Body)
-		return fmt.Errorf("HTTP Error:  %v: %s", resp.Status, r)
-	}
-
-	return nil
+	return client.Put(srcName, dest, r, opts)
 }
 
 // This is very similar to rm's version, but uses different channel
