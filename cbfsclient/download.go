@@ -17,7 +17,7 @@ import (
 )
 
 var dlFlags = flag.NewFlagSet("download", flag.ExitOnError)
-var dlverbose = dlFlags.Bool("v", false, "Cbfstool.Verbose download")
+var dlverbose = dlFlags.Bool("v", false, "verbose download")
 var dlConcurrency = dlFlags.Int("c", 4, "Number of concurrent downloaders")
 var dlNoop = dlFlags.Bool("n", false, "Noop")
 
