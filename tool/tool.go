@@ -19,6 +19,15 @@ type Command struct {
 	Flags  *flag.FlagSet
 }
 
+func (c Command) Usage(name string) {
+	fmt.Fprintf(os.Stderr, "Usage:  %s %s\n", name, c.Argstr)
+	if c.Flags != nil {
+		os.Stderr.Write([]byte{'\n'})
+		c.Flags.PrintDefaults()
+	}
+	os.Exit(64)
+}
+
 func setUsage(commands map[string]Command) {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr,
@@ -105,13 +114,11 @@ func ToolMain(commands map[string]Command) {
 	} else if cmd.Nargs < 0 {
 		reqargs := -cmd.Nargs
 		if flag.NArg()-1-off < reqargs {
-			fmt.Fprintf(os.Stderr, "Incorrect arguments for %v\n", cmdName)
-			flag.Usage()
+			cmd.Usage(cmdName)
 		}
 	} else {
 		if flag.NArg()-1-off != cmd.Nargs {
-			fmt.Fprintf(os.Stderr, "Incorrect arguments for %v\n", cmdName)
-			flag.Usage()
+			cmd.Usage(cmdName)
 		}
 	}
 
