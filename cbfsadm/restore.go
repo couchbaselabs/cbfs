@@ -84,9 +84,6 @@ func restoreCommand(ustr string, args []string) {
 	regex, err := regexp.Compile(*restorePat)
 	cbfstool.MaybeFatal(err, "Error parsing match pattern: %v", err)
 
-	if restoreFlags.NArg() < 1 {
-		log.Fatalf("Filename is required")
-	}
 	fn := restoreFlags.Arg(0)
 
 	start := time.Now()

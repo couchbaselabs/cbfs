@@ -59,10 +59,6 @@ func saveDownload(filenames []string, oid string, r io.Reader) error {
 func downloadCommand(u string, args []string) {
 	dlFlags.Parse(args)
 
-	if dlFlags.NArg() < 2 {
-		log.Fatalf("src and dest required")
-	}
-
 	src := dlFlags.Arg(0)
 	destbase := dlFlags.Arg(1)
 

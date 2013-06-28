@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"log"
 	"sync"
 
 	"github.com/couchbaselabs/cbfs/client"
@@ -52,10 +51,6 @@ func rmCommand(u string, args []string) {
 
 	client, err := cbfsclient.New(u)
 	cbfstool.MaybeFatal(err, "Error creating cbfs client: %v", err)
-
-	if rmFlags.NArg() < 1 {
-		log.Fatalf("Filename is required")
-	}
 
 	for i := 0; i < 4; i++ {
 		rmWg.Add(1)

@@ -481,10 +481,6 @@ func uploadCommand(u string, args []string) {
 		}
 	})
 
-	if uploadFlags.NArg() < 2 {
-		log.Fatalf("src and dest required")
-	}
-
 	if *uploadIgnore != "" {
 		err := loadIgnorePatternsFromFile(*uploadIgnore)
 		cbfstool.MaybeFatal(err, "Error loading ignores: %v", err)

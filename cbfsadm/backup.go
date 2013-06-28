@@ -31,9 +31,6 @@ func backupCommand(ustr string, args []string) {
 	u, err := url.Parse(ustr)
 	cbfstool.MaybeFatal(err, "Error parsing URL: %v", err)
 
-	if backupFlags.NArg() < 1 {
-		log.Fatalf("Filename is required")
-	}
 	fn := backupFlags.Arg(0)
 
 	u.Path = "/.cbfs/backup/"
