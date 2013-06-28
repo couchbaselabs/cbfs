@@ -14,5 +14,6 @@ func main() {
 			"rmbak":   {0, rmBakCommand, "", rmbakFlags},
 			"restore": {1, restoreCommand, "filename", restoreFlags},
 			"induce":  {0, induceCommand, "taskname", nil},
+			"lsbak":   {0, lsBakCommand, "", nil},
 		})
 }
