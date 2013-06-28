@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/couchbaselabs/cbfs/client"
+	"github.com/couchbaselabs/cbfs/tool"
 	"github.com/dustin/go-id3"
 	"github.com/dustin/goexif/exif"
 )
@@ -151,7 +152,7 @@ func processMeta(client *cbfsclient.Client, src, dest string) error {
 
 	preq.Header.Set("Content-Type", "application/json")
 
-	verbose(*uploadVerbose, "Uploading meta info to %v", udest)
+	cbfstool.Verbose(*uploadVerbose, "Uploading meta info to %v", udest)
 
 	resp, err := http.DefaultClient.Do(preq)
 	if err != nil {
@@ -166,7 +167,7 @@ func processMeta(client *cbfsclient.Client, src, dest string) error {
 }
 
 func uploadFile(client *cbfsclient.Client, src, dest, localHash string) error {
-	verbose(*uploadVerbose, "Uploading %v -> %v (%v)", src, dest, localHash)
+	cbfstool.Verbose(*uploadVerbose, "Uploading %v -> %v (%v)", src, dest, localHash)
 	if *uploadNoop {
 		return nil
 	}
@@ -262,7 +263,7 @@ func uploadStream(client *cbfsclient.Client, r io.Reader,
 // This is very similar to rm's version, but uses different channel
 // signaling.
 func uploadRmDir(client *cbfsclient.Client, under string) error {
-	verbose(*uploadVerbose, "Removing directory: %v", under)
+	cbfstool.Verbose(*uploadVerbose, "Removing directory: %v", under)
 
 	listing, err := client.ListDepth(under, 8192)
 	if err != nil {
@@ -271,7 +272,7 @@ func uploadRmDir(client *cbfsclient.Client, under string) error {
 
 	r := quotingReplacer
 	for fn := range listing.Files {
-		verbose(*uploadVerbose, "Removing file %v", fn)
+		cbfstool.Verbose(*uploadVerbose, "Removing file %v", fn)
 		if !*uploadNoop {
 			err = rmFile(client, r.Replace(fn))
 			if err != nil {
@@ -283,7 +284,7 @@ func uploadRmDir(client *cbfsclient.Client, under string) error {
 }
 
 func uploadRmDashR(client *cbfsclient.Client, d string) error {
-	verbose(*uploadVerbose, "Removing (recursively) %v", d)
+	cbfstool.Verbose(*uploadVerbose, "Removing (recursively) %v", d)
 
 	return uploadRmDir(client, d)
 }
@@ -318,13 +319,13 @@ func uploadWorker(client *cbfsclient.Client, ch chan uploadReq) {
 					err = uploadFile(client, req.src, req.dest, lh)
 				} else {
 					if lh != req.remoteHash {
-						verbose(*uploadVerbose, "%v has changed, reupping",
+						cbfstool.Verbose(*uploadVerbose, "%v has changed, reupping",
 							req.src)
 						err = uploadFile(client, req.src, req.dest, lh)
 					}
 				}
 			case removeFileOp:
-				verbose(*uploadVerbose, "Removing file %v", req.dest)
+				cbfstool.Verbose(*uploadVerbose, "Removing file %v", req.dest)
 				if !*uploadNoop {
 					err = rmFile(client, req.dest)
 				}
@@ -382,14 +383,14 @@ func syncPath(client *cbfsclient.Client, path, dest string,
 		switch c.Mode() & os.ModeType {
 		case os.ModeCharDevice, os.ModeDevice,
 			os.ModeNamedPipe, os.ModeSocket, os.ModeSymlink:
-			verbose(*uploadVerbose, "Ignoring special file: %v - %v",
+			cbfstool.Verbose(*uploadVerbose, "Ignoring special file: %v - %v",
 				filepath.Join(path, c.Name()), c.Mode())
 		default:
 			fullPath := filepath.Join(path, c.Name())
 			if !isIgnored(fullPath) {
 				localNames[c.Name()] = c
 			} else {
-				verbose(*uploadVerbose, "Ignoring %v", fullPath)
+				cbfstool.Verbose(*uploadVerbose, "Ignoring %v", fullPath)
 			}
 		}
 	}
@@ -457,7 +458,7 @@ func syncUp(client *cbfsclient.Client, src, u string, ch chan<- uploadReq) {
 		func(path string, info os.FileInfo, err error) error {
 			if err == nil && info.IsDir() {
 				if isIgnored(path) {
-					verbose(*uploadVerbose, "Skipping dir %v",
+					cbfstool.Verbose(*uploadVerbose, "Skipping dir %v",
 						path)
 					return filepath.SkipDir
 				}
@@ -466,7 +467,7 @@ func syncUp(client *cbfsclient.Client, src, u string, ch chan<- uploadReq) {
 			}
 			return err
 		})
-	maybeFatal(err, "Traversal error: %v", err)
+	cbfstool.MaybeFatal(err, "Traversal error: %v", err)
 }
 
 func uploadCommand(u string, args []string) {
@@ -486,23 +487,23 @@ func uploadCommand(u string, args []string) {
 
 	if *uploadIgnore != "" {
 		err := loadIgnorePatternsFromFile(*uploadIgnore)
-		maybeFatal(err, "Error loading ignores: %v", err)
+		cbfstool.MaybeFatal(err, "Error loading ignores: %v", err)
 	}
 
 	client, err := cbfsclient.New(u)
-	maybeFatal(err, "Error setting up client: %v", err)
+	cbfstool.MaybeFatal(err, "Error setting up client: %v", err)
 
 	srcFn := uploadFlags.Arg(0)
 	dest := uploadFlags.Arg(1)
 	// Special case stdin.
 	if srcFn == "-" {
 		err := uploadStream(client, os.Stdin, "", dest, "")
-		maybeFatal(err, "Error uploading stdin: %v", err)
+		cbfstool.MaybeFatal(err, "Error uploading stdin: %v", err)
 		return
 	}
 
 	fi, err := os.Stat(srcFn)
-	maybeFatal(err, "Error statting %v: %v", srcFn, err)
+	cbfstool.MaybeFatal(err, "Error statting %v: %v", srcFn, err)
 
 	if fi.IsDir() {
 		ch := make(chan uploadReq, 1000)
@@ -521,6 +522,6 @@ func uploadCommand(u string, args []string) {
 		log.Printf("Finished sync in %v", time.Since(start))
 	} else {
 		err = uploadFile(client, srcFn, dest, localHash(srcFn))
-		maybeFatal(err, "Error uploading file: %v", err)
+		cbfstool.MaybeFatal(err, "Error uploading file: %v", err)
 	}
 }

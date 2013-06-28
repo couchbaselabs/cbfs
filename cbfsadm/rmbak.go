@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"sort"
 	"sync"
+
+	"github.com/couchbaselabs/cbfs/tool"
 )
 
 var rmbakFlags = flag.NewFlagSet("rmbak", flag.ExitOnError)
@@ -31,6 +33,18 @@ func (b backups) Less(i, j int) bool {
 
 func (b backups) Swap(i, j int) {
 	b[i], b[j] = b[j], b[i]
+}
+
+func relativeUrl(u, path string) string {
+	du, err := url.Parse(u)
+	cbfstool.MaybeFatal(err, "Error parsing url: %v", err)
+
+	du.Path = path
+	if du.Path[0] != '/' {
+		du.Path = "/" + du.Path
+	}
+
+	return du.String()
 }
 
 func rmFile(u string) error {
@@ -57,10 +71,10 @@ func rmBakWorker() {
 	defer rmbakWg.Done()
 
 	for u := range rmbakCh {
-		verbose(*rmbakVerbose, "Deleting %v", u)
+		cbfstool.Verbose(*rmbakVerbose, "Deleting %v", u)
 
 		err := rmFile(u)
-		maybeFatal(err, "Error removing %v: %v", u, err)
+		cbfstool.MaybeFatal(err, "Error removing %v: %v", u, err)
 	}
 }
 
@@ -68,24 +82,24 @@ func rmBakCommand(ustr string, args []string) {
 	rmbakFlags.Parse(args)
 
 	u, err := url.Parse(ustr)
-	maybeFatal(err, "Error parsing URL: %v", err)
+	cbfstool.MaybeFatal(err, "Error parsing URL: %v", err)
 
 	u.Path = "/.cbfs/backup/"
 
 	data := struct{ Backups backups }{}
 
-	err = getJsonData(u.String(), &data)
-	maybeFatal(err, "Error getting backup data: %v", err)
+	err = cbfstool.GetJsonData(u.String(), &data)
+	cbfstool.MaybeFatal(err, "Error getting backup data: %v", err)
 
 	sort.Sort(data.Backups)
 
 	if len(data.Backups) < *rmbakKeep {
-		verbose(*rmbakVerbose, "Only %v backups. Not cleaning", len(data.Backups))
+		cbfstool.Verbose(*rmbakVerbose, "Only %v backups. Not cleaning", len(data.Backups))
 		return
 	}
 
 	torm := data.Backups[:len(data.Backups)-*rmbakKeep]
-	verbose(*rmbakVerbose, "Removing %v backups, keeping %v",
+	cbfstool.Verbose(*rmbakVerbose, "Removing %v backups, keeping %v",
 		len(torm), len(data.Backups)-len(torm))
 
 	for i := 0; i < 4; i++ {
@@ -94,7 +108,7 @@ func rmBakCommand(ustr string, args []string) {
 	}
 
 	for _, b := range torm {
-		verbose(*rmbakVerbose, "Removing %v", b.Filename)
+		cbfstool.Verbose(*rmbakVerbose, "Removing %v", b.Filename)
 		rmbakCh <- relativeUrl(u.String(), b.Filename)
 	}
 	close(rmbakCh)
@@ -108,7 +122,7 @@ func rmBakCommand(ustr string, args []string) {
 
 	res, err := http.Post(u.String(),
 		"application/x-www-form-urlencoded", nil)
-	maybeFatal(err, "Error executing POST to %v - %v", u, err)
+	cbfstool.MaybeFatal(err, "Error executing POST to %v - %v", u, err)
 
 	if res.StatusCode != 204 {
 		log.Fatalf("Error marking backups: %v", res.Status)

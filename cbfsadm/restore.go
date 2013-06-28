@@ -14,6 +14,8 @@ import (
 	"regexp"
 	"sync"
 	"time"
+
+	"github.com/couchbaselabs/cbfs/tool"
 )
 
 var restoreFlags = flag.NewFlagSet("restore", flag.ExitOnError)
@@ -35,7 +37,7 @@ func restoreFile(base, path string, data interface{}) error {
 	}
 
 	u, err := url.Parse(base)
-	maybeFatal(err, "Error parsing URL: %v", err)
+	cbfstool.MaybeFatal(err, "Error parsing URL: %v", err)
 
 	fileMetaBytes, err := json.Marshal(data)
 	if err != nil {
@@ -46,7 +48,7 @@ func restoreFile(base, path string, data interface{}) error {
 	res, err := http.Post(u.String(),
 		"application/json",
 		bytes.NewReader(fileMetaBytes))
-	maybeFatal(err, "Error executing POST to %v - %v", u, err)
+	cbfstool.MaybeFatal(err, "Error executing POST to %v - %v", u, err)
 
 	defer res.Body.Close()
 	switch {
@@ -80,7 +82,7 @@ func restoreCommand(ustr string, args []string) {
 	restoreFlags.Parse(args)
 
 	regex, err := regexp.Compile(*restorePat)
-	maybeFatal(err, "Error parsing match pattern: %v", err)
+	cbfstool.MaybeFatal(err, "Error parsing match pattern: %v", err)
 
 	if restoreFlags.NArg() < 1 {
 		log.Fatalf("Filename is required")
@@ -90,11 +92,11 @@ func restoreCommand(ustr string, args []string) {
 	start := time.Now()
 
 	f, err := os.Open(fn)
-	maybeFatal(err, "Error opening restore file: %v", err)
+	cbfstool.MaybeFatal(err, "Error opening restore file: %v", err)
 
 	defer f.Close()
 	gz, err := gzip.NewReader(f)
-	maybeFatal(err, "Error uncompressing restore file: %v", err)
+	cbfstool.MaybeFatal(err, "Error uncompressing restore file: %v", err)
 
 	wg := &sync.WaitGroup{}
 

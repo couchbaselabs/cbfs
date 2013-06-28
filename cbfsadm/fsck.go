@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/couchbaselabs/cbfs/tool"
 	"github.com/dustin/go-humanize"
 )
 
@@ -20,7 +21,7 @@ func fsckCommand(ustr string, args []string) {
 	fsckFlags.Parse(args)
 
 	u, err := url.Parse(ustr)
-	maybeFatal(err, "Error parsing URL: %v", err)
+	cbfstool.MaybeFatal(err, "Error parsing URL: %v", err)
 
 	u.Path = "/.cbfs/fsck/"
 	if !*fsckVerbose {
@@ -28,7 +29,7 @@ func fsckCommand(ustr string, args []string) {
 	}
 
 	res, err := http.Get(u.String())
-	maybeFatal(err, "Error executing GET of %v - %v", u, err)
+	cbfstool.MaybeFatal(err, "Error executing GET of %v - %v", u, err)
 
 	defer res.Body.Close()
 	if res.StatusCode != 200 {

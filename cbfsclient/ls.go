@@ -8,6 +8,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/couchbaselabs/cbfs/client"
+	"github.com/couchbaselabs/cbfs/tool"
 	"github.com/dustin/go-humanize"
 )
 
@@ -18,10 +19,10 @@ func lsCommand(u string, args []string) {
 	lsFlags.Parse(args)
 
 	client, err := cbfsclient.New(u)
-	maybeFatal(err, "Error creating client: %v", err)
+	cbfstool.MaybeFatal(err, "Error creating client: %v", err)
 
 	result, err := client.List(lsFlags.Arg(0))
-	maybeFatal(err, "Error listing directory: %v", err)
+	cbfstool.MaybeFatal(err, "Error listing directory: %v", err)
 
 	dirnames := sort.StringSlice{}
 	filenames := sort.StringSlice{}

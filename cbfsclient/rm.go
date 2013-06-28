@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/couchbaselabs/cbfs/client"
+	"github.com/couchbaselabs/cbfs/tool"
 )
 
 var rmFlags = flag.NewFlagSet("rm", flag.ExitOnError)
@@ -17,7 +18,7 @@ var rmCh = make(chan string, 100)
 
 func rmDashR(client *cbfsclient.Client, under string) {
 	listing, err := client.ListDepth(under, 8192)
-	maybeFatal(err, "Error listing files at %q: %v", under, err)
+	cbfstool.MaybeFatal(err, "Error listing files at %q: %v", under, err)
 
 	for fn := range listing.Files {
 		rmCh <- quotingReplacer.Replace(fn)
@@ -39,10 +40,10 @@ func rmWorker(client *cbfsclient.Client) {
 	defer rmWg.Done()
 
 	for u := range rmCh {
-		verbose(*rmVerbose, "Deleting %v", u)
+		cbfstool.Verbose(*rmVerbose, "Deleting %v", u)
 
 		err := rmFile(client, u)
-		maybeFatal(err, "Error removing %v: %v", u, err)
+		cbfstool.MaybeFatal(err, "Error removing %v: %v", u, err)
 	}
 }
 
@@ -50,7 +51,7 @@ func rmCommand(u string, args []string) {
 	rmFlags.Parse(args)
 
 	client, err := cbfsclient.New(u)
-	maybeFatal(err, "Error creating cbfs client: %v", err)
+	cbfstool.MaybeFatal(err, "Error creating cbfs client: %v", err)
 
 	if rmFlags.NArg() < 1 {
 		log.Fatalf("Filename is required")

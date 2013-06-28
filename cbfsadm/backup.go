@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/couchbaselabs/cbfs/config"
+	"github.com/couchbaselabs/cbfs/tool"
 )
 
 var backupFlags = flag.NewFlagSet("backup", flag.ExitOnError)
@@ -28,7 +29,7 @@ func backupCommand(ustr string, args []string) {
 	backupFlags.Parse(args)
 
 	u, err := url.Parse(ustr)
-	maybeFatal(err, "Error parsing URL: %v", err)
+	cbfstool.MaybeFatal(err, "Error parsing URL: %v", err)
 
 	if backupFlags.NArg() < 1 {
 		log.Fatalf("Filename is required")
@@ -46,7 +47,7 @@ func backupCommand(ustr string, args []string) {
 	res, err := http.Post(u.String(),
 		"application/x-www-form-urlencoded",
 		strings.NewReader(form.Encode()))
-	maybeFatal(err, "Error executing POST to %v - %v", u, err)
+	cbfstool.MaybeFatal(err, "Error executing POST to %v - %v", u, err)
 
 	defer res.Body.Close()
 	if !(res.StatusCode == 202 || res.StatusCode == 201) {

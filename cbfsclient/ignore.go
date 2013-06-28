@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/couchbaselabs/cbfs/tool"
 )
 
 var ignorePatterns = []string{}
@@ -59,7 +61,7 @@ func isIgnored(input string) bool {
 		}
 		matched, err := filepath.Match(pat, in)
 		// The pattern was checked at load time.
-		maybeFatal(err, "Error processing match %v: %v", pat, err)
+		cbfstool.MaybeFatal(err, "Error processing match %v: %v", pat, err)
 		if matched {
 			return true
 		}
