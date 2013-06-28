@@ -10,7 +10,7 @@ import (
 var Missing = errors.New("file missing")
 
 func (c Client) Rm(fn string) error {
-	u := c.Path(fn)
+	u := c.URLFor(fn)
 	req, err := http.NewRequest("DELETE", u, nil)
 	if err != nil {
 		return err

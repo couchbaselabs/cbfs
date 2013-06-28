@@ -18,7 +18,7 @@ func TestPathGen(t *testing.T) {
 	}
 
 	for i, exp := range tests {
-		p := c.Path(i)
+		p := c.URLFor(i)
 		if p != exp {
 			t.Errorf("Expected %q for %q, got %q",
 				exp, i, p)

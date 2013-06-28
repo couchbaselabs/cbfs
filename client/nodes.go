@@ -28,6 +28,6 @@ func (a StorageNode) BlobURL(h string) string {
 // Get the information about the nodes in a cluster.
 func (c Client) Nodes() (map[string]StorageNode, error) {
 	rv := map[string]StorageNode{}
-	err := getJsonData(c.Path("/.cbfs/nodes/"), &rv)
+	err := getJsonData(c.URLFor("/.cbfs/nodes/"), &rv)
 	return rv, err
 }

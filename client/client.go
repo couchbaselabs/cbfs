@@ -26,8 +26,8 @@ func New(u string) (*Client, error) {
 	return &rv, nil
 }
 
-// Get the full path for the given filename.
-func (c Client) Path(fn string) string {
+// Get the full URL for the given filename.
+func (c Client) URLFor(fn string) string {
 	for strings.HasPrefix(fn, "/") {
 		fn = fn[1:]
 	}

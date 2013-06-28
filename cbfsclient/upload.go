@@ -138,7 +138,7 @@ func processMeta(client *cbfsclient.Client, src, dest string) error {
 		return err
 	}
 
-	udest, err := url.Parse(client.Path(dest))
+	udest, err := url.Parse(client.URLFor(dest))
 	if err != nil {
 		return err
 	}
@@ -216,7 +216,7 @@ func uploadStream(client *cbfsclient.Client, r io.Reader,
 		r = io.MultiReader(bytes.NewReader(someBytes), r)
 	}
 
-	du := client.Path(dest)
+	du := client.URLFor(dest)
 	preq, err := http.NewRequest("PUT", du, maybeCrypt(r))
 	if err != nil {
 		return err

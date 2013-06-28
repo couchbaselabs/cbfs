@@ -17,7 +17,7 @@ type blobInfo struct {
 }
 
 func (c Client) getBlobInfos(oids ...string) (map[string]blobInfo, error) {
-	u := c.Path("/.cbfs/blob/info/")
+	u := c.URLFor("/.cbfs/blob/info/")
 	form := url.Values{"blob": oids}
 	res, err := http.PostForm(u, form)
 	if err != nil {
@@ -122,7 +122,7 @@ func (c Client) Blobs(concurrency int,
 // This ensures the request is coming directly from a node that
 // already has the blob vs. proxying.
 func (c Client) Get(path string) (io.ReadCloser, error) {
-	req, err := http.NewRequest("GET", c.Path(path), nil)
+	req, err := http.NewRequest("GET", c.URLFor(path), nil)
 	if err != nil {
 		return nil, err
 	}
