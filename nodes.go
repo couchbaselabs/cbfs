@@ -18,6 +18,7 @@ import (
 var VERSION = "0.0.0"
 
 var nodeTooOld = errors.New("Node information is too stale")
+var notQueued = errors.New("Could not queue request")
 
 type StorageNode struct {
 	Addr      string    `json:"addr"`
@@ -112,7 +113,9 @@ func (a NodeList) Swap(i, j int) {
 // Ask a node to acquire a blob.
 func (n StorageNode) acquireBlob(oid, prevNode string) error {
 	if n.IsLocal() {
-		go queueBlobFetch(oid, prevNode)
+		if !maybeQueueBlobFetch(oid, prevNode) {
+			return notQueued
+		}
 	} else {
 		req, err := http.NewRequest("GET", n.fetchURL(oid), nil)
 		if err != nil {

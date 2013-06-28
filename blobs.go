@@ -607,15 +607,9 @@ func maybeQueueBlobAcquire(n StorageNode, oid string, prev string) bool {
 	}
 }
 
-// Ask this node to go get a blob
-func queueBlobFetch(oid, prev string) {
-	internodeTaskQueue <- internodeTask{
-		cmd:      fetchObjectCmd,
-		oid:      oid,
-		prevNode: prev,
-	}
-}
-
+// Ask this node to go get a blob.
+//
+// Returns false if queue is full and the request could not be queued.
 func maybeQueueBlobFetch(oid, prev string) bool {
 	select {
 	case internodeTaskQueue <- internodeTask{

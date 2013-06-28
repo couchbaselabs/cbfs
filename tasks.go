@@ -767,7 +767,10 @@ func grabSomeData() {
 
 	for _, r := range viewRes.Rows {
 		if !hasBlob(r.Id[1:]) {
-			queueBlobFetch(r.Id[1:], "")
+			if !maybeQueueBlobFetch(r.Id[1:], "") {
+				log.Printf("Fetch queue is full, giving up.")
+				return
+			}
 		}
 	}
 }
