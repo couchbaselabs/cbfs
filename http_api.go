@@ -209,14 +209,8 @@ func putMeta(w http.ResponseWriter, req *http.Request, path string) {
 			Opaque:  0,
 			Extras:  []byte{0, 0, 0, 0, 0, 0, 0, 0},
 			Body:    b}
-		resp, err := mc.Send(req)
-		if err != nil {
-			return err
-		}
-		if resp.Status != gomemcached.SUCCESS {
-			return resp
-		}
-		return nil
+		_, err := mc.Send(req)
+		return err
 	})
 
 	if err == nil {

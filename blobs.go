@@ -175,9 +175,6 @@ func markGarbage(h string) error {
 		if err != nil {
 			return err
 		}
-		if res.Status != gomemcached.SUCCESS {
-			return res
-		}
 		ownership := BlobOwnership{}
 		err = json.Unmarshal(res.Body, &ownership)
 		if err != nil {
@@ -196,14 +193,8 @@ func markGarbage(h string) error {
 			Opaque:  0,
 			Extras:  []byte{0, 0, 0, 0, 0, 0, 0, 0},
 			Body:    mustEncode(&ownership)}
-		res, err = mc.Send(req)
-		if err != nil {
-			return err
-		}
-		if res.Status != gomemcached.SUCCESS {
-			return res
-		}
-		return nil
+		_, err = mc.Send(req)
+		return err
 	})
 }
 

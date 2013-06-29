@@ -455,11 +455,8 @@ func relockTask(taskName string) bool {
 
 	err := couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
 		resp, err := mc.Get(vb, k)
-		switch {
-		case err != nil:
+		if err != nil {
 			return err
-		case resp.Status != gomemcached.SUCCESS:
-			return resp
 		}
 
 		jm := JobMarker{}
@@ -483,14 +480,8 @@ func relockTask(taskName string) bool {
 		exp := task.period().Seconds()
 		binary.BigEndian.PutUint64(req.Extras, uint64(exp))
 
-		resp, err = mc.Send(req)
-		switch {
-		case err != nil:
-			return err
-		case resp.Status != gomemcached.SUCCESS:
-			return resp
-		}
-		return nil
+		_, err = mc.Send(req)
+		return err
 	})
 
 	return err == nil
