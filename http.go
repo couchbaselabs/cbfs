@@ -433,34 +433,6 @@ func doHead(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-type geezyWriter struct {
-	orig http.ResponseWriter
-	w    io.Writer
-}
-
-func (g *geezyWriter) Header() http.Header {
-	return g.orig.Header()
-}
-
-func (g *geezyWriter) Write(data []byte) (int, error) {
-	return g.w.Write(data)
-}
-
-func (g *geezyWriter) WriteHeader(status int) {
-	g.orig.WriteHeader(status)
-}
-
-func shouldGzip(f fileMeta) bool {
-	ct := f.Headers.Get("Content-Type")
-	switch {
-	case strings.HasPrefix(ct, "text/"),
-		strings.HasPrefix(ct, "application/json; charset=utf-8"),
-		strings.HasPrefix(ct, "application/javascript"):
-		return true
-	}
-	return false
-}
-
 func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 	path, k := resolvePath(req)
 	got := fileMeta{}

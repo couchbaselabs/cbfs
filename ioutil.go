@@ -4,6 +4,8 @@ import (
 	"errors"
 	"io"
 	"math/rand"
+	"net/http"
+	"strings"
 	"time"
 )
 
@@ -108,4 +110,32 @@ func newMultiReaderTimeout(r io.Reader, to time.Duration) (ErrorCloser, io.Reade
 
 func newMultiReader(r io.Reader) (ErrorCloser, io.Reader) {
 	return newMultiReaderTimeout(r, 15*time.Second)
+}
+
+type geezyWriter struct {
+	orig http.ResponseWriter
+	w    io.Writer
+}
+
+func (g *geezyWriter) Header() http.Header {
+	return g.orig.Header()
+}
+
+func (g *geezyWriter) Write(data []byte) (int, error) {
+	return g.w.Write(data)
+}
+
+func (g *geezyWriter) WriteHeader(status int) {
+	g.orig.WriteHeader(status)
+}
+
+func shouldGzip(f fileMeta) bool {
+	ct := f.Headers.Get("Content-Type")
+	switch {
+	case strings.HasPrefix(ct, "text/"),
+		strings.HasPrefix(ct, "application/json; charset=utf-8"),
+		strings.HasPrefix(ct, "application/javascript"):
+		return true
+	}
+	return false
 }
