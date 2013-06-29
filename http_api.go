@@ -163,8 +163,7 @@ func doGetMeta(w http.ResponseWriter, req *http.Request, path string) {
 	err := couchbase.Get(shortName(path), &got)
 	if err != nil {
 		log.Printf("Error getting file %#v: %v", path, err)
-		w.WriteHeader(404)
-		w.Write([]byte(err.Error()))
+		http.Error(w, err.Error(), 404)
 		return
 	}
 
@@ -184,16 +183,14 @@ func putMeta(w http.ResponseWriter, req *http.Request, path string) {
 	err := couchbase.Gets(k, &got, &casid)
 	if err != nil {
 		log.Printf("Error getting file %#v: %v", path, err)
-		w.WriteHeader(404)
-		w.Write([]byte(err.Error()))
+		http.Error(w, err.Error(), 404)
 		return
 	}
 
 	r := json.RawMessage{}
 	err = json.NewDecoder(req.Body).Decode(&r)
 	if err != nil {
-		w.WriteHeader(400)
-		w.Write([]byte(err.Error()))
+		http.Error(w, err.Error(), 400)
 		return
 	}
 
@@ -216,8 +213,7 @@ func putMeta(w http.ResponseWriter, req *http.Request, path string) {
 	if err == nil {
 		w.WriteHeader(201)
 	} else {
-		w.WriteHeader(500)
-		w.Write([]byte(err.Error()))
+		http.Error(w, err.Error(), 500)
 	}
 }
 
