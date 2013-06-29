@@ -301,8 +301,6 @@ func syncPath(client *cbfsclient.Client, path, dest string,
 		return err
 	}
 
-	dest = quotingReplacer.Replace(dest)
-
 	retries := 3
 	serverListing, err := client.ListOrEmpty(dest)
 	for err != nil && retries > 0 {
