@@ -92,8 +92,7 @@ func altStoreFile(name string, r io.Reader,
 
 			rv := storInfo{node: nodes[0].Address()}
 
-			rurl := "http://" +
-				nodes[0].Address() + blobPrefix
+			rurl := "http://" + nodes[0].Address() + blobPrefix
 			log.Printf("Piping secondary storage of %v to %v",
 				name, nodes[0])
 
