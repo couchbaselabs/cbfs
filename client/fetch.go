@@ -133,14 +133,18 @@ func (c Client) Get(path string) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	if res.StatusCode == 300 {
+	switch res.StatusCode {
+	case 200:
+		return res.Body, nil
+	case 300:
 		defer res.Body.Close()
-		nu := res.Header.Get("Location")
-		res, err = http.Get(nu)
+		res, err = http.Get(res.Header.Get("Location"))
 		if err != nil {
 			return nil, err
 		}
+		return res.Body, nil
+	default:
+		defer res.Body.Close()
+		return nil, fmt.Errorf("HTTP Error: %v", res.Status)
 	}
-
-	return res.Body, nil
 }
