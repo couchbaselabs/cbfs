@@ -133,7 +133,7 @@ func shouldGzip(f fileMeta) bool {
 	ct := f.Headers.Get("Content-Type")
 	switch {
 	case strings.HasPrefix(ct, "text/"),
-		strings.HasPrefix(ct, "application/json; charset=utf-8"),
+		strings.HasPrefix(ct, "application/json"),
 		strings.HasPrefix(ct, "application/javascript"):
 		return true
 	}
