@@ -73,7 +73,10 @@ func pathGenerator(from string, ch chan *namedFile,
 			}, &viewRes)
 		if err != nil {
 			log.Printf("View error: %v", err)
-			errs <- err
+			select {
+			case errs <- err:
+			case <-quit:
+			}
 			return
 		}
 		for _, e := range viewRes.Errors {
@@ -89,8 +92,7 @@ func pathGenerator(from string, ch chan *namedFile,
 		for _, r := range viewRes.Rows {
 			k := strings.Join(r.Key, "/")
 			if !strings.HasPrefix(k, from) {
-				done = true
-				break
+				return
 			}
 			startKey = r.Key
 
