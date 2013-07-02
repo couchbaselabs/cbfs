@@ -2,9 +2,24 @@ package main
 
 import (
 	"archive/zip"
+	"fmt"
 	"log"
 	"net/http"
+	"strings"
 )
+
+func archiveFilename(path, ext string) string {
+	parts := strings.Split(path, "/")
+	filename := "cbfs-archive." + ext
+	for len(parts) > 0 {
+		if p := parts[len(parts)-1]; p != "" {
+			filename = p + "." + ext
+			break
+		}
+		parts = parts[:len(parts)-1]
+	}
+	return filename
+}
 
 func doZipDocs(w http.ResponseWriter, req *http.Request,
 	path string) {
@@ -17,6 +32,8 @@ func doZipDocs(w http.ResponseWriter, req *http.Request,
 	go pathGenerator(path, ch, cherr, quit)
 	go logErrors("zip", cherr)
 
+	w.Header().Set("Content-Disposition",
+		fmt.Sprintf("attachment; filename=%q", archiveFilename(path, "zip")))
 	w.Header().Set("Content-Type", "application/zip")
 	w.WriteHeader(200)
 

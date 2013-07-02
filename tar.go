@@ -3,6 +3,7 @@ package main
 import (
 	"archive/tar"
 	"compress/gzip"
+	"fmt"
 	"log"
 	"net/http"
 )
@@ -18,6 +19,8 @@ func doTarDocs(w http.ResponseWriter, req *http.Request,
 	go pathGenerator(path, ch, cherr, quit)
 	go logErrors("tar", cherr)
 
+	w.Header().Set("Content-Disposition",
+		fmt.Sprintf("attachment; filename=%q", archiveFilename(path, "tar")))
 	w.Header().Set("Content-Type", "application/x-tar")
 
 	if canGzip(req) {
