@@ -3,7 +3,6 @@ package main
 import (
 	"expvar"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -91,7 +90,6 @@ func (r *rateWriter) ReadFrom(rr io.Reader) (int64, error) {
 	n, err := io.Copy(r.w, rr)
 	r.bytesWritten += int64(n)
 	r.totalDuration += time.Since(t)
-	log.Printf("Completed ReadFrom: %v/%v", n, err)
 	return n, err
 }
 
@@ -99,5 +97,38 @@ func (r *rateWriter) recordRates() {
 	if r.bytesWritten > minRecordRate {
 		bps := float64(r.bytesWritten) / r.totalDuration.Seconds()
 		writeRate.Update(int64(bps))
+	}
+}
+
+type rateReader struct {
+	r             io.ReadCloser
+	bytesRead     int64
+	totalDuration time.Duration
+}
+
+func (r *rateReader) Read(p []byte) (int, error) {
+	t := time.Now()
+	n, err := r.r.Read(p)
+	r.bytesRead += int64(n)
+	r.totalDuration += time.Since(t)
+	return n, err
+}
+
+func (r *rateReader) WriteTo(w io.Writer) (int64, error) {
+	t := time.Now()
+	n, err := io.Copy(w, r.r)
+	r.bytesRead += int64(n)
+	r.totalDuration += time.Since(t)
+	return n, err
+}
+
+func (r *rateReader) Close() error {
+	return r.r.Close()
+}
+
+func (r *rateReader) recordRates() {
+	if r.bytesRead > minRecordRate {
+		bps := float64(r.bytesRead) / r.totalDuration.Seconds()
+		readRate.Update(int64(bps))
 	}
 }
