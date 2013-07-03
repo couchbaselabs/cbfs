@@ -7,7 +7,7 @@ import (
 	"os"
 	"text/template"
 
-	"github.com/couchbaselabs/cbfs/tool"
+	"github.com/couchbaselabs/cbfs/tools"
 )
 
 const tasksTmplText = `Which task would you like to induce?

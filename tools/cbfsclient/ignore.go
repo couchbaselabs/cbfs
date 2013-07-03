@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/couchbaselabs/cbfs/tool"
+	"github.com/couchbaselabs/cbfs/tools"
 )
 
 var ignorePatterns = []string{}

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/couchbaselabs/cbfs/tool"
+	"github.com/couchbaselabs/cbfs/tools"
 )
 
 func main() {

@@ -8,7 +8,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/couchbaselabs/cbfs/client"
-	"github.com/couchbaselabs/cbfs/tool"
+	"github.com/couchbaselabs/cbfs/tools"
 	"github.com/dustin/go-humanize"
 )
 

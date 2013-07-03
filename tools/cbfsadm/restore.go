@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/couchbaselabs/cbfs/tool"
+	"github.com/couchbaselabs/cbfs/tools"
 )
 
 var restoreFlags = flag.NewFlagSet("restore", flag.ExitOnError)

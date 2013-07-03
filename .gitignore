@@ -4,9 +4,9 @@
 *~
 /.serverguid
 /cbfs
-/cbfsadm/cbfsadm
-/cbfsclient/cbfsclient
 /storage
+/tools/cbfsadm/cbfsadm
+/tools/cbfsclient/cbfsclient
 6.out
 _*
 dist/*.gz

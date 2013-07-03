@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/couchbaselabs/cbfs/config"
-	"github.com/couchbaselabs/cbfs/tool"
+	"github.com/couchbaselabs/cbfs/tools"
 )
 
 var backupFlags = flag.NewFlagSet("backup", flag.ExitOnError)

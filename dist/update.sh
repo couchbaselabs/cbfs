@@ -28,7 +28,7 @@ buildcbfs() {
 }
 
 buildcbfsclient() {
-    pkg=$project/cbfsclient
+    pkg=$project/tools/cbfsclient
     goflags="-v -ldflags '-X main.VERSION $version'"
 
     eval env GOARCH=386   GOOS=linux CGO_ENABLED=0 go build $goflags -o $DIST/cbfsclient.lin32 $pkg &
@@ -44,7 +44,7 @@ buildcbfsclient() {
 }
 
 buildcbfsadm() {
-    pkg=$project/cbfsadm
+    pkg=$project/tools/cbfsadm
     goflags="-v -ldflags '-X main.VERSION $version'"
 
     eval env GOARCH=386   GOOS=linux CGO_ENABLED=0 go build $goflags -o $DIST/cbfsadm.lin32 $pkg &

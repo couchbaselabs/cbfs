@@ -12,7 +12,7 @@ import (
 
 	"github.com/couchbaselabs/cbfs/client"
 	"github.com/couchbaselabs/cbfs/config"
-	"github.com/couchbaselabs/cbfs/tool"
+	"github.com/couchbaselabs/cbfs/tools"
 )
 
 type Tasks map[string]map[string]struct {

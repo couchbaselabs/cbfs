@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/couchbaselabs/cbfs/client"
-	"github.com/couchbaselabs/cbfs/tool"
+	"github.com/couchbaselabs/cbfs/tools"
 )
 
 var rmFlags = flag.NewFlagSet("rm", flag.ExitOnError)

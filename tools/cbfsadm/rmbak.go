@@ -9,7 +9,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/couchbaselabs/cbfs/tool"
+	"github.com/couchbaselabs/cbfs/tools"
 )
 
 var rmbakFlags = flag.NewFlagSet("rmbak", flag.ExitOnError)

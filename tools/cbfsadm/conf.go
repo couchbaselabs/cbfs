@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/couchbaselabs/cbfs/client"
-	"github.com/couchbaselabs/cbfs/tool"
+	"github.com/couchbaselabs/cbfs/tools"
 )
 
 func getClient(u string) *cbfsclient.Client {
