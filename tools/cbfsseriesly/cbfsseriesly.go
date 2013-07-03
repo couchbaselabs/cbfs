@@ -2,6 +2,9 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -37,7 +40,34 @@ func updateNodes() {
 		return
 	}
 
+	if len(n) != len(nodes) {
+		createDatabases(n)
+	}
+
 	nodes = n
+}
+
+func createDatabases(m map[string]cbfsclient.StorageNode) {
+	for k := range m {
+		du := *serieslyUrl
+		du.Path = "/" + k
+
+		req, err := http.NewRequest("PUT", du.String(), nil)
+		if err != nil {
+			log.Fatalf("Error creating DB %q: %v", k, err)
+		}
+
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			log.Printf("Error issuing HTTP request:  %v", err)
+			return
+		}
+		defer res.Body.Close()
+
+		if res.StatusCode != 201 {
+			log.Printf("Error creating db: %v", res.Status)
+		}
+	}
 }
 
 func updateNodesLoop() {
