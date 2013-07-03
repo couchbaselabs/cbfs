@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"sync"
@@ -64,7 +65,12 @@ func fetchWorker(cb FetchCallback, nodes map[string]StorageNode,
 	defer wg.Done()
 	for w := range ch {
 		var err error
+		names := []string{}
 		for n := range w.bi.Nodes {
+			names = append(names, n)
+		}
+		for _, pos := range rand.Perm(len(names)) {
+			n := names[pos]
 			err = fetchOne(w.oid, nodes[n], cb)
 			if err == nil {
 				break
