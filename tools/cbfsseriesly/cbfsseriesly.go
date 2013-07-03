@@ -77,37 +77,41 @@ func updateNodesLoop() {
 	}
 }
 
-func pollNode(name string, node cbfsclient.StorageNode, t time.Time) {
-	log.Printf("Polling %v / %#v", name, node)
-
-	sres, err := http.Get(node.URLFor("/.cbfs/debug/"))
+func httpCopy(dest, src string) error {
+	sres, err := http.Get(src)
 	if err != nil {
-		log.Printf("Error getting data from %v: %v", name, err)
-		return
+		return err
 	}
 	defer sres.Body.Close()
 	if sres.StatusCode != 200 {
-		log.Printf("HTTP error getting debug data: %v", sres.Status)
-		return
+		return fmt.Errorf("HTTP error getting src data from %v: %v", src, sres.Status)
 	}
 
-	du := *serieslyUrl
-	du.RawQuery = "ts=" + strconv.FormatInt(t.UnixNano(), 10)
-
-	du.Path = "/" + name
-	dres, err := http.Post(du.String(), sres.Header.Get("Content-Type"), sres.Body)
+	dres, err := http.Post(dest, sres.Header.Get("Content-Type"), sres.Body)
 	if err != nil {
-		log.Printf("Error posting stats: %v", err)
+		return err
 	}
 	defer dres.Body.Close()
 
-	if dres.StatusCode != 204 {
-		log.Printf("HTTP Error posting result to %v: %v", du.String(), dres.StatusCode)
+	if dres.StatusCode != 201 {
+		errmsg, _ := ioutil.ReadAll(io.LimitReader(dres.Body, 512))
+		return fmt.Errorf("HTTP Error posting result to %v: %v\n%s",
+			dest, dres.StatusCode, errmsg)
+	}
+	return nil
+}
+
+func pollNode(name string, node cbfsclient.StorageNode, t time.Time) {
+	du := *serieslyUrl
+	du.RawQuery = "ts=" + strconv.FormatInt(t.UnixNano(), 10)
+	du.Path = "/" + name
+
+	if err := httpCopy(du.String(), node.URLFor("/.cbfs/debug/")); err != nil {
+		log.Printf("Error copying data: %v", err)
 	}
 }
 
 func poll(t time.Time) {
-	log.Printf("Polling...")
 	for k, v := range nodes {
 		go pollNode(k, v, t)
 	}
