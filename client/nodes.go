@@ -22,7 +22,11 @@ type StorageNode struct {
 }
 
 func (a StorageNode) BlobURL(h string) string {
-	return fmt.Sprintf("http://%s/.cbfs/blob/%s", a.Addr, h)
+	return a.URLFor("/.cbfs/blob/" + h)
+}
+
+func (a StorageNode) URLFor(h string) string {
+	return fmt.Sprintf("http://%s%s", a.Addr, h)
 }
 
 // Get the information about the nodes in a cluster.
