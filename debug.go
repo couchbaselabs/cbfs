@@ -16,6 +16,8 @@ var (
 	taskDurations = map[string]metrics.Histogram{}
 	writeRate     = metrics.NewBiasedHistogram()
 	readRate      = metrics.NewBiasedHistogram()
+	writeBytes    = metrics.NewBiasedHistogram()
+	readBytes     = metrics.NewBiasedHistogram()
 )
 
 func init() {
@@ -27,6 +29,12 @@ func init() {
 	m.Set("r_Bps", &metrics.HistogramExport{readRate,
 		[]float64{0.5, 0.9, 0.99, 0.999},
 		[]string{"p50", "p90", "p99", "p999"}})
+	m.Set("w_B", &metrics.HistogramExport{writeBytes,
+		[]float64{0.1, 0.2, 0.80, 0.90, 0.99},
+		[]string{"p10", "p20", "p80", "p90", "p99"}})
+	m.Set("r_B", &metrics.HistogramExport{readBytes,
+		[]float64{0.1, 0.2, 0.80, 0.90, 0.99},
+		[]string{"p10", "p20", "p80", "p90", "p99"}})
 }
 
 func initTaskMetrics() {
@@ -98,6 +106,9 @@ func (r *rateWriter) recordRates() {
 		bps := float64(r.bytesWritten) / r.totalDuration.Seconds()
 		writeRate.Update(int64(bps))
 	}
+	if r.bytesWritten > 0 {
+		writeBytes.Update(r.bytesWritten)
+	}
 }
 
 type rateReader struct {
@@ -130,5 +141,8 @@ func (r *rateReader) recordRates() {
 	if r.bytesRead > minRecordRate {
 		bps := float64(r.bytesRead) / r.totalDuration.Seconds()
 		readRate.Update(int64(bps))
+	}
+	if r.bytesRead > 0 {
+		readBytes.Update(r.bytesRead)
 	}
 }
