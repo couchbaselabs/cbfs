@@ -42,5 +42,5 @@ func shortTaskName(n string) string {
 
 func endedTask(named string, t time.Time) {
 	taskDurations[shortTaskName(named)].Update(
-		int64(time.Since(t).Nanoseconds() / int64(time.Millisecond)))
+		int64(time.Since(t) / time.Millisecond))
 }
