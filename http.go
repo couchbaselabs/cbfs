@@ -38,6 +38,7 @@ const (
 	backupStrmPrefix = "/.cbfs/backup/stream/"
 	backupPrefix     = "/.cbfs/backup/"
 	quitPrefix       = "/.cbfs/exit/"
+	debugPrefix      = "/.cbfs/debug/"
 )
 
 type storInfo struct {
@@ -736,6 +737,8 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 		doTarDocs(w, req, minusPrefix(req.URL.Path, tarPrefix))
 	case strings.HasPrefix(req.URL.Path, fsckPrefix):
 		dofsck(w, req, minusPrefix(req.URL.Path, fsckPrefix))
+	case strings.HasPrefix(req.URL.Path, debugPrefix):
+		doDebug(w, req)
 	case strings.HasPrefix(req.URL.Path, "/.cbfs/"):
 		http.Error(w, "Can't GET here", 400)
 	default:

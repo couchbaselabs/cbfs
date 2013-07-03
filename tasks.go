@@ -119,6 +119,8 @@ func init() {
 			nil,
 		},
 	}
+
+	initTaskMetrics()
 }
 
 type JobMarker struct {
@@ -520,6 +522,8 @@ func runMarkedTask(name string, job *PeriodicJob) error {
 		// running.
 		return err
 	}
+
+	defer endedTask(name, time.Now())
 	return job.f()
 }
 
