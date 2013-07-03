@@ -822,7 +822,10 @@ func doPost(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func httpHandler(w http.ResponseWriter, req *http.Request) {
+func httpHandler(ow http.ResponseWriter, req *http.Request) {
+	w := &rateWriter{w: ow}
+	defer w.recordRates()
+
 	defer req.Body.Close()
 	switch req.Method {
 	case "PUT":
