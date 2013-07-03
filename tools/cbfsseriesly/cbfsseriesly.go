@@ -130,8 +130,19 @@ func parseUrls() {
 	serieslyUrl = mustParseUrl(*serieslyUrlFlag)
 }
 
+func initHttp() {
+	http.DefaultClient = &http.Client{
+		Transport: &http.Transport{
+			DisableKeepAlives:     true,
+			ResponseHeaderTimeout: time.Millisecond * 100,
+		},
+	}
+}
+
 func main() {
 	flag.Parse()
+
+	initHttp()
 
 	parseUrls()
 
