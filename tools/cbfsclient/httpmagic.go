@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+const SIGINFO = syscall.Signal(29)
+
 type httpTracker struct {
 	t        http.RoundTripper
 	l        sync.Mutex
@@ -79,7 +81,7 @@ func initHttpMagic() {
 	}
 
 	sigch := make(chan os.Signal, 1)
-	signal.Notify(sigch, syscall.Signal(29))
+	signal.Notify(sigch, SIGINFO)
 
 	go http.DefaultTransport.(*httpTracker).report(sigch)
 }
