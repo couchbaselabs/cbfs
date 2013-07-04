@@ -70,7 +70,7 @@ type rateConn struct {
 
 func (r *rateConn) WriteTo(w io.Writer) (int64, error) {
 	n, err := io.Copy(w, r.c)
-	writeBytes.Update(n)
+	readBytes.Update(n)
 	return n, err
 }
 
@@ -82,7 +82,7 @@ func (r *rateConn) Write(b []byte) (n int, err error) {
 
 func (r *rateConn) ReadFrom(rr io.Reader) (int64, error) {
 	n, err := io.Copy(r.c, rr)
-	readBytes.Update(n)
+	writeBytes.Update(n)
 	return n, err
 }
 
