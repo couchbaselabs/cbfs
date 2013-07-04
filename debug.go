@@ -3,6 +3,7 @@ package main
 import (
 	"expvar"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -14,8 +15,6 @@ const minRecordRate = 4096
 
 var (
 	taskDurations = map[string]metrics.Histogram{}
-	writeRate     = metrics.NewBiasedHistogram()
-	readRate      = metrics.NewBiasedHistogram()
 	writeBytes    = metrics.NewBiasedHistogram()
 	readBytes     = metrics.NewBiasedHistogram()
 )
@@ -23,12 +22,6 @@ var (
 func init() {
 	m := expvar.NewMap("io")
 
-	m.Set("w_Bps", &metrics.HistogramExport{writeRate,
-		[]float64{0.5, 0.9, 0.99, 0.999},
-		[]string{"p50", "p90", "p99", "p999"}})
-	m.Set("r_Bps", &metrics.HistogramExport{readRate,
-		[]float64{0.5, 0.9, 0.99, 0.999},
-		[]string{"p50", "p90", "p99", "p999"}})
 	m.Set("w_B", &metrics.HistogramExport{writeBytes,
 		[]float64{0.1, 0.2, 0.80, 0.90, 0.99},
 		[]string{"p10", "p20", "p80", "p90", "p99"}})
@@ -71,78 +64,76 @@ func endedTask(named string, t time.Time) {
 		int64(time.Since(t) / time.Millisecond))
 }
 
-type rateWriter struct {
-	w             http.ResponseWriter
-	bytesWritten  int64
-	totalDuration time.Duration
+type rateConn struct {
+	c net.Conn
 }
 
-func (r *rateWriter) Header() http.Header {
-	return r.w.Header()
-}
-
-func (r *rateWriter) WriteHeader(i int) {
-	r.w.WriteHeader(i)
-}
-
-func (r *rateWriter) Write(b []byte) (int, error) {
-	t := time.Now()
-	n, err := r.w.Write(b)
-	r.bytesWritten += int64(n)
-	r.totalDuration += time.Since(t)
+func (r *rateConn) WriteTo(w io.Writer) (int64, error) {
+	n, err := io.Copy(w, r.c)
+	writeBytes.Update(n)
 	return n, err
 }
 
-func (r *rateWriter) ReadFrom(rr io.Reader) (int64, error) {
-	t := time.Now()
-	n, err := io.Copy(r.w, rr)
-	r.bytesWritten += int64(n)
-	r.totalDuration += time.Since(t)
+func (r *rateConn) Write(b []byte) (n int, err error) {
+	n, err = r.c.Write(b)
+	writeBytes.Update(int64(n))
+	return
+}
+
+func (r *rateConn) ReadFrom(rr io.Reader) (int64, error) {
+	n, err := io.Copy(r.c, rr)
+	readBytes.Update(n)
 	return n, err
 }
 
-func (r *rateWriter) recordRates() {
-	if r.bytesWritten > minRecordRate {
-		bps := float64(r.bytesWritten) / r.totalDuration.Seconds()
-		writeRate.Update(int64(bps))
-	}
-	if r.bytesWritten > 0 {
-		writeBytes.Update(r.bytesWritten)
-	}
+func (r *rateConn) Read(b []byte) (n int, err error) {
+	n, err = r.c.Read(b)
+	readBytes.Update(int64(n))
+	return
 }
 
-type rateReader struct {
-	r             io.ReadCloser
-	bytesRead     int64
-	totalDuration time.Duration
+func (r *rateConn) Close() error {
+	return r.c.Close()
 }
 
-func (r *rateReader) Read(p []byte) (int, error) {
-	t := time.Now()
-	n, err := r.r.Read(p)
-	r.bytesRead += int64(n)
-	r.totalDuration += time.Since(t)
-	return n, err
+func (r *rateConn) LocalAddr() net.Addr {
+	return r.c.LocalAddr()
 }
 
-func (r *rateReader) WriteTo(w io.Writer) (int64, error) {
-	t := time.Now()
-	n, err := io.Copy(w, r.r)
-	r.bytesRead += int64(n)
-	r.totalDuration += time.Since(t)
-	return n, err
+func (r *rateConn) RemoteAddr() net.Addr {
+	return r.c.RemoteAddr()
 }
 
-func (r *rateReader) Close() error {
-	return r.r.Close()
+func (r *rateConn) SetDeadline(t time.Time) error {
+	return r.c.SetDeadline(t)
 }
 
-func (r *rateReader) recordRates() {
-	if r.bytesRead > minRecordRate {
-		bps := float64(r.bytesRead) / r.totalDuration.Seconds()
-		readRate.Update(int64(bps))
-	}
-	if r.bytesRead > 0 {
-		readBytes.Update(r.bytesRead)
-	}
+func (r *rateConn) SetReadDeadline(t time.Time) error {
+	return r.c.SetReadDeadline(t)
+}
+
+func (r *rateConn) SetWriteDeadline(t time.Time) error {
+	return r.c.SetWriteDeadline(t)
+}
+
+type rateListener struct {
+	l net.Listener
+}
+
+func (r *rateListener) Accept() (net.Conn, error) {
+	c, err := r.l.Accept()
+	return &rateConn{c: c}, err
+}
+
+func (r *rateListener) Close() error {
+	return r.l.Close()
+}
+
+func (r *rateListener) Addr() net.Addr {
+	return r.l.Addr()
+}
+
+func rateListen(nettype, laddr string) (net.Listener, error) {
+	l, err := net.Listen(nettype, laddr)
+	return &rateListener{l: l}, err
 }

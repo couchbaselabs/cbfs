@@ -245,5 +245,10 @@ func main() {
 	}
 	log.Printf("Listening to web requests on %s as server %s",
 		*bindAddr, serverId)
-	log.Fatal(s.ListenAndServe())
+
+	l, err := rateListen("tcp", *bindAddr)
+	if err != nil {
+		log.Fatalf("Error listening: %v", err)
+	}
+	log.Fatal(s.Serve(l))
 }
