@@ -62,6 +62,8 @@ func downloadCommand(u string, args []string) {
 	src := dlFlags.Arg(0)
 	destbase := dlFlags.Arg(1)
 
+	initHttpMagic()
+
 	client, err := cbfsclient.New(u)
 	cbfstool.MaybeFatal(err, "Can't build a client: %v", err)
 
