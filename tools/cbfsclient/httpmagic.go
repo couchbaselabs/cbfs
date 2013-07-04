@@ -40,7 +40,6 @@ func (t *httpTracker) reportOnce() {
 }
 
 func (t *httpTracker) report(ch <-chan os.Signal) {
-	log.Printf("Waiting for signals...")
 	for _ = range ch {
 		t.reportOnce()
 	}
