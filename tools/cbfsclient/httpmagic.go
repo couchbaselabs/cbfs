@@ -70,7 +70,11 @@ func (t *httpTracker) RoundTrip(req *http.Request) (*http.Response, error) {
 	u := req.URL.String()
 	t.register(u)
 	res, err := t.t.RoundTrip(req)
-	res.Body = &trackFinalizer{res.Body, t, u}
+	if err == nil {
+		res.Body = &trackFinalizer{res.Body, t, u}
+	} else {
+		t.unregister(u)
+	}
 	return res, err
 }
 
