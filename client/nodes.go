@@ -26,6 +26,9 @@ func (a StorageNode) BlobURL(h string) string {
 }
 
 func (a StorageNode) URLFor(h string) string {
+	if h[0] != '/' {
+		h = "/" + h
+	}
 	return fmt.Sprintf("http://%s%s", a.Addr, h)
 }
 
