@@ -408,6 +408,7 @@ func uploadCommand(u string, args []string) {
 	uploadFlags.Parse(args)
 
 	initCrypto()
+	initHttpMagic()
 
 	uploadFlags.Visit(func(f *flag.Flag) {
 		if f.Name == "revs" {
