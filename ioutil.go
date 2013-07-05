@@ -125,6 +125,10 @@ func (g *geezyWriter) Write(data []byte) (int, error) {
 	return g.w.Write(data)
 }
 
+func (g *geezyWriter) ReadFrom(r io.Reader) (int64, error) {
+	return io.Copy(g.w, r)
+}
+
 func (g *geezyWriter) WriteHeader(status int) {
 	g.orig.WriteHeader(status)
 }

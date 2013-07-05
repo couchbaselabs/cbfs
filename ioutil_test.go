@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"net/http"
 	"reflect"
 	"testing"
 	"testing/iotest"
@@ -87,5 +89,39 @@ func BenchmarkRandomDataMaker(b *testing.B) {
 		if copied != int64(i) {
 			b.Fatalf("Didn't copy enough stuff: %v", copied)
 		}
+	}
+}
+
+type testWriter struct {
+}
+
+func (c *testWriter) Header() http.Header {
+	return http.Header{}
+}
+
+func (c *testWriter) Write(b []byte) (int, error) {
+	return ioutil.Discard.Write(b)
+}
+
+func (c *testWriter) ReadFrom(r io.Reader) (int64, error) {
+	return io.Copy(ioutil.Discard, r)
+}
+
+func (c *testWriter) WriteHeader(code int) {
+}
+
+func BenchmarkGeezy(b *testing.B) {
+	b.StopTimer()
+	someBytes := make([]byte, 1024*1024*64)
+	b.SetBytes(int64(len(someBytes)))
+
+	w := http.ResponseWriter(&testWriter{})
+	gz := gzip.NewWriter(w)
+	defer gz.Close()
+	w = &geezyWriter{w, gz}
+
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		io.Copy(w, bytes.NewReader(someBytes))
 	}
 }
