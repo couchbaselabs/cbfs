@@ -13,7 +13,9 @@ import (
 )
 
 // A cbfs client.
-type Client string
+type Client struct {
+	u string
+}
 
 // Construct a new cbfs client.
 func New(u string) (*Client, error) {
@@ -22,8 +24,7 @@ func New(u string) (*Client, error) {
 		return nil, err
 	}
 	uc.Path = "/"
-	rv := Client(uc.String())
-	return &rv, nil
+	return &Client{u: uc.String()}, nil
 }
 
 // Get the full URL for the given filename.
@@ -31,7 +32,7 @@ func (c Client) URLFor(fn string) string {
 	for strings.HasPrefix(fn, "/") {
 		fn = fn[1:]
 	}
-	return string(c) + fn
+	return string(c.u) + fn
 }
 
 func getJsonData(u string, into interface{}) error {
