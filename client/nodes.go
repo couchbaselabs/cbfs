@@ -30,8 +30,11 @@ func (a StorageNode) URLFor(h string) string {
 }
 
 // Get the information about the nodes in a cluster.
-func (c Client) Nodes() (map[string]StorageNode, error) {
-	rv := map[string]StorageNode{}
-	err := getJsonData(c.URLFor("/.cbfs/nodes/"), &rv)
-	return rv, err
+func (c *Client) Nodes() (map[string]StorageNode, error) {
+	var err error
+	if c.nodes == nil {
+		c.nodes = map[string]StorageNode{}
+		err = getJsonData(c.URLFor("/.cbfs/nodes/"), &c.nodes)
+	}
+	return c.nodes, err
 }

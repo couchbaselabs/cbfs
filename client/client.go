@@ -14,7 +14,8 @@ import (
 
 // A cbfs client.
 type Client struct {
-	u string
+	u     string
+	nodes map[string]StorageNode
 }
 
 // Construct a new cbfs client.
