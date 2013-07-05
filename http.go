@@ -662,6 +662,10 @@ func (c *captureResponseWriter) Write(b []byte) (int, error) {
 	return c.w.Write(b)
 }
 
+func (c *captureResponseWriter) ReadFrom(r io.Reader) (int64, error) {
+	return io.Copy(c.w, r)
+}
+
 func (c *captureResponseWriter) WriteHeader(code int) {
 	c.statusCode = code
 }
