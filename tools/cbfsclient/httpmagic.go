@@ -14,26 +14,26 @@ import (
 const SIGINFO = syscall.Signal(29)
 
 type httpTracker struct {
-	t        http.RoundTripper
-	l        sync.Mutex
+	http.RoundTripper
+	sync.Mutex
 	inflight map[string]time.Time
 }
 
 func (t *httpTracker) register(u string) {
-	t.l.Lock()
-	defer t.l.Unlock()
+	t.Lock()
+	defer t.Unlock()
 	t.inflight[u] = time.Now()
 }
 
 func (t *httpTracker) unregister(u string) {
-	t.l.Lock()
-	defer t.l.Unlock()
+	t.Lock()
+	defer t.Unlock()
 	delete(t.inflight, u)
 }
 
 func (t *httpTracker) reportOnce() {
-	t.l.Lock()
-	defer t.l.Unlock()
+	t.Lock()
+	defer t.Unlock()
 
 	log.Printf("In-flight HTTP requests:")
 	for k, t := range t.inflight {
@@ -69,7 +69,7 @@ func (d *trackFinalizer) WriteTo(w io.Writer) (n int64, err error) {
 func (t *httpTracker) RoundTrip(req *http.Request) (*http.Response, error) {
 	u := req.URL.String()
 	t.register(u)
-	res, err := t.t.RoundTrip(req)
+	res, err := t.RoundTripper.RoundTrip(req)
 	if err == nil {
 		res.Body = &trackFinalizer{res.Body, t, u}
 	} else {
@@ -80,8 +80,8 @@ func (t *httpTracker) RoundTrip(req *http.Request) (*http.Response, error) {
 
 func initHttpMagic() {
 	http.DefaultTransport = &httpTracker{
-		t:        http.DefaultTransport,
-		inflight: map[string]time.Time{},
+		RoundTripper: http.DefaultTransport,
+		inflight:     map[string]time.Time{},
 	}
 
 	sigch := make(chan os.Signal, 1)
