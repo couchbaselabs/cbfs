@@ -93,7 +93,12 @@ func (c Client) Put(srcname, dest string, r io.Reader, opts PutOptions) error {
 		}
 	}
 
-	du := c.URLFor(dest)
+	_, rn, err := c.RandomNode()
+	if err != nil {
+		return err
+	}
+
+	du := rn.URLFor(dest)
 	preq, err := http.NewRequest("PUT", du, r)
 	if err != nil {
 		return err
