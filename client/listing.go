@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 )
@@ -72,10 +71,7 @@ func (c Client) List(ustr string) (ListResult, error) {
 func (c Client) ListDepth(ustr string, depth int) (ListResult, error) {
 	result := ListResult{}
 
-	inputUrl, err := url.Parse(string(c.u))
-	if err != nil {
-		return result, err
-	}
+	inputUrl := *c.pu
 
 	for strings.HasPrefix(ustr, "/") {
 		ustr = ustr[1:]
