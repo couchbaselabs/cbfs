@@ -88,7 +88,7 @@ func fetchWorker(cb FetchCallback, nodes map[string]StorageNode,
 }
 
 // Fetch many blobs in bulk.
-func (c Client) Blobs(concurrency int,
+func (c *Client) Blobs(concurrency int,
 	cb FetchCallback, oids ...string) error {
 
 	nodes, err := c.Nodes()
