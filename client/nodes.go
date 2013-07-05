@@ -2,6 +2,7 @@ package cbfsclient
 
 import (
 	"fmt"
+	"math/rand"
 	"time"
 )
 
@@ -40,4 +41,20 @@ func (c *Client) Nodes() (map[string]StorageNode, error) {
 		err = getJsonData(c.URLFor("/.cbfs/nodes/"), &c.nodes)
 	}
 	return c.nodes, err
+}
+
+func (c *Client) RandomNode() (string, StorageNode, error) {
+	nodeMap, err := c.Nodes()
+	if err != nil {
+		return "", StorageNode{}, err
+	}
+
+	nodes := make([]string, 0, len(nodeMap))
+	for k := range nodeMap {
+		nodes = append(nodes, k)
+	}
+
+	name := nodes[rand.Intn(len(nodes))]
+
+	return name, nodeMap[name], nil
 }
