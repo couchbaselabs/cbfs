@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"net"
 	"net/http"
 	"time"
@@ -21,6 +22,14 @@ func (tc *timeoutConn) Write(b []byte) (n int, err error) {
 	tc.SetWriteDeadline(time.Now().Add(tc.readTimeout))
 	defer tc.SetWriteDeadline(time.Time{})
 	return tc.socket.Write(b)
+}
+
+func (tc *timeoutConn) ReadFrom(r io.Reader) (int64, error) {
+	return io.Copy(tc.socket, r)
+}
+
+func (tc *timeoutConn) WriteTo(w io.Writer) (int64, error) {
+	return io.Copy(w, tc.socket)
 }
 
 func (tc *timeoutConn) Close() error {
