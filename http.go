@@ -576,7 +576,7 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 	// Loop through the nodes that claim to own this blob
 	// If we encounter any errors along the way, try the next node
 	for _, sid := range nl {
-		resp, err := sid.Client().Get(sid.BlobURL(oid))
+		resp, err := sid.ClientForTransfer(ownership.Length).Get(sid.BlobURL(oid))
 		if err != nil {
 			log.Printf("Error reading %s from node %v: %v",
 				oid, sid, err)

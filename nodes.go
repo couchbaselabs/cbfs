@@ -15,6 +15,9 @@ import (
 	"github.com/dustin/gomemcached"
 )
 
+// Objects larger than this won't use Frames.
+const largishObject = 256 * 1024
+
 var VERSION = "0.0.0"
 
 var nodeTooOld = errors.New("Node information is too stale")
@@ -59,6 +62,13 @@ func (a StorageNode) Client() *http.Client {
 		return http.DefaultClient
 	}
 	return getFrameClient(addr)
+}
+
+func (a StorageNode) ClientForTransfer(l int64) *http.Client {
+	if l > largishObject {
+		return http.DefaultClient
+	}
+	return a.Client()
 }
 
 func (a StorageNode) BlobURL(h string) string {
