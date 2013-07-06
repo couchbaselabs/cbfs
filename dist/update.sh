@@ -20,6 +20,7 @@ buildcbfs() {
     eval env GOARCH=arm   GOARM=5 GOOS=linux CGO_ENABLED=0 go build $goflags -o $DIST/cbfs.arm5 $pkg &
     eval env GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go build $goflags -o $DIST/cbfs.lin64 $pkg &
     eval env GOARCH=amd64 GOOS=freebsd CGO_ENABLED=0 go build $goflags -o $DIST/cbfs.fbsd $pkg &&
+    eval env GOARCH=386   GOOS=freebsd CGO_ENABLED=0 go build $goflags -o $DIST/cbfs.fbsd32 $pkg &&
     eval env GOARCH=386   GOOS=windows go build $goflags -o $DIST/cbfs.win32.exe $pkg &
     eval env GOARCH=amd64 GOOS=windows go build $goflags -o $DIST/cbfs.win64.exe $pkg &
     eval env GOARCH=amd64 GOOS=darwin go build $goflags -o $DIST/cbfs.mac $pkg &
@@ -35,6 +36,7 @@ buildcbfsclient() {
     eval env GOARCH=arm   GOOS=linux CGO_ENABLED=0 go build $goflags -o $DIST/cbfsclient.arm $pkg &
     eval env GOARCH=arm   GOARM=5 GOOS=linux CGO_ENABLED=0 go build $goflags -o $DIST/cbfsclient.arm5 $pkg &
     eval env GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go build $goflags -o $DIST/cbfsclient.lin64 $pkg &
+    eval env GOARCH=386   GOOS=freebsd CGO_ENABLED=0 go build $goflags -o $DIST/cbfsclient.fbsd32 $pkg &&
     eval env GOARCH=amd64 GOOS=freebsd CGO_ENABLED=0 go build $goflags -o $DIST/cbfsclient.fbsd $pkg &&
     eval env GOARCH=386   GOOS=windows go build $goflags -o $DIST/cbfsclient.win32.exe $pkg &
     eval env GOARCH=amd64 GOOS=windows go build $goflags -o $DIST/cbfsclient.win64.exe $pkg &
@@ -52,6 +54,7 @@ buildcbfsadm() {
     eval env GOARCH=arm   GOARM=5 GOOS=linux CGO_ENABLED=0 go build $goflags -o $DIST/cbfsadm.arm5 $pkg &
     eval env GOARCH=amd64 GOOS=linux CGO_ENABLED=0 go build $goflags -o $DIST/cbfsadm.lin64 $pkg &
     eval env GOARCH=amd64 GOOS=freebsd CGO_ENABLED=0 go build $goflags -o $DIST/cbfsadm.fbsd $pkg &&
+    eval env GOARCH=386    GOOS=freebsd CGO_ENABLED=0 go build $goflags -o $DIST/cbfsadm.fbsd32 $pkg &&
     eval env GOARCH=386   GOOS=windows go build $goflags -o $DIST/cbfsadm.win32.exe $pkg &
     eval env GOARCH=amd64 GOOS=windows go build $goflags -o $DIST/cbfsadm.win64.exe $pkg &
     eval env GOARCH=amd64 GOOS=darwin go build $goflags -o $DIST/cbfsadm.mac $pkg &
