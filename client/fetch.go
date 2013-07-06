@@ -69,11 +69,13 @@ func fetchWorker(cb FetchCallback, nodes map[string]StorageNode,
 		for n := range w.bi.Nodes {
 			names = append(names, n)
 		}
-		for _, pos := range rand.Perm(len(names)) {
-			n := names[pos]
-			err = fetchOne(w.oid, nodes[n], cb)
-			if err == nil {
-				break
+		for i := 0; i < 3; i++ {
+			for _, pos := range rand.Perm(len(names)) {
+				n := names[pos]
+				err = fetchOne(w.oid, nodes[n], cb)
+				if err == nil {
+					break
+				}
 			}
 		}
 		if err != nil {
