@@ -6,8 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"reflect"
-	"sync"
 	"time"
 )
 
@@ -47,8 +45,14 @@ func (b brokenReader) Read([]byte) (int, error) {
 	return 0, b.err
 }
 
-func fetchOne(oid string, si StorageNode, cb FetchCallback) error {
-	res, err := http.Get(si.BlobURL(oid))
+type fetchWorker struct {
+	n  StorageNode
+	cb FetchCallback
+}
+
+func (fw fetchWorker) Work(i interface{}) error {
+	oid := i.(string)
+	res, err := http.Get(fw.n.BlobURL(oid))
 	if err != nil {
 		return err
 	}
@@ -56,137 +60,49 @@ func fetchOne(oid string, si StorageNode, cb FetchCallback) error {
 	if res.StatusCode != 200 {
 		return fmt.Errorf("HTTP error: %v", res.Status)
 	}
-	return cb(oid, res.Body)
-}
-
-func nodeFetchWorker(nodeName string, node StorageNode, cb FetchCallback,
-	ch chan nodeFetchWork, wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	for wi := range ch {
-		wi.res <- fetchOne(wi.oid, node, cb)
-	}
-}
-
-func fillSelector(wi nodeFetchWork, workchans map[string]chan nodeFetchWork,
-	nodes map[string]time.Time) []reflect.SelectCase {
-
-	cases := []reflect.SelectCase{}
-	for n := range nodes {
-		cases = append(cases, reflect.SelectCase{
-			Dir:  reflect.SelectSend,
-			Chan: reflect.ValueOf(workchans[n]),
-			Send: reflect.ValueOf(wi),
-		})
-	}
-
-	return cases
-}
-
-func fetchWorker(cb FetchCallback, nodes map[string]StorageNode,
-	ch chan fetchWork, workchans map[string]chan nodeFetchWork,
-	errch chan<- error, wg *sync.WaitGroup) {
-
-	defer wg.Done()
-	for w := range ch {
-
-		wi := nodeFetchWork{
-			oid: w.oid,
-			res: make(chan error, 1),
-		}
-
-		var err error
-		var cases []reflect.SelectCase
-		availCases := 0
-		for i := 0; i < 3; i++ {
-			if availCases == 0 {
-				cases = fillSelector(wi, workchans, w.bi.Nodes)
-			}
-			selected, _, _ := reflect.Select(cases)
-			err = <-wi.res
-			if err == nil {
-				break
-			}
-			// Now we have to retry as something went
-			// wrong.  We null out this node's channel
-			// since it gave an error, allowing us to
-			// retry on any other available node.
-			availCases--
-			cases[selected].Chan = reflect.ValueOf(nil)
-		}
-		if err != nil {
-			select {
-			case errch <- err:
-			default:
-			}
-			cb(w.oid,
-				brokenReader{fmt.Errorf("couldn't find %v", w.oid)})
-		}
-	}
-}
-
-type nodeFetchWork struct {
-	oid string
-	res chan error
+	return fw.cb(oid, res.Body)
 }
 
 // Fetch many blobs in bulk.
 func (c *Client) Blobs(totalConcurrency, destinationConcurrency int,
 	cb FetchCallback, oids ...string) error {
 
-	nodes, err := c.Nodes()
+	nodeMap, err := c.Nodes()
 	if err != nil {
 		return err
 	}
-	wgt := &sync.WaitGroup{}
-	wgn := &sync.WaitGroup{}
+
+	dests := make([]string, 0, len(nodeMap))
+	for n := range nodeMap {
+		dests = append(dests, n)
+	}
 
 	infos, err := c.getBlobInfos(oids...)
 	if err != nil {
 		return err
 	}
 
-	// Error result goes here.
-	errch := make(chan error, 1)
-	// Each blob we need to fetch goes here.
-	workch := make(chan fetchWork)
-	// Each node worker will receive its blob to do here.
-	workchans := map[string]chan nodeFetchWork{}
-
-	// Spin up destination workers.
-	for name, node := range nodes {
-		ch := make(chan nodeFetchWork)
-		workchans[name] = ch
-		for i := 0; i < destinationConcurrency; i++ {
-			wgn.Add(1)
-			go nodeFetchWorker(name, node, cb, ch, wgn)
-		}
-	}
-
-	// Spin up blob (fanout) workers.
-	for i := 0; i < totalConcurrency; i++ {
-		wgt.Add(1)
-		go fetchWorker(cb, nodes, workch, workchans, errch, wgt)
-	}
-
-	// Feed the blob (fanout) workers.
-	for oid, info := range infos {
-		workch <- fetchWork{oid, info}
-	}
-
-	// Let everything know we're done.
-	close(workch)
-	wgt.Wait()
-	for _, c := range workchans {
-		close(c)
-	}
-
+	workch := make(chan WorkInput)
 	go func() {
-		wgn.Wait()
-		close(errch)
+		// Feed the blob (fanout) workers.
+		for oid, info := range infos {
+			nodes := []string{}
+			for n := range info.Nodes {
+				nodes = append(nodes, n)
+			}
+			workch <- WorkInput{oid, nodes}
+		}
+
+		// Let everything know we're done.
+		close(workch)
 	}()
 
-	return <-errch
+	s := NewSaturator(dests, func(n string) Worker {
+		return &fetchWorker{nodeMap[n], cb}
+	},
+		&SaturatorConf{destinationConcurrency, totalConcurrency, 3})
+
+	return s.Saturate(workch)
 }
 
 // Grab a file.
