@@ -18,7 +18,8 @@ import (
 
 var dlFlags = flag.NewFlagSet("download", flag.ExitOnError)
 var dlverbose = dlFlags.Bool("v", false, "verbose download")
-var dlConcurrency = dlFlags.Int("c", 4, "Number of concurrent downloaders")
+var totalConcurrency = dlFlags.Int("ct", 4, "Total number of concurrent downloads")
+var nodeConcurrency = dlFlags.Int("cn", 2, "Max concurrent downloads per node")
 var dlNoop = dlFlags.Bool("n", false, "Noop")
 
 var totalBytes int64
@@ -80,7 +81,7 @@ func downloadCommand(u string, args []string) {
 		oids = append(oids, inf.OID)
 	}
 
-	err = client.Blobs(*dlConcurrency,
+	err = client.Blobs(*totalConcurrency, *nodeConcurrency,
 		func(oid string, r io.Reader) error {
 			return saveDownload(dests[oid], oid, r)
 		}, oids...)

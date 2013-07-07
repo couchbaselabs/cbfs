@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
 	"net/http"
 	"net/url"
+	"reflect"
 	"sync"
 	"time"
 )
@@ -59,24 +59,60 @@ func fetchOne(oid string, si StorageNode, cb FetchCallback) error {
 	return cb(oid, res.Body)
 }
 
+func nodeFetchWorker(nodeName string, node StorageNode, cb FetchCallback,
+	ch chan nodeFetchWork, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for wi := range ch {
+		wi.res <- fetchOne(wi.oid, node, cb)
+	}
+}
+
+func fillSelector(wi nodeFetchWork, workchans map[string]chan nodeFetchWork,
+	nodes map[string]time.Time) []reflect.SelectCase {
+
+	cases := []reflect.SelectCase{}
+	for n := range nodes {
+		cases = append(cases, reflect.SelectCase{
+			Dir:  reflect.SelectSend,
+			Chan: reflect.ValueOf(workchans[n]),
+			Send: reflect.ValueOf(wi),
+		})
+	}
+
+	return cases
+}
+
 func fetchWorker(cb FetchCallback, nodes map[string]StorageNode,
-	ch chan fetchWork, errch chan<- error, wg *sync.WaitGroup) {
+	ch chan fetchWork, workchans map[string]chan nodeFetchWork,
+	errch chan<- error, wg *sync.WaitGroup) {
 
 	defer wg.Done()
 	for w := range ch {
-		var err error
-		names := []string{}
-		for n := range w.bi.Nodes {
-			names = append(names, n)
+
+		wi := nodeFetchWork{
+			oid: w.oid,
+			res: make(chan error, 1),
 		}
+
+		var err error
+		var cases []reflect.SelectCase
+		availCases := 0
 		for i := 0; i < 3; i++ {
-			for _, pos := range rand.Perm(len(names)) {
-				n := names[pos]
-				err = fetchOne(w.oid, nodes[n], cb)
-				if err == nil {
-					break
-				}
+			if availCases == 0 {
+				cases = fillSelector(wi, workchans, w.bi.Nodes)
 			}
+			selected, _, _ := reflect.Select(cases)
+			err = <-wi.res
+			if err == nil {
+				break
+			}
+			// Now we have to retry as something went
+			// wrong.  We null out this node's channel
+			// since it gave an error, allowing us to
+			// retry on any other available node.
+			availCases--
+			cases[selected].Chan = reflect.ValueOf(nil)
 		}
 		if err != nil {
 			select {
@@ -89,36 +125,64 @@ func fetchWorker(cb FetchCallback, nodes map[string]StorageNode,
 	}
 }
 
+type nodeFetchWork struct {
+	oid string
+	res chan error
+}
+
 // Fetch many blobs in bulk.
-func (c *Client) Blobs(concurrency int,
+func (c *Client) Blobs(totalConcurrency, destinationConcurrency int,
 	cb FetchCallback, oids ...string) error {
 
 	nodes, err := c.Nodes()
 	if err != nil {
 		return err
 	}
+	wgt := &sync.WaitGroup{}
+	wgn := &sync.WaitGroup{}
 
 	infos, err := c.getBlobInfos(oids...)
 	if err != nil {
 		return err
 	}
 
-	workch := make(chan fetchWork)
+	// Error result goes here.
 	errch := make(chan error, 1)
+	// Each blob we need to fetch goes here.
+	workch := make(chan fetchWork)
+	// Each node worker will receive its blob to do here.
+	workchans := map[string]chan nodeFetchWork{}
 
-	wg := &sync.WaitGroup{}
-	for i := 0; i < concurrency; i++ {
-		wg.Add(1)
-		go fetchWorker(cb, nodes, workch, errch, wg)
+	// Spin up destination workers.
+	for name, node := range nodes {
+		ch := make(chan nodeFetchWork)
+		workchans[name] = ch
+		for i := 0; i < destinationConcurrency; i++ {
+			wgn.Add(1)
+			go nodeFetchWorker(name, node, cb, ch, wgn)
+		}
 	}
 
+	// Spin up blob (fanout) workers.
+	for i := 0; i < totalConcurrency; i++ {
+		wgt.Add(1)
+		go fetchWorker(cb, nodes, workch, workchans, errch, wgt)
+	}
+
+	// Feed the blob (fanout) workers.
 	for oid, info := range infos {
 		workch <- fetchWork{oid, info}
 	}
+
+	// Let everything know we're done.
 	close(workch)
+	wgt.Wait()
+	for _, c := range workchans {
+		close(c)
+	}
 
 	go func() {
-		wg.Wait()
+		wgn.Wait()
 		close(errch)
 	}()
 
