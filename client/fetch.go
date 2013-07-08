@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/dustin/go-saturate"
 )
 
 type FetchCallback func(oid string, r io.Reader) error
@@ -82,7 +84,7 @@ func (c *Client) Blobs(totalConcurrency, destinationConcurrency int,
 		return err
 	}
 
-	workch := make(chan WorkInput)
+	workch := make(chan saturator.WorkInput)
 	go func() {
 		// Feed the blob (fanout) workers.
 		for oid, info := range infos {
@@ -90,17 +92,21 @@ func (c *Client) Blobs(totalConcurrency, destinationConcurrency int,
 			for n := range info.Nodes {
 				nodes = append(nodes, n)
 			}
-			workch <- WorkInput{oid, nodes}
+			workch <- saturator.WorkInput{Input: oid, Dests: nodes}
 		}
 
 		// Let everything know we're done.
 		close(workch)
 	}()
 
-	s := NewSaturator(dests, func(n string) Worker {
+	s := saturator.New(dests, func(n string) saturator.Worker {
 		return &fetchWorker{nodeMap[n], cb}
 	},
-		&SaturatorConf{destinationConcurrency, totalConcurrency, 3})
+		&saturator.Config{
+			DestConcurrency:  destinationConcurrency,
+			TotalConcurrency: totalConcurrency,
+			Retries:          3,
+		})
 
 	return s.Saturate(workch)
 }
