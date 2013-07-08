@@ -14,8 +14,8 @@ import (
 const SIGINFO = syscall.Signal(29)
 
 type httpTracker struct {
-	http.RoundTripper
 	sync.Mutex
+	next     http.RoundTripper
 	inflight map[string]time.Time
 }
 
@@ -69,7 +69,7 @@ func (d *trackFinalizer) WriteTo(w io.Writer) (n int64, err error) {
 func (t *httpTracker) RoundTrip(req *http.Request) (*http.Response, error) {
 	u := req.URL.String()
 	t.register(u)
-	res, err := t.RoundTripper.RoundTrip(req)
+	res, err := t.next.RoundTrip(req)
 	if err == nil {
 		res.Body = &trackFinalizer{res.Body, t, u}
 	} else {
@@ -80,8 +80,8 @@ func (t *httpTracker) RoundTrip(req *http.Request) (*http.Response, error) {
 
 func initHttpMagic() {
 	http.DefaultTransport = &httpTracker{
-		RoundTripper: http.DefaultTransport,
-		inflight:     map[string]time.Time{},
+		next:     http.DefaultTransport,
+		inflight: map[string]time.Time{},
 	}
 
 	sigch := make(chan os.Signal, 1)
