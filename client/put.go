@@ -117,7 +117,7 @@ func (c Client) Put(srcname, dest string, r io.Reader, opts PutOptions) error {
 
 	ctype := opts.ContentType
 	if ctype == "" {
-		ctype := http.DetectContentType(someBytes)
+		ctype = http.DetectContentType(someBytes)
 		if strings.HasPrefix(ctype, "text/plain") ||
 			strings.HasPrefix(ctype, "application/octet-stream") {
 			ctype = recognizeTypeByName(srcname, ctype)
