@@ -38,14 +38,6 @@ func fsckCommand(ustr string, args []string) {
 		os.Exit(1)
 	}
 
-	status := struct {
-		Path  string `json:"path"`
-		OID   string `json:"oid,omitempty"`
-		Reps  int    `json:"reps,omitempty"`
-		EType string `json:"etype,omitempty"`
-		Error string `json:"error,omitempty"`
-	}{}
-
 	found := 0
 	errors := 0
 
@@ -70,6 +62,14 @@ func fsckCommand(ustr string, args []string) {
 
 	d := json.NewDecoder(res.Body)
 	for {
+		status := struct {
+			Path  string `json:"path"`
+			OID   string `json:"oid,omitempty"`
+			Reps  int    `json:"reps,omitempty"`
+			EType string `json:"etype,omitempty"`
+			Error string `json:"error,omitempty"`
+		}{}
+
 		err = d.Decode(&status)
 		if err != nil {
 			if err == io.EOF {
