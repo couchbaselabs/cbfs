@@ -341,8 +341,8 @@ func doPut(w http.ResponseWriter, req *http.Request) {
 }
 
 func isResponseHeader(s string) bool {
-	switch s {
-	case "Content-Type":
+	switch strings.ToLower(s) {
+	case "content-type":
 		return true
 	}
 	return false
