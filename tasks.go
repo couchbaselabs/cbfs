@@ -704,6 +704,7 @@ func garbageCollectBlobs() error {
 
 							inBackup++
 						} else if okToClean(blobId) {
+							log.Printf("GC removing %v from %v", blobId, n)
 							queueBlobRemoval(n, blobId)
 							count++
 						} else {
