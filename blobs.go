@@ -18,11 +18,12 @@ import (
 )
 
 type BlobOwnership struct {
-	OID     string               `json:"oid"`
-	Length  int64                `json:"length"`
-	Nodes   map[string]time.Time `json:"nodes"`
-	Type    string               `json:"type"`
-	Garbage bool                 `json:"garbage"`
+	OID        string               `json:"oid"`
+	Length     int64                `json:"length"`
+	Nodes      map[string]time.Time `json:"nodes"`
+	Type       string               `json:"type"`
+	Garbage    bool                 `json:"garbage"`
+	Referenced time.Time            `json:"referenced"`
 }
 
 type internodeCommand uint8
@@ -81,6 +82,13 @@ func (b BlobOwnership) mostRecent() (string, time.Time) {
 	}
 
 	return rvnode, rvt
+}
+func (b BlobOwnership) latestReference() time.Time {
+	_, t := b.mostRecent()
+	if b.Referenced.After(t) {
+		t = b.Referenced
+	}
+	return t
 }
 
 func (b BlobOwnership) ResolveRemoteNodes() NodeList {
@@ -168,6 +176,35 @@ func recordBlobOwnership(h string, l int64, force bool) error {
 	return err
 }
 
+func referenceBlob(h string) (rv BlobOwnership, err error) {
+	k := "/" + h
+	err = couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
+		res, err := mc.Get(vb, k)
+		if err != nil {
+			return err
+		}
+		ownership := BlobOwnership{}
+		err = json.Unmarshal(res.Body, &ownership)
+		if err != nil {
+			return err
+		}
+		ownership.Referenced = time.Now()
+		ownership.Garbage = false
+		rv = ownership
+		req := &gomemcached.MCRequest{
+			Opcode:  gomemcached.SET,
+			VBucket: vb,
+			Key:     []byte(k),
+			Cas:     res.Cas,
+			Opaque:  0,
+			Extras:  []byte{0, 0, 0, 0, 0, 0, 0, 0},
+			Body:    mustEncode(&ownership)}
+		_, err = mc.Send(req)
+		return err
+	})
+	return
+}
+
 func markGarbage(h string) error {
 	k := "/" + h
 	return couchbase.Do(k, func(mc *memcached.Client, vb uint16) error {
@@ -180,7 +217,7 @@ func markGarbage(h string) error {
 		if err != nil {
 			return err
 		}
-		_, t := ownership.mostRecent()
+		t := ownership.latestReference()
 		if time.Since(t) < time.Minute*15 {
 			return errors.New("too soon")
 		}

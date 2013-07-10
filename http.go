@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/dustin/gomemcached"
 )
 
 const (
@@ -806,6 +808,41 @@ func doExit(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(202)
 }
 
+func doLinkFile(w http.ResponseWriter, req *http.Request) {
+	fn := req.URL.Path
+	h := req.FormValue("hash")
+	t := req.FormValue("type")
+
+	for len(fn) > 0 && fn[0] == '/' {
+		fn = fn[1:]
+	}
+
+	blob, err := referenceBlob(h)
+	if err != nil {
+		estat := 500
+		if gomemcached.IsNotFound(err) {
+			estat = 404
+		}
+		http.Error(w, err.Error(), estat)
+	}
+
+	fm := fileMeta{
+		Headers: http.Header{
+			"Content-Type": []string{t},
+		},
+		OID:      h,
+		Length:   blob.Length,
+		Modified: time.Now().UTC(),
+	}
+
+	err = maybeStoreMeta(fn, fm, true)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	w.WriteHeader(201)
+}
+
 func doPost(w http.ResponseWriter, req *http.Request) {
 	if req.URL.Path == blobPrefix {
 		doPostRawBlob(w, req)
@@ -822,7 +859,7 @@ func doPost(w http.ResponseWriter, req *http.Request) {
 	} else if strings.HasPrefix(req.URL.Path, quitPrefix) {
 		doExit(w, req)
 	} else {
-		w.WriteHeader(http.StatusMethodNotAllowed)
+		doLinkFile(w, req)
 	}
 }
 
