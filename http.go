@@ -810,7 +810,7 @@ func doExit(w http.ResponseWriter, req *http.Request) {
 
 func doLinkFile(w http.ResponseWriter, req *http.Request) {
 	fn := req.URL.Path
-	h := req.FormValue("hash")
+	h := req.FormValue("blob")
 	t := req.FormValue("type")
 
 	for len(fn) > 0 && fn[0] == '/' {
