@@ -74,7 +74,7 @@ compress() {
 
 upload() {
     cbfsclient ${cbfsserver:-http://cbfs:8484/} upload \
-        -ignore=$DIST/.cbfsclient.ignore -delete -v \
+        -unsafe -ignore=$DIST/.cbfsclient.ignore -delete -v \
         $DIST/ dist/
 }
 
