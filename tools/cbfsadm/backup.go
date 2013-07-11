@@ -28,8 +28,7 @@ type Backup struct {
 func backupCommand(ustr string, args []string) {
 	backupFlags.Parse(args)
 
-	u, err := url.Parse(ustr)
-	cbfstool.MaybeFatal(err, "Error parsing URL: %v", err)
+	u := cbfstool.ParseURL(ustr)
 
 	fn := backupFlags.Arg(0)
 

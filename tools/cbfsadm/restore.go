@@ -9,7 +9,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"regexp"
 	"sync"
@@ -36,14 +35,12 @@ func restoreFile(base, path string, data interface{}) error {
 		return nil
 	}
 
-	u, err := url.Parse(base)
-	cbfstool.MaybeFatal(err, "Error parsing URL: %v", err)
-
 	fileMetaBytes, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
 
+	u := cbfstool.ParseURL(base)
 	u.Path = fmt.Sprintf("/.cbfs/backup/restore/%v", path)
 	res, err := http.Post(u.String(),
 		"application/json",

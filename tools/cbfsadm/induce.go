@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"text/template"
 
@@ -23,9 +22,7 @@ Local Tasks:
 var tasksTmpl = template.Must(template.New("").Parse(tasksTmplText))
 
 func induceTask(ustr, taskname string) {
-	u, err := url.Parse(ustr)
-	cbfstool.MaybeFatal(err, "Error parsing URL: %v", err)
-
+	u := cbfstool.ParseURL(ustr)
 	u.Path = "/.cbfs/tasks/" + taskname
 
 	res, err := http.PostForm(u.String(), nil)
@@ -37,9 +34,7 @@ func induceTask(ustr, taskname string) {
 }
 
 func listTasks(ustr string) {
-	u, err := url.Parse(ustr)
-	cbfstool.MaybeFatal(err, "Error parsing URL: %v", err)
-
+	u := cbfstool.ParseURL(ustr)
 	u.Path = "/.cbfs/tasks/info/"
 
 	d := struct {
@@ -47,7 +42,7 @@ func listTasks(ustr string) {
 		Local  map[string][]string `json:"local"`
 	}{make(map[string][]string), make(map[string][]string)}
 
-	err = cbfstool.GetJsonData(u.String(), &d)
+	err := cbfstool.GetJsonData(u.String(), &d)
 	cbfstool.MaybeFatal(err, "Error getting task info: %v", err)
 
 	tasksTmpl.Execute(os.Stdout, d)

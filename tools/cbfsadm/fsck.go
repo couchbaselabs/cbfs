@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"time"
 
@@ -20,9 +19,7 @@ var fsckVerbose = fsckFlags.Bool("v", false, "Use more bandwidth, say more stuff
 func fsckCommand(ustr string, args []string) {
 	fsckFlags.Parse(args)
 
-	u, err := url.Parse(ustr)
-	cbfstool.MaybeFatal(err, "Error parsing URL: %v", err)
-
+	u := cbfstool.ParseURL(ustr)
 	u.Path = "/.cbfs/fsck/"
 	if !*fsckVerbose {
 		u.RawQuery = "errsonly=true"

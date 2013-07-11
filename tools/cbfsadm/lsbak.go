@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/url"
 	"os"
 	"text/tabwriter"
 
@@ -10,14 +9,13 @@ import (
 )
 
 func lsBakCommand(ustr string, args []string) {
-	u, err := url.Parse(ustr)
-	cbfstool.MaybeFatal(err, "Error parsing URL: %v", err)
+	u := cbfstool.ParseURL(ustr)
 	u.Path = "/.cbfs/backup/"
 
 	backups := struct {
 		Previous []Backup `json:"backups"`
 	}{}
-	err = cbfstool.GetJsonData(u.String(), &backups)
+	err := cbfstool.GetJsonData(u.String(), &backups)
 	cbfstool.MaybeFatal(err, "Error getting backup info: %v", err)
 
 	tw := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)

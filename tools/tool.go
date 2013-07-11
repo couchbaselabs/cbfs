@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -83,6 +84,12 @@ func Verbose(v bool, f string, a ...interface{}) {
 	if v {
 		log.Printf(f, a...)
 	}
+}
+
+func ParseURL(ustr string) *url.URL {
+	u, err := url.Parse(ustr)
+	MaybeFatal(err, "Error parsing URL: %v", err)
+	return u
 }
 
 func ToolMain(commands map[string]Command) {

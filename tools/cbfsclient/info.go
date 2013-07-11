@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"flag"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"sync"
 	"text/template"
@@ -73,9 +72,6 @@ func infoCommand(base string, args []string) {
 	tmpl, err := template.New("").Parse(tmplstr)
 	cbfstool.MaybeFatal(err, "Error parsing template: %v", err)
 
-	u, err := url.Parse(base)
-	cbfstool.MaybeFatal(err, "Error parsing URL: %v", err)
-
 	result := struct {
 		Nodes   Nodes
 		Tasks   Tasks
@@ -93,8 +89,9 @@ func infoCommand(base string, args []string) {
 		"/.cbfs/config/": &result.Conf,
 	}
 
-	wg := sync.WaitGroup{}
+	u := cbfstool.ParseURL(base)
 
+	wg := sync.WaitGroup{}
 	for k, v := range todo {
 		u.Path = k
 		wg.Add(1)

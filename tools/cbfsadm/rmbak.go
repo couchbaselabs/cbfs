@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"sort"
 	"sync"
 
@@ -36,9 +35,7 @@ func (b backups) Swap(i, j int) {
 }
 
 func relativeUrl(u, path string) string {
-	du, err := url.Parse(u)
-	cbfstool.MaybeFatal(err, "Error parsing url: %v", err)
-
+	du := cbfstool.ParseURL(u)
 	du.Path = path
 	if du.Path[0] != '/' {
 		du.Path = "/" + du.Path
@@ -81,14 +78,12 @@ func rmBakWorker() {
 func rmBakCommand(ustr string, args []string) {
 	rmbakFlags.Parse(args)
 
-	u, err := url.Parse(ustr)
-	cbfstool.MaybeFatal(err, "Error parsing URL: %v", err)
-
+	u := cbfstool.ParseURL(ustr)
 	u.Path = "/.cbfs/backup/"
 
 	data := struct{ Backups backups }{}
 
-	err = cbfstool.GetJsonData(u.String(), &data)
+	err := cbfstool.GetJsonData(u.String(), &data)
 	cbfstool.MaybeFatal(err, "Error getting backup data: %v", err)
 
 	sort.Sort(data.Backups)
