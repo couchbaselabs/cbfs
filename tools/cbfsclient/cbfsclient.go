@@ -12,5 +12,6 @@ func main() {
 			"ls":       {0, lsCommand, "[path]", lsFlags},
 			"rm":       {-1, rmCommand, "path", rmFlags},
 			"info":     {0, infoCommand, "", infoFlags},
+			"fileinfo": {1, fileInfoCommand, "", fileInfoFlags},
 		})
 }

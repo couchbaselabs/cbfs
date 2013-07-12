@@ -17,7 +17,7 @@ type blobInfo struct {
 	Nodes map[string]time.Time
 }
 
-func (c Client) getBlobInfos(oids ...string) (map[string]blobInfo, error) {
+func (c Client) GetBlobInfos(oids ...string) (map[string]blobInfo, error) {
 	u := c.URLFor("/.cbfs/blob/info/")
 	form := url.Values{"blob": oids}
 	res, err := http.PostForm(u, form)
@@ -79,7 +79,7 @@ func (c *Client) Blobs(totalConcurrency, destinationConcurrency int,
 		dests = append(dests, n)
 	}
 
-	infos, err := c.getBlobInfos(oids...)
+	infos, err := c.GetBlobInfos(oids...)
 	if err != nil {
 		return err
 	}
