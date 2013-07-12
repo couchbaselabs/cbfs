@@ -46,6 +46,10 @@ func recognizeTypeByName(n, def string) string {
 		return "application/json"
 	case strings.HasSuffix(n, ".css"):
 		return "text/css"
+	case strings.HasSuffix(n, ".mp4"), strings.HasSuffix(n, ".m4v"):
+		return "video/mp4"
+	case strings.HasSuffix(n, ".mov"):
+		return "video/quicktime"
 	}
 	return def
 }
