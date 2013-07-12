@@ -45,7 +45,7 @@ func fileInfoCommand(base string, args []string) {
 
 	fmt.Printf("File: %q\n\n", u.Path[1:])
 
-	fmt.Printf("Headers\n")
+	fmt.Printf("Headers:\n")
 
 	for k, vs := range res.Header {
 		fmt.Printf("\t%v = %v\n", k, strings.Join(vs, ", "))
