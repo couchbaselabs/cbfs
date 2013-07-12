@@ -858,6 +858,8 @@ func doPost(w http.ResponseWriter, req *http.Request) {
 		doBackupDocs(w, req)
 	} else if strings.HasPrefix(req.URL.Path, quitPrefix) {
 		doExit(w, req)
+	} else if strings.HasPrefix(req.URL.Path, "/.cbfs/") {
+		http.Error(w, "Can't POST here", 400)
 	} else {
 		doLinkFile(w, req)
 	}
