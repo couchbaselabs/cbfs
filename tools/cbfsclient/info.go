@@ -3,10 +3,8 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"io/ioutil"
 	"os"
 	"sync"
-	"text/template"
 	"time"
 
 	"github.com/couchbaselabs/cbfs/client"
@@ -53,24 +51,8 @@ config:
 func infoCommand(base string, args []string) {
 	infoFlags.Parse(args)
 
-	tmplstr := *infoTemplate
-	if tmplstr == "" {
-		switch *infoTemplateFile {
-		case "":
-			tmplstr = defaultInfoTemplate
-		case "-":
-			td, err := ioutil.ReadAll(os.Stdin)
-			cbfstool.MaybeFatal(err, "Error reading template from stdin: %v", err)
-			tmplstr = string(td)
-		default:
-			td, err := ioutil.ReadFile(*infoTemplateFile)
-			cbfstool.MaybeFatal(err, "Error reading template file: %v", err)
-			tmplstr = string(td)
-		}
-	}
-
-	tmpl, err := template.New("").Parse(tmplstr)
-	cbfstool.MaybeFatal(err, "Error parsing template: %v", err)
+	tmpl := cbfstool.GetTemplate(*infoTemplate, *infoTemplateFile,
+		defaultInfoTemplate)
 
 	result := struct {
 		Nodes   Nodes
@@ -97,7 +79,7 @@ func infoCommand(base string, args []string) {
 		wg.Add(1)
 		go func(s string, to interface{}) {
 			defer wg.Done()
-			err = cbfstool.GetJsonData(s, to)
+			err := cbfstool.GetJsonData(s, to)
 			cbfstool.MaybeFatal(err, "Error getting node info: %v", err)
 		}(u.String(), v)
 	}
@@ -109,7 +91,7 @@ func infoCommand(base string, args []string) {
 		cbfstool.MaybeFatal(err, "Error marshaling rseult: %v", err)
 		os.Stdout.Write(data)
 	} else {
-		err = tmpl.Execute(os.Stdout, result)
+		err := tmpl.Execute(os.Stdout, result)
 		cbfstool.MaybeFatal(err, "Error executing template: %v", err)
 	}
 }

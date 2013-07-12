@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"sort"
 	"strings"
+	"text/template"
 )
 
 type Command struct {
@@ -58,6 +60,32 @@ func setUsage(commands map[string]Command) {
 
 		os.Exit(1)
 	}
+}
+
+func GetTemplate(ttext, filename, tdefault string) *template.Template {
+	tmplstr := ttext
+	if tmplstr == "" {
+		switch filename {
+		case "":
+			tmplstr = tdefault
+		case "-":
+			td, err := ioutil.ReadAll(os.Stdin)
+			MaybeFatal(err, "Error reading template from stdin: %v", err)
+			tmplstr = string(td)
+		default:
+			td, err := ioutil.ReadFile(filename)
+			MaybeFatal(err, "Error reading template file: %v", err)
+			tmplstr = string(td)
+		}
+	}
+
+	tmpl, err := template.New("").Funcs(template.FuncMap{
+		"join": func(o string, s []string) string {
+			return strings.Join(s, o)
+		},
+	}).Parse(tmplstr)
+	MaybeFatal(err, "Error parsing template: %v", err)
+	return tmpl
 }
 
 func GetJsonData(u string, into interface{}) error {
