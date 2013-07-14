@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"time"
@@ -145,8 +146,8 @@ func (c Client) Get(path string) (io.ReadCloser, error) {
 
 // File info
 type FileHandle struct {
+	c      Client
 	oid    string
-	off    int64
 	length int64
 	header http.Header
 	nodes  map[string]time.Time
@@ -160,6 +161,49 @@ func (f *FileHandle) Nodes() map[string]time.Time {
 // The headers from the file request.
 func (f *FileHandle) Header() http.Header {
 	return f.header
+}
+
+// Length of this file
+func (f *FileHandle) Length() int64 {
+	return f.length
+}
+
+// Implement io.ReaderAt
+func (f *FileHandle) ReadAt(p []byte, off int64) (n int, err error) {
+	end := int64(len(p)) + off
+	if end > f.length {
+		return 0, fmt.Errorf("Would seek past EOF")
+	}
+
+	nodes, err := f.c.Nodes()
+	if err != nil {
+		return 0, err
+	}
+
+	nodelist := []StorageNode{}
+	for k := range nodes {
+		if n, ok := nodes[k]; ok {
+			nodelist = append(nodelist, n)
+		}
+	}
+
+	u := nodelist[rand.Intn(len(nodelist))].BlobURL(f.oid)
+
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("Range", fmt.Sprintf("bytes=%v-%v", off, end))
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 206 {
+		return 0, fmt.Errorf("Unexpected http response: %v", res.Status)
+	}
+
+	return io.ReadFull(res.Body, p)
 }
 
 // Get a reference to the file at the given path.
@@ -185,5 +229,5 @@ func (c Client) OpenFile(path string) (*FileHandle, error) {
 		return nil, err
 	}
 
-	return &FileHandle{h, 0, res.ContentLength, res.Header, infos[h].Nodes}, nil
+	return &FileHandle{c, h, res.ContentLength, res.Header, infos[h].Nodes}, nil
 }
