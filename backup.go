@@ -341,6 +341,8 @@ func loadBackupHashes(oid string) (*hashset.Hashset, int, error) {
 
 	d := json.NewDecoder(gz)
 
+	hashlen := getHash().Size()
+
 	visited := 0
 	for {
 		ob := struct {
@@ -358,6 +360,10 @@ func loadBackupHashes(oid string) (*hashset.Hashset, int, error) {
 			oid, err := hex.DecodeString(ob.Meta.OID)
 			if err != nil {
 				return nil, visited, err
+			}
+			if len(oid) != hashlen {
+				log.Printf("Invalid hash from %#v", ob)
+				continue
 			}
 			rv.Add(oid)
 			visited++
