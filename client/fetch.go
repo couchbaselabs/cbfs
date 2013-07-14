@@ -142,3 +142,48 @@ func (c Client) Get(path string) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("HTTP Error: %v", res.Status)
 	}
 }
+
+// File info
+type FileHandle struct {
+	oid    string
+	off    int64
+	length int64
+	header http.Header
+	nodes  map[string]time.Time
+}
+
+// The nodes containing the files and the last time it was scrubed.
+func (f *FileHandle) Nodes() map[string]time.Time {
+	return f.nodes
+}
+
+// The headers from the file request.
+func (f *FileHandle) Header() http.Header {
+	return f.header
+}
+
+// Get a reference to the file at the given path.
+func (c Client) OpenFile(path string) (*FileHandle, error) {
+	res, err := http.Head(c.URLFor(path))
+	if err != nil {
+		return nil, err
+	}
+	res.Body.Close()
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("HTTP error: %v", res.Status)
+	}
+
+	h := res.Header.Get("etag")
+	if h == "" {
+		return nil, fmt.Errorf("No etag in response headers")
+	}
+
+	h = h[1 : len(h)-1]
+
+	infos, err := c.GetBlobInfos(h)
+	if err != nil {
+		return nil, err
+	}
+
+	return &FileHandle{h, 0, res.ContentLength, res.Header, infos[h].Nodes}, nil
+}

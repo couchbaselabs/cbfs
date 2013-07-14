@@ -2,8 +2,6 @@ package main
 
 import (
 	"flag"
-	"log"
-	"net/http"
 	"os"
 
 	"github.com/couchbaselabs/cbfs/client"
@@ -35,31 +33,16 @@ func fileInfoCommand(base string, args []string) {
 		u.Path = "/" + u.Path
 	}
 
-	res, err := http.Head(u.String())
-	if err != nil {
-		log.Fatalf("Error getting %v: %v", u, err)
-	}
-	res.Body.Close()
-	if res.StatusCode != 200 {
-		log.Fatalf("HTTP Error on %v: %v", u, res.Status)
-	}
+	client, err := cbfsclient.New(base)
+	cbfstool.MaybeFatal(err, "Error getting client: %v", err)
 
-	h := res.Header.Get("etag")
-	if h == "" {
-		log.Fatalf("No etag found.")
-	}
-	h = h[1 : len(h)-1]
-
-	client, err := cbfsclient.New(u.String())
-	infos, err := client.GetBlobInfos(h)
-	if err != nil {
-		log.Fatalf("Coudln't get blob info for %q: %v", h, err)
-	}
+	fh, err := client.OpenFile(args[0])
+	cbfstool.MaybeFatal(err, "Error getting file info: %v", err)
 
 	err = tmpl.Execute(os.Stdout, map[string]interface{}{
 		"Filename": u.Path[1:],
-		"Header":   res.Header,
-		"Nodes":    infos[h].Nodes,
+		"Header":   fh.Header(),
+		"Nodes":    fh.Nodes(),
 	})
 	cbfstool.MaybeFatal(err, "Error executing template: %v", err)
 }
