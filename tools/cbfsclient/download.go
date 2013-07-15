@@ -63,6 +63,10 @@ func downloadCommand(u string, args []string) {
 	src := dlFlags.Arg(0)
 	destbase := dlFlags.Arg(1)
 
+	if destbase == "" {
+		destbase = filepath.Base(src)
+	}
+
 	initHttpMagic()
 
 	client, err := cbfsclient.New(u)
