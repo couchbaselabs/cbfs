@@ -13,7 +13,7 @@ func main() {
 			"backup":  {1, backupCommand, "filename", backupFlags},
 			"rmbak":   {0, rmBakCommand, "", rmbakFlags},
 			"restore": {1, restoreCommand, "filename", restoreFlags},
-			"induce":  {0, induceCommand, "taskname", nil},
+			"induce":  {0, induceCommand, "taskname", induceFlags},
 			"lsbak":   {0, lsBakCommand, "", nil},
 		})
 }

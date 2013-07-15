@@ -1,11 +1,14 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"text/template"
 
+	"github.com/couchbaselabs/cbfs/client"
 	"github.com/couchbaselabs/cbfs/tools"
 )
 
@@ -21,15 +24,41 @@ Local Tasks:
 
 var tasksTmpl = template.Must(template.New("").Parse(tasksTmplText))
 
-func induceTask(ustr, taskname string) {
+var induceFlags = flag.NewFlagSet("induce", flag.ExitOnError)
+var induceAll = induceFlags.Bool("all", false, "induce on all nodes")
+
+func induceTask(ustr, taskname string) error {
 	u := cbfstool.ParseURL(ustr)
 	u.Path = "/.cbfs/tasks/" + taskname
 
 	res, err := http.PostForm(u.String(), nil)
-	cbfstool.MaybeFatal(err, "Error inducing %v: %v", taskname, err)
+	if err != nil {
+		return err
+	}
 
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		log.Fatalf("Error inducing %v: %v", taskname, res.Status)
+		return fmt.Errorf("HTTP error: %v", res.Status)
+	}
+	return nil
+}
+
+func induceTaskAll(base, taskname string) {
+	c, err := cbfsclient.New(base)
+	cbfstool.MaybeFatal(err, "Error getting client: %v", err)
+
+	errs := 0
+	nodes, err := c.Nodes()
+	cbfstool.MaybeFatal(err, "Error getting nodes: %v", err)
+
+	for name, n := range nodes {
+		err := induceTask(n.URLFor("/"), taskname)
+		if err != nil {
+			log.Printf("Error on node %v: %v", name, err)
+			errs++
+		}
+	}
+	if errs != 0 {
+		log.Fatalf("There were errors.")
 	}
 }
 
@@ -49,9 +78,17 @@ func listTasks(ustr string) {
 }
 
 func induceCommand(ustr string, args []string) {
-	if len(args) < 1 {
+	induceFlags.Parse(args)
+
+	if induceFlags.NArg() < 1 {
 		listTasks(ustr)
 	} else {
-		induceTask(ustr, args[0])
+		taskname := induceFlags.Arg(0)
+		if *induceAll {
+			induceTaskAll(ustr, taskname)
+		} else {
+			err := induceTask(ustr, taskname)
+			cbfstool.MaybeFatal(err, "Error inducing %v", taskname)
+		}
 	}
 }
