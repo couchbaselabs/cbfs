@@ -406,8 +406,6 @@ func syncUp(client *cbfsclient.Client, src, u string, ch chan<- uploadReq) {
 }
 
 func uploadCommand(u string, args []string) {
-	uploadFlags.Parse(args)
-
 	initCrypto()
 	initHttpMagic()
 

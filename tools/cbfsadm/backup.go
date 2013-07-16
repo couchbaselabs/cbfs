@@ -26,8 +26,6 @@ type Backup struct {
 }
 
 func backupCommand(ustr string, args []string) {
-	backupFlags.Parse(args)
-
 	u := cbfstool.ParseURL(ustr)
 
 	fn := backupFlags.Arg(0)

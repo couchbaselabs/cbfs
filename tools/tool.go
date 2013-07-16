@@ -145,17 +145,25 @@ func ToolMain(commands map[string]Command) {
 		fmt.Fprintf(os.Stderr, "Unknown command: %v\n", cmdName)
 		flag.Usage()
 	}
+
+	args := flag.Args()[off+1:]
+	nargs := len(args)
+	if cmd.Flags != nil {
+		cmd.Flags.Parse(args)
+		nargs = cmd.Flags.NArg()
+	}
+
 	if cmd.Nargs == 0 {
 	} else if cmd.Nargs < 0 {
 		reqargs := -cmd.Nargs
-		if flag.NArg()-1-off < reqargs {
+		if nargs < reqargs {
 			cmd.Usage(cmdName)
 		}
 	} else {
-		if flag.NArg()-1-off != cmd.Nargs {
+		if nargs != cmd.Nargs {
 			cmd.Usage(cmdName)
 		}
 	}
 
-	cmd.F(u, flag.Args()[off+1:])
+	cmd.F(u, args)
 }

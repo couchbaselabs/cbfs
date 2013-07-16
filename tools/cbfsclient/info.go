@@ -49,8 +49,6 @@ config:
 `
 
 func infoCommand(base string, args []string) {
-	infoFlags.Parse(args)
-
 	tmpl := cbfstool.GetTemplate(*infoTemplate, *infoTemplateFile,
 		defaultInfoTemplate)
 

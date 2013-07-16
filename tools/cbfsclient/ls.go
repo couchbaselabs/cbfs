@@ -16,8 +16,6 @@ var lsFlags = flag.NewFlagSet("ls", flag.ExitOnError)
 var lsDashL = lsFlags.Bool("l", false, "Display detailed listing")
 
 func lsCommand(u string, args []string) {
-	lsFlags.Parse(args)
-
 	client, err := cbfsclient.New(u)
 	cbfstool.MaybeFatal(err, "Error creating client: %v", err)
 

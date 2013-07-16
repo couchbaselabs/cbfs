@@ -76,8 +76,6 @@ func restoreWorker(wg *sync.WaitGroup, base string, ch <-chan restoreWorkItem) {
 }
 
 func restoreCommand(ustr string, args []string) {
-	restoreFlags.Parse(args)
-
 	regex, err := regexp.Compile(*restorePat)
 	cbfstool.MaybeFatal(err, "Error parsing match pattern: %v", err)
 

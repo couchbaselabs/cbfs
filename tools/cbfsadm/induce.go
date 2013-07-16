@@ -78,8 +78,6 @@ func listTasks(ustr string) {
 }
 
 func induceCommand(ustr string, args []string) {
-	induceFlags.Parse(args)
-
 	if induceFlags.NArg() < 1 {
 		listTasks(ustr)
 	} else {

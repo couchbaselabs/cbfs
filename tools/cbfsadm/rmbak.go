@@ -76,8 +76,6 @@ func rmBakWorker() {
 }
 
 func rmBakCommand(ustr string, args []string) {
-	rmbakFlags.Parse(args)
-
 	u := cbfstool.ParseURL(ustr)
 	u.Path = "/.cbfs/backup/"
 

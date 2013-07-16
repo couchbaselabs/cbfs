@@ -22,8 +22,6 @@ Nodes:
 {{end}}`
 
 func fileInfoCommand(base string, args []string) {
-	fileInfoFlags.Parse(args)
-
 	tmpl := cbfstool.GetTemplate(*fileInfoTemplate, *fileInfoTemplateFile,
 		defaultFileInfoTemplate)
 

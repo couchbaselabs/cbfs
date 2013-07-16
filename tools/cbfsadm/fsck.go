@@ -17,8 +17,6 @@ var fsckFlags = flag.NewFlagSet("fsck", flag.ExitOnError)
 var fsckVerbose = fsckFlags.Bool("v", false, "Use more bandwidth, say more stuff")
 
 func fsckCommand(ustr string, args []string) {
-	fsckFlags.Parse(args)
-
 	u := cbfstool.ParseURL(ustr)
 	u.Path = "/.cbfs/fsck/"
 	if !*fsckVerbose {

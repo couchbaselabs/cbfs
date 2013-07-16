@@ -47,8 +47,6 @@ func rmWorker(client *cbfsclient.Client) {
 }
 
 func rmCommand(u string, args []string) {
-	rmFlags.Parse(args)
-
 	client, err := cbfsclient.New(u)
 	cbfstool.MaybeFatal(err, "Error creating cbfs client: %v", err)
 
