@@ -7,7 +7,7 @@ import (
 func main() {
 	cbfstool.ToolMain(
 		map[string]cbfstool.Command{
-			"upload":   {-2, uploadCommand, "/src/dir /dest/dir", uploadFlags},
+			"upload":   {2, uploadCommand, "/src/dir /dest/dir", uploadFlags},
 			"download": {-1, downloadCommand, "/src/dir /dest/dir", dlFlags},
 			"ls":       {0, lsCommand, "[path]", lsFlags},
 			"rm":       {-1, rmCommand, "path", rmFlags},
