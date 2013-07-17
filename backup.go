@@ -273,11 +273,11 @@ func doGetBackupInfo(w http.ResponseWriter, req *http.Request) {
 
 var errExists = errors.New("item exists")
 
-func maybeStoreMeta(k string, fm fileMeta, force bool) error {
+func maybeStoreMeta(k string, fm fileMeta, exp int, force bool) error {
 	if force {
-		return couchbase.Set(k, 0, fm)
+		return couchbase.Set(k, exp, fm)
 	}
-	added, err := couchbase.Add(k, 0, fm)
+	added, err := couchbase.Add(k, exp, fm)
 	if err == nil && !added {
 		err = errExists
 	}
@@ -309,7 +309,7 @@ func doRestoreDocument(w http.ResponseWriter, req *http.Request, fn string) {
 	}
 
 	force := false
-	err = maybeStoreMeta(fn, fm, force)
+	err = maybeStoreMeta(fn, fm, getExpiration(fm.Headers), force)
 	switch err {
 	case errExists:
 		http.Error(w, err.Error(), 409)

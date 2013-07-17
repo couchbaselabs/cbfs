@@ -253,14 +253,7 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	exp := 0
-	eheader := req.Header.Get("X-CBFS-Expiration")
-	if eheader != "" {
-		i, err := strconv.Atoi(eheader)
-		if err == nil {
-			exp = i
-		}
-	}
+	exp := getExpiration(req.Header)
 
 	err = storeMeta(fn, exp, fm, revs, req.Header)
 	if err == errUploadPrecondition {
@@ -808,6 +801,17 @@ func doExit(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(202)
 }
 
+func getExpiration(hdr http.Header) int {
+	rv := 0
+	if h := hdr.Get("X-CBFS-Expiration"); h != "" {
+		i, err := strconv.Atoi(h)
+		if err == nil {
+			rv = i
+		}
+	}
+	return rv
+}
+
 func doLinkFile(w http.ResponseWriter, req *http.Request) {
 	fn := req.URL.Path
 	h := req.FormValue("blob")
@@ -835,7 +839,12 @@ func doLinkFile(w http.ResponseWriter, req *http.Request) {
 		Modified: time.Now().UTC(),
 	}
 
-	err = maybeStoreMeta(fn, fm, true)
+	exp := getExpiration(req.Header)
+	if exp != 0 {
+		fm.Headers.Set("X-CBFS-Expiration", strconv.Itoa(exp))
+	}
+
+	err = maybeStoreMeta(fn, fm, exp, true)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		return
