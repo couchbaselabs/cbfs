@@ -308,8 +308,19 @@ func doRestoreDocument(w http.ResponseWriter, req *http.Request, fn string) {
 		return
 	}
 
+	exp := getExpiration(fm.Headers)
+	if exp < 60*60*24*30 {
+		exp = int(fm.Modified.Add(time.Second * time.Duration(exp)).Unix())
+	}
+
+	if exp < 0 {
+		log.Printf("Attempt to restore expired file: %v", fn)
+		w.WriteHeader(201)
+		return
+	}
+
 	force := false
-	err = maybeStoreMeta(fn, fm, getExpiration(fm.Headers), force)
+	err = maybeStoreMeta(fn, fm, exp, force)
 	switch err {
 	case errExists:
 		http.Error(w, err.Error(), 409)
