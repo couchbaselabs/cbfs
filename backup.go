@@ -308,6 +308,12 @@ func doRestoreDocument(w http.ResponseWriter, req *http.Request, fn string) {
 		return
 	}
 
+	_, err = referenceBlob(fm.OID)
+	if err != nil {
+		log.Printf("Missing blob %v while restoring %v - restoring anyway",
+			fm.OID, fn)
+	}
+
 	exp := getExpiration(fm.Headers)
 	if exp < 60*60*24*30 {
 		exp = int(fm.Modified.Add(time.Second * time.Duration(exp)).Unix())
