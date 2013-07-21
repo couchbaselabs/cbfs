@@ -149,11 +149,12 @@ func (c Client) Get(path string) (io.ReadCloser, error) {
 
 // File info
 type FileHandle struct {
-	c      Client
-	oid    string
-	length int64
-	header http.Header
-	nodes  map[string]time.Time
+	c       Client
+	oid     string
+	length  int64
+	header  http.Header
+	nodes   map[string]time.Time
+	rdrImpl io.ReadCloser
 }
 
 // The nodes containing the files and the last time it was scrubed.
@@ -185,6 +186,34 @@ func (f *FileHandle) randomUrl() (string, error) {
 	}
 
 	return nodelist[rand.Intn(len(nodelist))].BlobURL(f.oid), nil
+}
+
+func (f *FileHandle) Read(b []byte) (int, error) {
+	if f.rdrImpl == nil {
+		u, err := f.randomUrl()
+		if err != nil {
+			return 0, err
+		}
+		res, err := http.Get(u)
+		if err != nil {
+			return 0, err
+		}
+		if res.StatusCode != 200 {
+			return 0, fmt.Errorf("Unexpected http response: %v",
+				res.Status)
+		}
+		f.rdrImpl = res.Body
+	}
+	return f.rdrImpl.Read(b)
+}
+
+func (f *FileHandle) Close() error {
+	if f.rdrImpl == nil {
+		return fmt.Errorf("Not open")
+	}
+	r := f.rdrImpl
+	f.rdrImpl = nil
+	return r.Close()
 }
 
 // Implement io.WriterTo
@@ -256,5 +285,6 @@ func (c Client) OpenFile(path string) (*FileHandle, error) {
 		return nil, err
 	}
 
-	return &FileHandle{c, h, res.ContentLength, res.Header, infos[h].Nodes}, nil
+	return &FileHandle{c, h, res.ContentLength, res.Header,
+		infos[h].Nodes, nil}, nil
 }
