@@ -171,16 +171,10 @@ func (f *FileHandle) Length() int64 {
 	return f.length
 }
 
-// Implement io.ReaderAt
-func (f *FileHandle) ReadAt(p []byte, off int64) (n int, err error) {
-	end := int64(len(p)) + off
-	if end > f.length {
-		return 0, fmt.Errorf("Would seek past EOF")
-	}
-
+func (f *FileHandle) randomUrl() (string, error) {
 	nodes, err := f.c.Nodes()
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
 	nodelist := []StorageNode{}
@@ -190,7 +184,37 @@ func (f *FileHandle) ReadAt(p []byte, off int64) (n int, err error) {
 		}
 	}
 
-	u := nodelist[rand.Intn(len(nodelist))].BlobURL(f.oid)
+	return nodelist[rand.Intn(len(nodelist))].BlobURL(f.oid), nil
+}
+
+// Implement io.WriterTo
+func (f *FileHandle) WriteTo(w io.Writer) (int64, error) {
+	u, err := f.randomUrl()
+	if err != nil {
+		return 0, err
+	}
+	res, err := http.Get(u)
+	if err != nil {
+		return 0, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		return 0, fmt.Errorf("Unexpected http response: %v", res.Status)
+	}
+	return io.Copy(w, res.Body)
+}
+
+// Implement io.ReaderAt
+func (f *FileHandle) ReadAt(p []byte, off int64) (n int, err error) {
+	end := int64(len(p)) + off
+	if end > f.length {
+		return 0, fmt.Errorf("Would seek past EOF")
+	}
+
+	u, err := f.randomUrl()
+	if err != nil {
+		return 0, err
+	}
 
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
