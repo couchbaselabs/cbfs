@@ -14,11 +14,14 @@ import (
 
 type FetchCallback func(oid string, r io.Reader) error
 
-type blobInfo struct {
+// Blob info as returned from GetBlobInfos
+type BlobInfo struct {
+	// Map of node name -> last time the object was validated
 	Nodes map[string]time.Time
 }
 
-func (c Client) GetBlobInfos(oids ...string) (map[string]blobInfo, error) {
+// Find out what nodes contain the given blobs.
+func (c Client) GetBlobInfos(oids ...string) (map[string]BlobInfo, error) {
 	u := c.URLFor("/.cbfs/blob/info/")
 	form := url.Values{"blob": oids}
 	res, err := http.PostForm(u, form)
@@ -32,14 +35,14 @@ func (c Client) GetBlobInfos(oids ...string) (map[string]blobInfo, error) {
 	}
 
 	d := json.NewDecoder(res.Body)
-	rv := map[string]blobInfo{}
+	rv := map[string]BlobInfo{}
 	err = d.Decode(&rv)
 	return rv, err
 }
 
 type fetchWork struct {
 	oid string
-	bi  blobInfo
+	bi  BlobInfo
 }
 
 type brokenReader struct{ err error }
