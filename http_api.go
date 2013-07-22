@@ -158,6 +158,24 @@ func doListTasks(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func doFileInfo(w http.ResponseWriter, req *http.Request, fn string) {
+	fm := fileMeta{}
+	err := couchbase.Get(shortName(fn), &fm)
+	switch {
+	case err == nil:
+	case gomemcached.IsNotFound(err):
+		http.Error(w, "not found", 404)
+		return
+	default:
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	sendJson(w, req, map[string]interface{}{
+		"path": fn,
+		"meta": fm,
+	})
+}
+
 func doGetMeta(w http.ResponseWriter, req *http.Request, path string) {
 	got := fileMeta{}
 	err := couchbase.Get(shortName(path), &got)

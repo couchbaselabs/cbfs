@@ -34,6 +34,7 @@ const (
 	taskPrefix       = "/.cbfs/tasks/"
 	taskinfoPrefix   = "/.cbfs/tasks/info/"
 	pingPrefix       = "/.cbfs/ping/"
+	fileInfoPrefix   = "/.cbfs/info/file/"
 	framePrefix      = "/.cbfs/info/frames/"
 	markBackupPrefix = "/.cbfs/backup/mark/"
 	restorePrefix    = "/.cbfs/backup/restore/"
@@ -716,6 +717,9 @@ func doGet(w http.ResponseWriter, req *http.Request) {
 		doExport(w, req, minusPrefix(req.URL.Path, backupStrmPrefix))
 	case req.URL.Path == backupPrefix:
 		doGetBackupInfo(w, req)
+	case strings.HasPrefix(req.URL.Path, fileInfoPrefix):
+		doFileInfo(w, req,
+			minusPrefix(req.URL.Path, fileInfoPrefix))
 	case strings.HasPrefix(req.URL.Path, fetchPrefix):
 		doFetchDoc(w, req,
 			minusPrefix(req.URL.Path, fetchPrefix))
