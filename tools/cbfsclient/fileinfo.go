@@ -14,9 +14,14 @@ var fileInfoTemplateFile = fileInfoFlags.String("T", "", "Display template filen
 
 const defaultFileInfoTemplate = `File: {{.Filename}}
 
-Headers:
-{{range $k, $v := .Header}}    {{$k}} = {{$v | join ","}}
-{{end}}
+Meta:
+  OID: {{.Meta.OID}}
+  Length: {{.Meta.Length}}
+  Modified: {{.Meta.Modified}}
+  Rev: {{.Meta.Revno}} {{if len .Meta.Previous}}oldrevs: {{len .Meta.Previous}}{{end}}
+  Client Headers:
+  {{range $k, $v := .Meta.Headers}}    {{$k}} = {{$v | join ","}}
+  {{end}}
 Nodes:
 {{range $n, $t := .Nodes}}    {{$n}} ({{$t}})
 {{end}}`
@@ -39,7 +44,7 @@ func fileInfoCommand(base string, args []string) {
 
 	err = tmpl.Execute(os.Stdout, map[string]interface{}{
 		"Filename": u.Path[1:],
-		"Header":   fh.Header(),
+		"Meta":     fh.Meta(),
 		"Nodes":    fh.Nodes(),
 	})
 	cbfstool.MaybeFatal(err, "Error executing template: %v", err)

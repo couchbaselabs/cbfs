@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/dustin/go-saturate"
@@ -152,7 +153,7 @@ type FileHandle struct {
 	c       Client
 	oid     string
 	length  int64
-	header  http.Header
+	meta    FileMeta
 	nodes   map[string]time.Time
 	rdrImpl io.ReadCloser
 }
@@ -163,8 +164,8 @@ func (f *FileHandle) Nodes() map[string]time.Time {
 }
 
 // The headers from the file request.
-func (f *FileHandle) Header() http.Header {
-	return f.header
+func (f *FileHandle) Meta() FileMeta {
+	return f.meta
 }
 
 // Length of this file
@@ -262,29 +263,40 @@ func (f *FileHandle) ReadAt(p []byte, off int64) (n int, err error) {
 	return io.ReadFull(res.Body, p)
 }
 
+func noSlash(s string) string {
+	for strings.HasPrefix(s, "/") {
+		s = s[1:]
+	}
+	return s
+}
+
 // Get a reference to the file at the given path.
 func (c Client) OpenFile(path string) (*FileHandle, error) {
-	res, err := http.Head(c.URLFor(path))
+	res, err := http.Get(c.URLFor("/.cbfs/info/file/" + noSlash(path)))
 	if err != nil {
 		return nil, err
 	}
-	res.Body.Close()
+	defer res.Body.Close()
 	if res.StatusCode != 200 {
 		return nil, fmt.Errorf("HTTP error: %v", res.Status)
 	}
-
-	h := res.Header.Get("etag")
-	if h == "" {
-		return nil, fmt.Errorf("No etag in response headers")
+	j := struct {
+		Meta FileMeta
+		Path string
+	}{}
+	d := json.NewDecoder(res.Body)
+	err = d.Decode(&j)
+	if err != nil {
+		return nil, err
 	}
 
-	h = h[1 : len(h)-1]
+	h := j.Meta.OID
 
 	infos, err := c.GetBlobInfos(h)
 	if err != nil {
 		return nil, err
 	}
 
-	return &FileHandle{c, h, res.ContentLength, res.Header,
+	return &FileHandle{c, h, res.ContentLength, j.Meta,
 		infos[h].Nodes, nil}, nil
 }
