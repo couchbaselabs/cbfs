@@ -340,7 +340,7 @@ func doRestoreDocument(w http.ResponseWriter, req *http.Request, fn string) {
 		return
 	}
 
-	log.Printf("Restored %v -> %v", fn, fm.OID)
+	log.Printf("Restored %v -> %v (exp=%v)", fn, fm.OID, exp)
 
 	w.WriteHeader(201)
 }
