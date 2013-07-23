@@ -2,6 +2,7 @@ package cbfsclient
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -299,6 +300,29 @@ func (*FileHandle) Sys() interface{} {
 // false
 func (*FileHandle) IsDir() bool { return false }
 
+func (f *FileHandle) Seek(offset int64, whence int) (ret int64, err error) {
+	abs := int64(0)
+	switch whence {
+	case 0:
+		abs = offset
+	case 1:
+		abs = f.off + offset
+	case 2:
+		abs = f.length + offset
+	default:
+		return 0, errors.New("bytes: invalid whence")
+	}
+	if abs < 0 {
+		return 0, errors.New("bytes: negative position")
+	}
+	if abs >= f.length {
+		return 0, errors.New("bytes: position out of range")
+	}
+
+	f.off = abs
+	return f.off, nil
+}
+
 // Some assertions around filehandle's applicability
 var (
 	_ = os.FileInfo(&FileHandle{})
@@ -306,6 +330,7 @@ var (
 	_ = io.Reader(&FileHandle{})
 	_ = io.ReaderAt(&FileHandle{})
 	_ = io.WriterTo(&FileHandle{})
+	_ = io.Seeker(&FileHandle{})
 )
 
 // Get a reference to the file at the given path.
