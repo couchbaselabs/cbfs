@@ -1,7 +1,3 @@
-// Go client for cbfs
-//
-// Most storage operations are simple HTTP PUT, GET or DELETE
-// operations.  Convenience operations are provided for easier access.
 package cbfsclient
 
 import (
