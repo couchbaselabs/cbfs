@@ -34,7 +34,7 @@ type PrevMeta struct {
 type FileMeta struct {
 	Headers http.Header `json:"headers"` // Headers
 	OID     string      `json:"oid"`     // Hash
-	Length  float64     `json:"length"`  // Length
+	Length  int64       `json:"length"`  // Length
 	// User-supplied JSON
 	Userdata *json.RawMessage `json:"userdata,omitempty"`
 	// Last modified time
