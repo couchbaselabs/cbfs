@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -168,11 +169,6 @@ func (f *FileHandle) Meta() FileMeta {
 	return f.meta
 }
 
-// Length of this file
-func (f *FileHandle) Length() int64 {
-	return f.length
-}
-
 func (f *FileHandle) randomUrl() (string, error) {
 	nodes, err := f.c.Nodes()
 	if err != nil {
@@ -269,6 +265,42 @@ func noSlash(s string) string {
 	}
 	return s
 }
+
+func (f *FileHandle) Name() string {
+	return "" // TODO:  something smarter
+}
+
+// Length of this file
+func (f *FileHandle) Size() int64 {
+	return f.length
+}
+
+// file mode (0444)
+func (*FileHandle) Mode() os.FileMode {
+	return 0444
+}
+
+// Last modification time of this file
+func (f *FileHandle) ModTime() time.Time {
+	return f.meta.Modified
+}
+
+// nil
+func (*FileHandle) Sys() interface{} {
+	return nil
+}
+
+// false
+func (*FileHandle) IsDir() bool { return false }
+
+// Some assertions around filehandle's applicability
+var (
+	_ = os.FileInfo(&FileHandle{})
+	_ = io.Closer(&FileHandle{})
+	_ = io.Reader(&FileHandle{})
+	_ = io.ReaderAt(&FileHandle{})
+	_ = io.WriterTo(&FileHandle{})
+)
 
 // Get a reference to the file at the given path.
 func (c Client) OpenFile(path string) (*FileHandle, error) {
