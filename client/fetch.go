@@ -151,12 +151,12 @@ func (c Client) Get(path string) (io.ReadCloser, error) {
 
 // File info
 type FileHandle struct {
-	c       Client
-	oid     string
-	length  int64
-	meta    FileMeta
-	nodes   map[string]time.Time
-	rdrImpl io.ReadCloser
+	c      Client
+	oid    string
+	off    int64
+	length int64
+	meta   FileMeta
+	nodes  map[string]time.Time
 }
 
 // The nodes containing the files and the last time it was scrubed.
@@ -186,31 +186,16 @@ func (f *FileHandle) randomUrl() (string, error) {
 }
 
 func (f *FileHandle) Read(b []byte) (int, error) {
-	if f.rdrImpl == nil {
-		u, err := f.randomUrl()
-		if err != nil {
-			return 0, err
-		}
-		res, err := http.Get(u)
-		if err != nil {
-			return 0, err
-		}
-		if res.StatusCode != 200 {
-			return 0, fmt.Errorf("Unexpected http response: %v",
-				res.Status)
-		}
-		f.rdrImpl = res.Body
+	if f.off >= f.length {
+		return 0, io.EOF
 	}
-	return f.rdrImpl.Read(b)
+	n, err := f.ReadAt(b, f.off)
+	f.off += int64(n)
+	return n, err
 }
 
 func (f *FileHandle) Close() error {
-	if f.rdrImpl == nil {
-		return fmt.Errorf("Not open")
-	}
-	r := f.rdrImpl
-	f.rdrImpl = nil
-	return r.Close()
+	return nil
 }
 
 // Implement io.WriterTo
@@ -219,22 +204,35 @@ func (f *FileHandle) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	res, err := http.Get(u)
+	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
 		return 0, err
 	}
+	if f.off > 0 {
+		req.Header.Set("Range",
+			fmt.Sprintf("bytes=%v-%v", f.off, f.length-1))
+	}
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, err
+	}
+
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
 		return 0, fmt.Errorf("Unexpected http response: %v", res.Status)
 	}
-	return io.Copy(w, res.Body)
+
+	n, err := io.Copy(w, res.Body)
+	f.off += n
+	return n, err
 }
 
 // Implement io.ReaderAt
 func (f *FileHandle) ReadAt(p []byte, off int64) (n int, err error) {
 	end := int64(len(p)) + off
-	if end > f.length {
-		return 0, fmt.Errorf("Would seek past EOF")
+	if end >= f.length {
+		end = f.length
 	}
 
 	u, err := f.randomUrl()
@@ -246,17 +244,25 @@ func (f *FileHandle) ReadAt(p []byte, off int64) (n int, err error) {
 	if err != nil {
 		return 0, err
 	}
-	req.Header.Set("Range", fmt.Sprintf("bytes=%v-%v", off, end))
+	req.Header.Set("Range", fmt.Sprintf("bytes=%v-%v", off, end-1))
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return 0, err
 	}
 	defer res.Body.Close()
-	if res.StatusCode != 206 {
+	exp := 206
+	if off == 0 && end == f.length {
+		exp = 200
+	}
+	if res.StatusCode != exp {
 		return 0, fmt.Errorf("Unexpected http response: %v", res.Status)
 	}
 
-	return io.ReadFull(res.Body, p)
+	n, err = io.ReadFull(res.Body, p)
+	if err == io.ErrUnexpectedEOF {
+		err = io.EOF
+	}
+	return n, err
 }
 
 func noSlash(s string) string {
@@ -329,6 +335,6 @@ func (c Client) OpenFile(path string) (*FileHandle, error) {
 		return nil, err
 	}
 
-	return &FileHandle{c, h, res.ContentLength, j.Meta,
-		infos[h].Nodes, nil}, nil
+	return &FileHandle{c, h, 0, j.Meta.Length, j.Meta,
+		infos[h].Nodes}, nil
 }
