@@ -879,7 +879,6 @@ func doPost(w http.ResponseWriter, req *http.Request) {
 }
 
 func httpHandler(w http.ResponseWriter, req *http.Request) {
-	defer req.Body.Close()
 	switch req.Method {
 	case "PUT":
 		doPut(w, req)
