@@ -171,14 +171,14 @@ func (f *FileHandle) Meta() FileMeta {
 }
 
 func (f *FileHandle) randomUrl() (string, error) {
-	nodes, err := f.c.Nodes()
+	allnodes, err := f.c.Nodes()
 	if err != nil {
 		return "", err
 	}
 
 	nodelist := []StorageNode{}
-	for k := range nodes {
-		if n, ok := nodes[k]; ok {
+	for k := range f.nodes {
+		if n, ok := allnodes[k]; ok {
 			nodelist = append(nodelist, n)
 		}
 	}
