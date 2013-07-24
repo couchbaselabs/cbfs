@@ -21,7 +21,7 @@ import (
 	"github.com/dustin/gomemcached/client"
 )
 
-func doGetConfig(w http.ResponseWriter, req *http.Request) {
+func doGetConfig(c *Container, w http.ResponseWriter, req *http.Request) {
 	err := updateConfig()
 	if err != nil && !gomemcached.IsNotFound(err) {
 		log.Printf("Error updating config: %v", err)
@@ -37,7 +37,7 @@ func doGetConfig(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func putConfig(w http.ResponseWriter, req *http.Request) {
+func putConfig(c *Container, w http.ResponseWriter, req *http.Request) {
 	d := json.NewDecoder(req.Body)
 	conf := cbfsconfig.CBFSConfig{}
 
@@ -63,7 +63,7 @@ func putConfig(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(204)
 }
 
-func doBlobInfo(w http.ResponseWriter, req *http.Request) {
+func doBlobInfo(c *Container, w http.ResponseWriter, req *http.Request) {
 	if err := req.ParseForm(); err != nil {
 		http.Error(w, err.Error(), 400)
 		return
@@ -85,7 +85,7 @@ func doBlobInfo(w http.ResponseWriter, req *http.Request) {
 	sendJson(w, req, res)
 }
 
-func doList(w http.ResponseWriter, req *http.Request) {
+func doList(c *Container, w http.ResponseWriter, req *http.Request) {
 	if canGzip(req) {
 		w.Header().Set("Content-Encoding", "gzip")
 		gz := gzip.NewWriter(w)
@@ -108,7 +108,7 @@ func doList(w http.ResponseWriter, req *http.Request) {
 	})
 }
 
-func doListTaskInfo(w http.ResponseWriter, req *http.Request) {
+func doListTaskInfo(c *Container, w http.ResponseWriter, req *http.Request) {
 	res := struct {
 		Global map[string][]string `json:"global"`
 		Local  map[string][]string `json:"local"`
@@ -124,7 +124,7 @@ func doListTaskInfo(w http.ResponseWriter, req *http.Request) {
 	sendJson(w, req, res)
 }
 
-func doListTasks(w http.ResponseWriter, req *http.Request) {
+func doListTasks(c *Container, w http.ResponseWriter, req *http.Request) {
 	tasks, err := listRunningTasks()
 	if err != nil {
 		w.WriteHeader(500)
@@ -158,7 +158,7 @@ func doListTasks(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func doFileInfo(w http.ResponseWriter, req *http.Request, fn string) {
+func doFileInfo(c *Container, w http.ResponseWriter, req *http.Request, fn string) {
 	fm := fileMeta{}
 	err := couchbase.Get(shortName(fn), &fm)
 	switch {
@@ -176,7 +176,7 @@ func doFileInfo(w http.ResponseWriter, req *http.Request, fn string) {
 	})
 }
 
-func doGetMeta(w http.ResponseWriter, req *http.Request, path string) {
+func doGetMeta(c *Container, w http.ResponseWriter, req *http.Request, path string) {
 	got := fileMeta{}
 	err := couchbase.Get(shortName(path), &got)
 	if err != nil {
@@ -194,7 +194,7 @@ func doGetMeta(w http.ResponseWriter, req *http.Request, path string) {
 	}
 }
 
-func putMeta(w http.ResponseWriter, req *http.Request, path string) {
+func putMeta(c *Container, w http.ResponseWriter, req *http.Request, path string) {
 	got := fileMeta{}
 	casid := uint64(0)
 	k := shortName(path)
@@ -235,7 +235,7 @@ func putMeta(w http.ResponseWriter, req *http.Request, path string) {
 	}
 }
 
-func doListNodes(w http.ResponseWriter, req *http.Request) {
+func doListNodes(c *Container, w http.ResponseWriter, req *http.Request) {
 	nl, err := findAllNodes()
 	if err != nil {
 		log.Printf("Error executing nodes view: %v", err)
@@ -273,11 +273,11 @@ func doListNodes(w http.ResponseWriter, req *http.Request) {
 	sendJson(w, req, respob)
 }
 
-func doGetFramesData(w http.ResponseWriter, req *http.Request) {
+func doGetFramesData(c *Container, w http.ResponseWriter, req *http.Request) {
 	sendJson(w, req, getFramesInfos())
 }
 
-func proxyViewRequest(w http.ResponseWriter, req *http.Request,
+func proxyViewRequest(c *Container, w http.ResponseWriter, req *http.Request,
 	path string) {
 
 	nodes := couchbase.Nodes()
@@ -320,7 +320,7 @@ func proxyViewRequest(w http.ResponseWriter, req *http.Request,
 	io.Copy(output, res.Body)
 }
 
-func proxyCRUDGet(w http.ResponseWriter, req *http.Request,
+func proxyCRUDGet(c *Container, w http.ResponseWriter, req *http.Request,
 	path string) {
 
 	val, err := couchbase.GetRaw(shortName(path))
@@ -333,7 +333,7 @@ func proxyCRUDGet(w http.ResponseWriter, req *http.Request,
 	w.Write(val)
 }
 
-func proxyCRUDPut(w http.ResponseWriter, req *http.Request,
+func proxyCRUDPut(c *Container, w http.ResponseWriter, req *http.Request,
 	path string) {
 
 	data, err := ioutil.ReadAll(req.Body)
@@ -353,7 +353,7 @@ func proxyCRUDPut(w http.ResponseWriter, req *http.Request,
 	w.WriteHeader(204)
 }
 
-func proxyCRUDDelete(w http.ResponseWriter, req *http.Request,
+func proxyCRUDDelete(c *Container, w http.ResponseWriter, req *http.Request,
 	path string) {
 
 	err := couchbase.Delete(shortName(path))
@@ -366,7 +366,7 @@ func proxyCRUDDelete(w http.ResponseWriter, req *http.Request,
 	w.WriteHeader(204)
 }
 
-func doListDocs(w http.ResponseWriter, req *http.Request,
+func doListDocs(c *Container, w http.ResponseWriter, req *http.Request,
 	path string) {
 
 	// trim off trailing slash early so we handle them consistently
@@ -417,11 +417,13 @@ func doListDocs(w http.ResponseWriter, req *http.Request,
 	}
 }
 
-func doPing(w http.ResponseWriter, req *http.Request) {
+func doPing(c *Container, w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(204)
 }
 
-func doInduceTask(w http.ResponseWriter, req *http.Request, taskName string) {
+func doInduceTask(c *Container, w http.ResponseWriter, req *http.Request,
+	taskName string) {
+
 	err := induceTask(taskName)
 	switch err {
 	case noSuchTask:

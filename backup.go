@@ -215,7 +215,7 @@ func backupToCBFS(fn string) error {
 	return nil
 }
 
-func doMarkBackup(w http.ResponseWriter, req *http.Request) {
+func doMarkBackup(c *Container, w http.ResponseWriter, req *http.Request) {
 	if req.FormValue("all") == "true" {
 		go recordRemoteBackupObjects()
 	}
@@ -227,7 +227,7 @@ func doMarkBackup(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(204)
 }
 
-func doBackupDocs(w http.ResponseWriter, req *http.Request) {
+func doBackupDocs(c *Container, w http.ResponseWriter, req *http.Request) {
 	fn := req.FormValue("fn")
 	if fn == "" {
 		http.Error(w, "Missing fn parameter", 400)
@@ -254,7 +254,7 @@ func doBackupDocs(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(201)
 }
 
-func doGetBackupInfo(w http.ResponseWriter, req *http.Request) {
+func doGetBackupInfo(c *Container, w http.ResponseWriter, req *http.Request) {
 	b := backups{}
 	err := couchbase.Get(backupKey, &b)
 	if err != nil {
@@ -284,7 +284,9 @@ func maybeStoreMeta(k string, fm fileMeta, exp int, force bool) error {
 	return err
 }
 
-func doRestoreDocument(w http.ResponseWriter, req *http.Request, fn string) {
+func doRestoreDocument(c *Container, w http.ResponseWriter, req *http.Request,
+	fn string) {
+
 	d := json.NewDecoder(req.Body)
 	fm := fileMeta{}
 	err := d.Decode(&fm)

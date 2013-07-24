@@ -135,7 +135,7 @@ func altStoreFile(name string, r io.Reader,
 	return r, bgch
 }
 
-func doPostRawBlob(w http.ResponseWriter, req *http.Request) {
+func doPostRawBlob(c *Container, w http.ResponseWriter, req *http.Request) {
 	f, err := NewHashRecord(*root, "")
 	if err != nil {
 		log.Printf("Error writing tmp file: %v", err)
@@ -164,7 +164,7 @@ func doPostRawBlob(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(201)
 }
 
-func putUserFile(w http.ResponseWriter, req *http.Request) {
+func putUserFile(c *Container, w http.ResponseWriter, req *http.Request) {
 	if strings.Contains(req.URL.Path, "//") {
 		http.Error(w,
 			fmt.Sprintf("Too many slashes in the path name: %v",
@@ -281,7 +281,7 @@ func putUserFile(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(201)
 }
 
-func putRawHash(w http.ResponseWriter, req *http.Request) {
+func putRawHash(c *Container, w http.ResponseWriter, req *http.Request) {
 	inputhash := minusPrefix(req.URL.Path, blobPrefix)
 
 	if inputhash == "" {
@@ -318,20 +318,20 @@ func putRawHash(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(201)
 }
 
-func doPut(w http.ResponseWriter, req *http.Request) {
+func doPut(c *Container, w http.ResponseWriter, req *http.Request) {
 	switch {
 	case req.URL.Path == configPrefix:
-		putConfig(w, req)
+		putConfig(c, w, req)
 	case strings.HasPrefix(req.URL.Path, blobPrefix):
-		putRawHash(w, req)
+		putRawHash(c, w, req)
 	case strings.HasPrefix(req.URL.Path, metaPrefix):
-		putMeta(w, req, minusPrefix(req.URL.Path, metaPrefix))
+		putMeta(c, w, req, minusPrefix(req.URL.Path, metaPrefix))
 	case *enableCRUDProxy && strings.HasPrefix(req.URL.Path, crudproxyPrefix):
-		proxyCRUDPut(w, req, minusPrefix(req.URL.Path, crudproxyPrefix))
+		proxyCRUDPut(c, w, req, minusPrefix(req.URL.Path, crudproxyPrefix))
 	case strings.HasPrefix(req.URL.Path, "/.cbfs/"):
 		http.Error(w, "Can't PUT here", 400)
 	default:
-		putUserFile(w, req)
+		putUserFile(c, w, req)
 	}
 }
 
@@ -359,7 +359,7 @@ func resolvePath(req *http.Request) (path string, key string) {
 	return path, shortName(path)
 }
 
-func doHeadUserFile(w http.ResponseWriter, req *http.Request) {
+func doHeadUserFile(c *Container, w http.ResponseWriter, req *http.Request) {
 	path, k := resolvePath(req)
 	got := fileMeta{}
 	err := couchbase.Get(k, &got)
@@ -395,7 +395,9 @@ func doHeadUserFile(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(200)
 }
 
-func doHeadRawBlob(w http.ResponseWriter, req *http.Request, oid string) {
+func doHeadRawBlob(c *Container, w http.ResponseWriter, req *http.Request,
+	oid string) {
+
 	f, err := openLocalBlob(oid)
 	if err != nil {
 		http.Error(w,
@@ -417,18 +419,18 @@ func doHeadRawBlob(w http.ResponseWriter, req *http.Request, oid string) {
 	w.WriteHeader(200)
 }
 
-func doHead(w http.ResponseWriter, req *http.Request) {
+func doHead(c *Container, w http.ResponseWriter, req *http.Request) {
 	switch {
 	case strings.HasPrefix(req.URL.Path, blobPrefix):
-		doHeadRawBlob(w, req, minusPrefix(req.URL.Path, blobPrefix))
+		doHeadRawBlob(c, w, req, minusPrefix(req.URL.Path, blobPrefix))
 	case strings.HasPrefix(req.URL.Path, "/.cbfs/"):
 		http.Error(w, "Can't HEAD here", 400)
 	default:
-		doHeadUserFile(w, req)
+		doHeadUserFile(c, w, req)
 	}
 }
 
-func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
+func doGetUserDoc(c *Container, w http.ResponseWriter, req *http.Request) {
 	path, k := resolvePath(req)
 	got := fileMeta{}
 	err := couchbase.Get(k, &got)
@@ -531,7 +533,9 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func doServeRawBlob(w http.ResponseWriter, req *http.Request, oid string) {
+func doServeRawBlob(c *Container, w http.ResponseWriter, req *http.Request,
+	oid string) {
+
 	f, err := openLocalBlob(oid)
 	if err != nil {
 		http.Error(w, "Error opening blob: "+err.Error(), 404)
@@ -612,7 +616,7 @@ func (c *captureResponseWriter) WriteHeader(code int) {
 	c.statusCode = code
 }
 
-func doFetchDoc(w http.ResponseWriter, req *http.Request,
+func doFetchDoc(c *Container, w http.ResponseWriter, req *http.Request,
 	path string) {
 
 	ownership := BlobOwnership{}
@@ -643,55 +647,55 @@ func doFetchDoc(w http.ResponseWriter, req *http.Request,
 	w.WriteHeader(202)
 }
 
-func doGet(w http.ResponseWriter, req *http.Request) {
+func doGet(c *Container, w http.ResponseWriter, req *http.Request) {
 	switch {
 	case req.URL.Path == pingPrefix:
-		doPing(w, req)
+		doPing(c, w, req)
 	case req.URL.Path == framePrefix:
-		doGetFramesData(w, req)
+		doGetFramesData(c, w, req)
 	case req.URL.Path == blobPrefix:
-		doList(w, req)
+		doList(c, w, req)
 	case req.URL.Path == nodePrefix:
-		doListNodes(w, req)
+		doListNodes(c, w, req)
 	case req.URL.Path == taskinfoPrefix:
-		doListTaskInfo(w, req)
+		doListTaskInfo(c, w, req)
 	case req.URL.Path == taskPrefix:
-		doListTasks(w, req)
+		doListTasks(c, w, req)
 	case req.URL.Path == configPrefix:
-		doGetConfig(w, req)
+		doGetConfig(c, w, req)
 	case strings.HasPrefix(req.URL.Path, backupStrmPrefix):
-		doExport(w, req, minusPrefix(req.URL.Path, backupStrmPrefix))
+		doExport(c, w, req, minusPrefix(req.URL.Path, backupStrmPrefix))
 	case req.URL.Path == backupPrefix:
-		doGetBackupInfo(w, req)
+		doGetBackupInfo(c, w, req)
 	case strings.HasPrefix(req.URL.Path, fileInfoPrefix):
-		doFileInfo(w, req,
+		doFileInfo(c, w, req,
 			minusPrefix(req.URL.Path, fileInfoPrefix))
 	case strings.HasPrefix(req.URL.Path, fetchPrefix):
-		doFetchDoc(w, req,
+		doFetchDoc(c, w, req,
 			minusPrefix(req.URL.Path, fetchPrefix))
 	case strings.HasPrefix(req.URL.Path, metaPrefix):
-		doGetMeta(w, req,
+		doGetMeta(c, w, req,
 			minusPrefix(req.URL.Path, metaPrefix))
 	case strings.HasPrefix(req.URL.Path, blobPrefix):
-		doServeRawBlob(w, req, minusPrefix(req.URL.Path, blobPrefix))
+		doServeRawBlob(c, w, req, minusPrefix(req.URL.Path, blobPrefix))
 	case *enableViewProxy && strings.HasPrefix(req.URL.Path, proxyPrefix):
-		proxyViewRequest(w, req, minusPrefix(req.URL.Path, proxyPrefix))
+		proxyViewRequest(c, w, req, minusPrefix(req.URL.Path, proxyPrefix))
 	case *enableCRUDProxy && strings.HasPrefix(req.URL.Path, crudproxyPrefix):
-		proxyCRUDGet(w, req, minusPrefix(req.URL.Path, crudproxyPrefix))
+		proxyCRUDGet(c, w, req, minusPrefix(req.URL.Path, crudproxyPrefix))
 	case strings.HasPrefix(req.URL.Path, listPrefix):
-		doListDocs(w, req, minusPrefix(req.URL.Path, listPrefix))
+		doListDocs(c, w, req, minusPrefix(req.URL.Path, listPrefix))
 	case strings.HasPrefix(req.URL.Path, zipPrefix):
-		doZipDocs(w, req, minusPrefix(req.URL.Path, zipPrefix))
+		doZipDocs(c, w, req, minusPrefix(req.URL.Path, zipPrefix))
 	case strings.HasPrefix(req.URL.Path, tarPrefix):
-		doTarDocs(w, req, minusPrefix(req.URL.Path, tarPrefix))
+		doTarDocs(c, w, req, minusPrefix(req.URL.Path, tarPrefix))
 	case strings.HasPrefix(req.URL.Path, fsckPrefix):
-		dofsck(w, req, minusPrefix(req.URL.Path, fsckPrefix))
+		dofsck(c, w, req, minusPrefix(req.URL.Path, fsckPrefix))
 	case strings.HasPrefix(req.URL.Path, debugPrefix):
-		doDebug(w, req)
+		doDebug(c, w, req)
 	case strings.HasPrefix(req.URL.Path, "/.cbfs/"):
 		http.Error(w, "Can't GET here", 400)
 	default:
-		doGetUserDoc(w, req)
+		doGetUserDoc(c, w, req)
 	}
 }
 
@@ -699,7 +703,7 @@ func minusPrefix(s, prefix string) string {
 	return s[len(prefix):]
 }
 
-func doDeleteOID(w http.ResponseWriter, req *http.Request) {
+func doDeleteOID(c *Container, w http.ResponseWriter, req *http.Request) {
 	oid := minusPrefix(req.URL.Path, blobPrefix)
 
 	err := removeObject(oid)
@@ -710,7 +714,7 @@ func doDeleteOID(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func doDeleteUserDoc(w http.ResponseWriter, req *http.Request) {
+func doDeleteUserDoc(c *Container, w http.ResponseWriter, req *http.Request) {
 	_, k := resolvePath(req)
 	err := couchbase.Update(k, 0, func(in []byte) ([]byte, error) {
 		existing := fileMeta{}
@@ -729,20 +733,20 @@ func doDeleteUserDoc(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func doDelete(w http.ResponseWriter, req *http.Request) {
+func doDelete(c *Container, w http.ResponseWriter, req *http.Request) {
 	switch {
 	case strings.HasPrefix(req.URL.Path, blobPrefix):
-		doDeleteOID(w, req)
+		doDeleteOID(c, w, req)
 	case *enableCRUDProxy && strings.HasPrefix(req.URL.Path, crudproxyPrefix):
-		proxyCRUDDelete(w, req, minusPrefix(req.URL.Path, crudproxyPrefix))
+		proxyCRUDDelete(c, w, req, minusPrefix(req.URL.Path, crudproxyPrefix))
 	case strings.HasPrefix(req.URL.Path, "/.cbfs/"):
 		http.Error(w, "Can't DELETE here", 400)
 	default:
-		doDeleteUserDoc(w, req)
+		doDeleteUserDoc(c, w, req)
 	}
 }
 
-func doExit(w http.ResponseWriter, req *http.Request) {
+func doExit(c *Container, w http.ResponseWriter, req *http.Request) {
 	time.AfterFunc(time.Second, func() {
 		log.Printf("Quitting per user request from %v",
 			req.RemoteAddr)
@@ -766,7 +770,7 @@ func getExpiration(hdr http.Header) int {
 	return getExpirationFrom(hdr.Get("X-CBFS-Expiration"))
 }
 
-func doLinkFile(w http.ResponseWriter, req *http.Request) {
+func doLinkFile(c *Container, w http.ResponseWriter, req *http.Request) {
 	fn := req.URL.Path
 	h := req.FormValue("blob")
 	t := req.FormValue("type")
@@ -806,40 +810,42 @@ func doLinkFile(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(201)
 }
 
-func doPost(w http.ResponseWriter, req *http.Request) {
+func doPost(c *Container, w http.ResponseWriter, req *http.Request) {
 	if req.URL.Path == blobPrefix {
-		doPostRawBlob(w, req)
+		doPostRawBlob(c, w, req)
 	} else if req.URL.Path == blobInfoPath {
-		doBlobInfo(w, req)
+		doBlobInfo(c, w, req)
 	} else if strings.HasPrefix(req.URL.Path, markBackupPrefix) {
-		doMarkBackup(w, req)
+		doMarkBackup(c, w, req)
 	} else if strings.HasPrefix(req.URL.Path, restorePrefix) {
-		doRestoreDocument(w, req, minusPrefix(req.URL.Path, restorePrefix))
+		doRestoreDocument(c, w, req, minusPrefix(req.URL.Path, restorePrefix))
 	} else if strings.HasPrefix(req.URL.Path, taskPrefix) {
-		doInduceTask(w, req, minusPrefix(req.URL.Path, taskPrefix))
+		doInduceTask(c, w, req, minusPrefix(req.URL.Path, taskPrefix))
 	} else if strings.HasPrefix(req.URL.Path, backupPrefix) {
-		doBackupDocs(w, req)
+		doBackupDocs(c, w, req)
 	} else if strings.HasPrefix(req.URL.Path, quitPrefix) {
-		doExit(w, req)
+		doExit(c, w, req)
 	} else if strings.HasPrefix(req.URL.Path, "/.cbfs/") {
 		http.Error(w, "Can't POST here", 400)
 	} else {
-		doLinkFile(w, req)
+		doLinkFile(c, w, req)
 	}
 }
 
 func httpHandler(w http.ResponseWriter, req *http.Request) {
+	c := getContainer(req)
+
 	switch req.Method {
 	case "PUT":
-		doPut(w, req)
+		doPut(c, w, req)
 	case "POST":
-		doPost(w, req)
+		doPost(c, w, req)
 	case "GET":
-		doGet(w, req)
+		doGet(c, w, req)
 	case "HEAD":
-		doHead(w, req)
+		doHead(c, w, req)
 	case "DELETE":
-		doDelete(w, req)
+		doDelete(c, w, req)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}

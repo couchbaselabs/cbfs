@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-func doExport(w http.ResponseWriter, req *http.Request,
+func doExport(c *Container, w http.ResponseWriter, req *http.Request,
 	path string) {
 
 	quit := make(chan bool)

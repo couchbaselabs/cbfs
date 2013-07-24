@@ -80,7 +80,7 @@ func initTaskMetrics() {
 	}
 }
 
-func doDebug(w http.ResponseWriter, req *http.Request) {
+func doDebug(c *Container, w http.ResponseWriter, req *http.Request) {
 	req.URL.Path = strings.Replace(req.URL.Path, debugPrefix, "/debug/vars", 1)
 	http.DefaultServeMux.ServeHTTP(w, req)
 }

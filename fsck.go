@@ -28,7 +28,7 @@ func keyClumper(ch chan *namedFile, size int) chan []*namedFile {
 	return outch
 }
 
-func dofsck(w http.ResponseWriter, req *http.Request,
+func dofsck(c *Container, w http.ResponseWriter, req *http.Request,
 	path string) {
 
 	errsOnly := req.FormValue("errsonly") != ""

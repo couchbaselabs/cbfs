@@ -21,7 +21,7 @@ func archiveFilename(path, ext string) string {
 	return filename
 }
 
-func doZipDocs(w http.ResponseWriter, req *http.Request,
+func doZipDocs(c *Container, w http.ResponseWriter, req *http.Request,
 	path string) {
 
 	quit := make(chan bool)

@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-func doTarDocs(w http.ResponseWriter, req *http.Request,
+func doTarDocs(c *Container, w http.ResponseWriter, req *http.Request,
 	path string) {
 
 	quit := make(chan bool)
