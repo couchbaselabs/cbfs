@@ -91,7 +91,7 @@ func (c *Client) Blobs(totalConcurrency, destinationConcurrency int,
 		return err
 	}
 
-	workch := make(chan saturator.WorkInput)
+	workch := make(chan saturate.WorkInput)
 	go func() {
 		// Feed the blob (fanout) workers.
 		for oid, info := range infos {
@@ -99,17 +99,17 @@ func (c *Client) Blobs(totalConcurrency, destinationConcurrency int,
 			for n := range info.Nodes {
 				nodes = append(nodes, n)
 			}
-			workch <- saturator.WorkInput{Input: oid, Dests: nodes}
+			workch <- saturate.WorkInput{Input: oid, Dests: nodes}
 		}
 
 		// Let everything know we're done.
 		close(workch)
 	}()
 
-	s := saturator.New(dests, func(n string) saturator.Worker {
+	s := saturate.New(dests, func(n string) saturate.Worker {
 		return &fetchWorker{nodeMap[n], cb}
 	},
-		&saturator.Config{
+		&saturate.Config{
 			DestConcurrency:  destinationConcurrency,
 			TotalConcurrency: totalConcurrency,
 			Retries:          3,
