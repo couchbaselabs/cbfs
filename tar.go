@@ -16,7 +16,7 @@ func doTarDocs(c *Container, w http.ResponseWriter, req *http.Request,
 	ch := make(chan *namedFile)
 	cherr := make(chan error)
 
-	go pathGenerator(path, ch, cherr, quit)
+	go c.pathGenerator(path, ch, cherr, quit)
 	go logErrors("tar", cherr)
 
 	w.Header().Set("Content-Disposition",

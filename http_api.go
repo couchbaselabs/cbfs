@@ -160,7 +160,7 @@ func doListTasks(c *Container, w http.ResponseWriter, req *http.Request) {
 
 func doFileInfo(c *Container, w http.ResponseWriter, req *http.Request, fn string) {
 	fm := fileMeta{}
-	err := couchbase.Get(shortName(fn), &fm)
+	err := couchbase.Get(c.shortName(fn), &fm)
 	switch {
 	case err == nil:
 	case gomemcached.IsNotFound(err):
@@ -178,7 +178,7 @@ func doFileInfo(c *Container, w http.ResponseWriter, req *http.Request, fn strin
 
 func doGetMeta(c *Container, w http.ResponseWriter, req *http.Request, path string) {
 	got := fileMeta{}
-	err := couchbase.Get(shortName(path), &got)
+	err := couchbase.Get(c.shortName(path), &got)
 	if err != nil {
 		log.Printf("Error getting file %#v: %v", path, err)
 		http.Error(w, err.Error(), 404)
@@ -197,7 +197,7 @@ func doGetMeta(c *Container, w http.ResponseWriter, req *http.Request, path stri
 func putMeta(c *Container, w http.ResponseWriter, req *http.Request, path string) {
 	got := fileMeta{}
 	casid := uint64(0)
-	k := shortName(path)
+	k := c.shortName(path)
 	err := couchbase.Gets(k, &got, &casid)
 	if err != nil {
 		log.Printf("Error getting file %#v: %v", path, err)
@@ -323,7 +323,7 @@ func proxyViewRequest(c *Container, w http.ResponseWriter, req *http.Request,
 func proxyCRUDGet(c *Container, w http.ResponseWriter, req *http.Request,
 	path string) {
 
-	val, err := couchbase.GetRaw(shortName(path))
+	val, err := couchbase.GetRaw(c.shortName(path))
 	if err != nil {
 		w.WriteHeader(404)
 		fmt.Fprintf(w, "Error getting value: %v", err)
@@ -343,7 +343,7 @@ func proxyCRUDPut(c *Container, w http.ResponseWriter, req *http.Request,
 		return
 	}
 
-	err = couchbase.SetRaw(shortName(path), 0, data)
+	err = couchbase.SetRaw(c.shortName(path), 0, data)
 	if err != nil {
 		w.WriteHeader(500)
 		fmt.Fprintf(w, "Error storing value: %v", err)
@@ -356,7 +356,7 @@ func proxyCRUDPut(c *Container, w http.ResponseWriter, req *http.Request,
 func proxyCRUDDelete(c *Container, w http.ResponseWriter, req *http.Request,
 	path string) {
 
-	err := couchbase.Delete(shortName(path))
+	err := couchbase.Delete(c.shortName(path))
 	if err != nil {
 		w.WriteHeader(500)
 		fmt.Fprintf(w, "Error deleting value: %v", err)
@@ -387,7 +387,7 @@ func doListDocs(c *Container, w http.ResponseWriter, req *http.Request,
 		depth = i
 	}
 
-	fl, err := listFiles(path, includeMeta == "true", depth)
+	fl, err := c.listFiles(path, includeMeta == "true", depth)
 	if err != nil {
 		log.Printf("Error executing file browse view: %v", err)
 		w.WriteHeader(500)

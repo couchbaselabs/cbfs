@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/sha1"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -95,16 +93,6 @@ func (fm fileMeta) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m)
 }
 
-func shortName(k string) string {
-	if len(k) < maxFilename {
-		return k
-	}
-	h := sha1.New()
-	h.Write([]byte(k))
-	hs := hex.EncodeToString(h.Sum(nil))
-	return "/+" + k[:truncateKeyLen] + "-" + hs
-}
-
 func mustEncode(i interface{}) []byte {
 	rv, err := json.Marshal(i)
 	if err != nil {
@@ -136,8 +124,10 @@ func shouldStoreMeta(header http.Header, exists bool, fm fileMeta) bool {
 	return true
 }
 
-func storeMeta(fn string, exp int, fm fileMeta, revs int, header http.Header) error {
-	k := shortName(fn)
+func storeMeta(c *Container, fn string, exp int, fm fileMeta,
+	revs int, header http.Header) error {
+
+	k := c.shortName(fn)
 	if k != fn {
 		fm.Name = fn
 	}

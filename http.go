@@ -172,7 +172,7 @@ func putUserFile(c *Container, w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	fn, _ := resolvePath(req)
+	fn, _ := c.resolvePath(req)
 
 	f, err := NewHashRecord(*root, req.Header.Get("X-CBFS-Hash"))
 	if err != nil {
@@ -255,7 +255,7 @@ func putUserFile(c *Container, w http.ResponseWriter, req *http.Request) {
 
 	exp := getExpiration(req.Header)
 
-	err = storeMeta(fn, exp, fm, revs, req.Header)
+	err = storeMeta(c, fn, exp, fm, revs, req.Header)
 	if err == errUploadPrecondition {
 		log.Printf("Upload precondition failed: %v -> %v", fn, h)
 		http.Error(w, "precondition failed", 412)
@@ -343,24 +343,8 @@ func isResponseHeader(s string) bool {
 	return false
 }
 
-func resolvePath(req *http.Request) (path string, key string) {
-	path = req.URL.Path
-	// Ignore /, but remove leading / from /blah
-	for len(path) > 0 && path[0] == '/' {
-		path = path[1:]
-	}
-
-	if len(path) > 0 && path[len(path)-1] == '/' {
-		path = path + "index.html"
-	} else if len(path) == 0 {
-		path = "index.html"
-	}
-
-	return path, shortName(path)
-}
-
 func doHeadUserFile(c *Container, w http.ResponseWriter, req *http.Request) {
-	path, k := resolvePath(req)
+	path, k := c.resolvePath(req)
 	got := fileMeta{}
 	err := couchbase.Get(k, &got)
 	if err != nil {
@@ -431,7 +415,7 @@ func doHead(c *Container, w http.ResponseWriter, req *http.Request) {
 }
 
 func doGetUserDoc(c *Container, w http.ResponseWriter, req *http.Request) {
-	path, k := resolvePath(req)
+	path, k := c.resolvePath(req)
 	got := fileMeta{}
 	err := couchbase.Get(k, &got)
 	if err != nil {
@@ -715,7 +699,7 @@ func doDeleteOID(c *Container, w http.ResponseWriter, req *http.Request) {
 }
 
 func doDeleteUserDoc(c *Container, w http.ResponseWriter, req *http.Request) {
-	_, k := resolvePath(req)
+	_, k := c.resolvePath(req)
 	err := couchbase.Update(k, 0, func(in []byte) ([]byte, error) {
 		existing := fileMeta{}
 		err := json.Unmarshal(in, &existing)

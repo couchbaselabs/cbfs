@@ -19,7 +19,7 @@ func toStringJoin(in []interface{}, sep string) string {
 	return strings.Join(s, sep)
 }
 
-func listFiles(path string, includeMeta bool,
+func (c Container) listFiles(path string, includeMeta bool,
 	depth int) (fileListing, error) {
 
 	emptyObject := &(json.RawMessage{'{', '}'})
@@ -57,7 +57,7 @@ func listFiles(path string, includeMeta bool,
 	// use the view result to build a list of keys
 	keys := make([]string, len(viewRes.Rows), len(viewRes.Rows))
 	for i, r := range viewRes.Rows {
-		keys[i] = shortName(toStringJoin(r.Key, "/"))
+		keys[i] = c.shortName(toStringJoin(r.Key, "/"))
 	}
 
 	// do a multi-get on the all the keys returned
@@ -70,7 +70,7 @@ func listFiles(path string, includeMeta bool,
 	files := map[string]interface{}{}
 	dirs := map[string]interface{}{}
 	for _, r := range viewRes.Rows {
-		key := shortName(toStringJoin(r.Key, "/"))
+		key := c.shortName(toStringJoin(r.Key, "/"))
 		subkey := r.Key
 		if len(r.Key) > depth {
 			subkey = r.Key[len(r.Key)-depth:]

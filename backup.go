@@ -67,7 +67,7 @@ func streamFileMeta(w io.Writer,
 	}
 }
 
-func backupTo(w io.Writer) (err error) {
+func backupTo(c *Container, w io.Writer) (err error) {
 	fch := make(chan *namedFile)
 	ech := make(chan error)
 	qch := make(chan bool)
@@ -76,7 +76,7 @@ func backupTo(w io.Writer) (err error) {
 
 	defer logDuration("backup", time.Now())
 
-	go pathGenerator("", fch, ech, qch)
+	go c.pathGenerator("", fch, ech, qch)
 
 	gz := gzip.NewWriter(w)
 	defer func() {
@@ -89,14 +89,14 @@ func backupTo(w io.Writer) (err error) {
 	return streamFileMeta(gz, fch, ech)
 }
 
-func recordBackupObject() error {
+func recordBackupObject(c *Container) error {
 	b := backups{}
 	err := couchbase.Get(backupKey, &b)
 	if err != nil {
 		return err
 	}
 
-	removeDeadBackups(&b)
+	removeDeadBackups(c, &b)
 
 	f, err := os.Create(filepath.Join(*root, ".backup.json"))
 	if err != nil {
@@ -130,13 +130,13 @@ func recordRemoteBackupObjects() {
 	}
 }
 
-func removeDeadBackups(b *backups) {
+func removeDeadBackups(c *Container, b *backups) {
 	// Keep only backups we're pretty sure still exist.
 	obn := b.Backups
 	b.Backups = nil
 	for _, bi := range obn {
 		fm := fileMeta{}
-		err := couchbase.Get(shortName(bi.Fn), &fm)
+		err := couchbase.Get(c.shortName(bi.Fn), &fm)
 		if gomemcached.IsNotFound(err) {
 			log.Printf("Dropping previous (deleted) backup: %v",
 				bi.Fn)
@@ -147,7 +147,7 @@ func removeDeadBackups(b *backups) {
 
 }
 
-func storeBackupObject(fn, h string) error {
+func storeBackupObject(c *Container, fn, h string) error {
 	b := backups{}
 	err := couchbase.Get(backupKey, &b)
 	if err != nil && !gomemcached.IsNotFound(err) {
@@ -155,7 +155,7 @@ func storeBackupObject(fn, h string) error {
 		// return err
 	}
 
-	removeDeadBackups(&b)
+	removeDeadBackups(c, &b)
 
 	ob := backupItem{fn, h, time.Now().UTC(), *globalConfig}
 
@@ -165,7 +165,7 @@ func storeBackupObject(fn, h string) error {
 	return couchbase.Set(backupKey, 0, &b)
 }
 
-func backupToCBFS(fn string) error {
+func backupToCBFS(c *Container, fn string) error {
 	f, err := NewHashRecord(*root, "")
 	if err != nil {
 		return err
@@ -174,7 +174,7 @@ func backupToCBFS(fn string) error {
 
 	pr, pw := io.Pipe()
 
-	go func() { pw.CloseWithError(backupTo(pw)) }()
+	go func() { pw.CloseWithError(backupTo(c, pw)) }()
 
 	h, length, err := f.Process(pr)
 	if err != nil {
@@ -192,17 +192,17 @@ func backupToCBFS(fn string) error {
 		Modified: time.Now().UTC(),
 	}
 
-	err = storeMeta(fn, 0, fm, 1, nil)
+	err = storeMeta(c, fn, 0, fm, 1, nil)
 	if err != nil {
 		return err
 	}
 
-	err = storeBackupObject(fn, h)
+	err = storeBackupObject(c, fn, h)
 	if err != nil {
 		return err
 	}
 
-	err = recordBackupObject()
+	err = recordBackupObject(c)
 	if err != nil {
 		log.Printf("Failed to record backup OID: %v", err)
 	}
@@ -219,7 +219,7 @@ func doMarkBackup(c *Container, w http.ResponseWriter, req *http.Request) {
 	if req.FormValue("all") == "true" {
 		go recordRemoteBackupObjects()
 	}
-	err := recordBackupObject()
+	err := recordBackupObject(c)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error marking backup; %v", err), 500)
 		return
@@ -236,7 +236,7 @@ func doBackupDocs(c *Container, w http.ResponseWriter, req *http.Request) {
 
 	if bg, _ := strconv.ParseBool(req.FormValue("bg")); bg {
 		go func() {
-			err := backupToCBFS(fn)
+			err := backupToCBFS(c, fn)
 			if err != nil {
 				log.Printf("Error performing bg backup: %v", err)
 			}
@@ -245,7 +245,7 @@ func doBackupDocs(c *Container, w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err := backupToCBFS(fn)
+	err := backupToCBFS(c, fn)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error performing backup: %v", err), 500)
 		return
@@ -266,7 +266,7 @@ func doGetBackupInfo(c *Container, w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	removeDeadBackups(&b)
+	removeDeadBackups(c, &b)
 
 	sendJson(w, req, &b)
 }

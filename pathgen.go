@@ -14,7 +14,7 @@ type namedFile struct {
 	err  error
 }
 
-func pathDataFetcher(wg *sync.WaitGroup, quit <-chan bool,
+func pathDataFetcher(c *Container, wg *sync.WaitGroup, quit <-chan bool,
 	in <-chan string, out chan<- *namedFile) {
 	defer wg.Done()
 
@@ -25,7 +25,7 @@ func pathDataFetcher(wg *sync.WaitGroup, quit <-chan bool,
 				return
 			}
 			ob := namedFile{name: s}
-			ob.err = couchbase.Get(shortName(s), &ob.meta)
+			ob.err = couchbase.Get(c.shortName(s), &ob.meta)
 			out <- &ob
 		case <-quit:
 			return
@@ -33,7 +33,7 @@ func pathDataFetcher(wg *sync.WaitGroup, quit <-chan bool,
 	}
 }
 
-func pathGenerator(from string, ch chan *namedFile,
+func (c Container) pathGenerator(from string, ch chan *namedFile,
 	errs chan error, quit chan bool) {
 
 	parts := strings.Split(from, "/")
@@ -54,7 +54,7 @@ func pathGenerator(from string, ch chan *namedFile,
 	wg := &sync.WaitGroup{}
 	for i := 0; i < 8; i++ {
 		wg.Add(1)
-		go pathDataFetcher(wg, quit, fetchch, ch)
+		go pathDataFetcher(&c, wg, quit, fetchch, ch)
 	}
 	defer func() {
 		close(fetchch)
