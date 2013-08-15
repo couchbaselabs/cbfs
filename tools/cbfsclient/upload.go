@@ -435,7 +435,11 @@ func uploadCommand(u string, args []string) {
 
 	// Special case http as well
 	if strings.HasPrefix(srcFn, "http:") || strings.HasPrefix(srcFn, "https:") {
-		res, err := http.Get(srcFn)
+		req, err := http.NewRequest("GET", srcFn, nil)
+		// Disable compression so we have a chance at getting a res length
+		req.Header.Set("Accept-Encoding", "")
+		cbfstool.MaybeFatal(err, "Error creating request: %v", err)
+		res, err := http.DefaultClient.Do(req)
 		cbfstool.MaybeFatal(err, "Error making http request to %v: %v",
 			srcFn, err)
 		defer res.Body.Close()
@@ -444,7 +448,12 @@ func uploadCommand(u string, args []string) {
 			io.Copy(os.Stderr, res.Body)
 			os.Exit(1)
 		}
-		err = uploadStream(client, res.Body, srcFn, dest, "")
+		var r io.ReadCloser = res.Body
+		if res.ContentLength > 0 {
+			r = newProgressReader(res.Body, res.ContentLength)
+			defer r.Close()
+		}
+		err = uploadStream(client, r, srcFn, dest, "")
 		cbfstool.MaybeFatal(err, "Error uploading from URL: %v", err)
 		return
 	}
