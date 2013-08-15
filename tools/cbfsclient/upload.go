@@ -425,10 +425,26 @@ func uploadCommand(u string, args []string) {
 
 	srcFn := uploadFlags.Arg(0)
 	dest := uploadFlags.Arg(1)
+
 	// Special case stdin.
 	if srcFn == "-" {
 		err := uploadStream(client, os.Stdin, "", dest, "")
 		cbfstool.MaybeFatal(err, "Error uploading stdin: %v", err)
+		return
+	}
+
+	// Special case http as well
+	if strings.HasPrefix(srcFn, "http:") || strings.HasPrefix(srcFn, "https:") {
+		res, err := http.Get(srcFn)
+		cbfstool.MaybeFatal(err, "Error making http request to %v: %v",
+			srcFn, err)
+		defer res.Body.Close()
+		if res.StatusCode != 200 {
+			log.Printf("HTTP error fetching %v: %v", srcFn, err)
+			io.Copy(os.Stderr, res.Body)
+		}
+		err = uploadStream(client, res.Body, srcFn, dest, "")
+		cbfstool.MaybeFatal(err, "Error uploading from URL: %v", err)
 		return
 	}
 
