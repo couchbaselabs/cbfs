@@ -442,6 +442,7 @@ func uploadCommand(u string, args []string) {
 		if res.StatusCode != 200 {
 			log.Printf("HTTP error fetching %v: %v", srcFn, err)
 			io.Copy(os.Stderr, res.Body)
+			os.Exit(1)
 		}
 		err = uploadStream(client, res.Body, srcFn, dest, "")
 		cbfstool.MaybeFatal(err, "Error uploading from URL: %v", err)
