@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -385,9 +386,9 @@ func syncUp(client *cbfsclient.Client, src, u string, ch chan<- uploadReq) {
 	for strings.HasSuffix(u, "/") {
 		u = u[:len(u)-1]
 	}
-	for strings.HasSuffix(src, "/") {
-		src = src[:len(src)-1]
-	}
+
+	// Normalize src.
+	src = path.Clean(src)
 
 	err := filepath.Walk(src,
 		func(path string, info os.FileInfo, err error) error {
