@@ -238,7 +238,7 @@ func localHash(fn string) string {
 		return "unknown"
 	}
 
-	return hex.EncodeToString(h.Sum([]byte{}))
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 func uploadWorker(client *cbfsclient.Client, ch chan uploadReq) {
