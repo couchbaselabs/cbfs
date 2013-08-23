@@ -1,6 +1,8 @@
 package cbfsclient
 
 import (
+	"io"
+	"os"
 	"testing"
 )
 
@@ -24,4 +26,14 @@ func TestPathGen(t *testing.T) {
 				exp, i, p)
 		}
 	}
+}
+
+// Some assertions around filehandle's applicability
+func TestTypes(t *testing.T) {
+	_ = os.FileInfo(&FileHandle{})
+	_ = io.Closer(&FileHandle{})
+	_ = io.Reader(&FileHandle{})
+	_ = io.ReaderAt(&FileHandle{})
+	_ = io.WriterTo(&FileHandle{})
+	_ = io.Seeker(&FileHandle{})
 }

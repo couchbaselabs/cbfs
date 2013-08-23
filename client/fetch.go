@@ -323,16 +323,6 @@ func (f *FileHandle) Seek(offset int64, whence int) (ret int64, err error) {
 	return f.off, nil
 }
 
-// Some assertions around filehandle's applicability
-var (
-	_ = os.FileInfo(&FileHandle{})
-	_ = io.Closer(&FileHandle{})
-	_ = io.Reader(&FileHandle{})
-	_ = io.ReaderAt(&FileHandle{})
-	_ = io.WriterTo(&FileHandle{})
-	_ = io.Seeker(&FileHandle{})
-)
-
 // Get a reference to the file at the given path.
 func (c Client) OpenFile(path string) (*FileHandle, error) {
 	res, err := http.Get(c.URLFor("/.cbfs/info/file/" + noSlash(path)))
