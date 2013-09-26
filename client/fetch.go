@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -33,8 +34,9 @@ func (c Client) GetBlobInfos(oids ...string) (map[string]BlobInfo, error) {
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return nil, fmt.Errorf("HTTP error fetching blob info: %v",
-			res.Status)
+		body, _ := ioutil.ReadAll(io.LimitReader(res.Body, 512))
+		return nil, fmt.Errorf("HTTP error fetching blob info: %v\n%s",
+			res.Status, body)
 	}
 
 	d := json.NewDecoder(res.Body)
