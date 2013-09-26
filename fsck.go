@@ -87,7 +87,13 @@ func dofsck(w http.ResponseWriter, req *http.Request,
 			fnmap[nf.meta.OID] = a
 		}
 
-		for k, v := range couchbase.GetBulk(keys) {
+		bres, err := couchbase.GetBulk(keys)
+		if err != nil {
+			log.Printf("Error getting bulk keys: %v", err)
+			return
+		}
+
+		for k, v := range bres {
 			names := fnmap[k[1:]]
 			for _, name := range names {
 				delete(unprocessed, name)

@@ -241,7 +241,11 @@ func findAllNodes() (NodeList, error) {
 
 	rv := make(NodeList, 0, len(nodeSizes))
 
-	for nid, mcresp := range couchbase.GetBulk(nodeKeys) {
+	bres, err := couchbase.GetBulk(nodeKeys)
+	if err != nil {
+		return nil, err
+	}
+	for nid, mcresp := range bres {
 		if mcresp.Status != gomemcached.SUCCESS {
 			log.Printf("Error fetching %v: %v", nid, mcresp)
 			continue

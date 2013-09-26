@@ -61,7 +61,10 @@ func listFiles(path string, includeMeta bool,
 	}
 
 	// do a multi-get on the all the keys returned
-	bulkResult := couchbase.GetBulk(keys)
+	bulkResult, err := couchbase.GetBulk(keys)
+	if err != nil {
+		return fileListing{}, err
+	}
 
 	// divide items up into files and directories
 	files := map[string]interface{}{}

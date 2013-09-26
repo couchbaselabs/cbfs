@@ -49,7 +49,10 @@ func (b BlobOwnership) ResolveNodes() NodeList {
 	for k := range b.Nodes {
 		keys = append(keys, "/"+k)
 	}
-	resps := couchbase.GetBulk(keys)
+	resps, err := couchbase.GetBulk(keys)
+	if err != nil {
+		log.Panicf("Error getting nodelist: %v", err)
+	}
 
 	rv := make(NodeList, 0, len(resps))
 
@@ -102,7 +105,11 @@ func getBlobs(oids []string) (map[string]BlobOwnership, error) {
 	}
 
 	res := map[string]BlobOwnership{}
-	for k, v := range couchbase.GetBulk(keys) {
+	bres, err := couchbase.GetBulk(keys)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range bres {
 		if v.Status == gomemcached.SUCCESS {
 			bo := BlobOwnership{}
 			err := json.Unmarshal(v.Body, &bo)

@@ -180,7 +180,10 @@ func listRunningTasks() (map[string]TaskList, error) {
 		keys = append(keys, "/@"+n.name+"/tasks")
 	}
 
-	responses := couchbase.GetBulk(keys)
+	responses, err := couchbase.GetBulk(keys)
+	if responses != nil {
+		return nil, err
+	}
 
 	for k, res := range responses {
 		if res.Status == gomemcached.SUCCESS {
