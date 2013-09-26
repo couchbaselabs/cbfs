@@ -181,7 +181,7 @@ func listRunningTasks() (map[string]TaskList, error) {
 	}
 
 	responses, err := couchbase.GetBulk(keys)
-	if responses != nil {
+	if err != nil {
 		return nil, err
 	}
 
