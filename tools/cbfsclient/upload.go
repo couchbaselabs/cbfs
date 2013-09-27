@@ -474,9 +474,11 @@ func uploadCommand(u string, args []string) {
 		syncUp(client, srcFn, dest, ch)
 
 		close(ch)
-		log.Printf("Finished traversal in %v", time.Since(start))
+		cbfstool.Verbose(*uploadVerbose, "Finished traversal in %v",
+			time.Since(start))
 		uploadWg.Wait()
-		log.Printf("Finished sync in %v", time.Since(start))
+		cbfstool.Verbose(*uploadVerbose, "Finished sync in %v",
+			time.Since(start))
 	} else {
 		err = uploadFile(client, srcFn, dest, localHash(srcFn))
 		cbfstool.MaybeFatal(err, "Error uploading file: %v", err)
