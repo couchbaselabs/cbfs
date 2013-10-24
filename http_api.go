@@ -280,7 +280,8 @@ func doGetFramesData(w http.ResponseWriter, req *http.Request) {
 func proxyViewRequest(w http.ResponseWriter, req *http.Request,
 	path string) {
 
-	node := couchbase.Nodes[rand.Intn(len(couchbase.Nodes))]
+	nodes := couchbase.Nodes()
+	node := nodes[rand.Intn(len(nodes))]
 	u, err := url.Parse(node.CouchAPIBase)
 	if err != nil {
 		w.WriteHeader(http.StatusBadGateway)
