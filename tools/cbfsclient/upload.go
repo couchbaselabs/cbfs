@@ -21,7 +21,7 @@ import (
 	"github.com/couchbaselabs/cbfs/client"
 	"github.com/couchbaselabs/cbfs/tools"
 	"github.com/dustin/go-id3"
-	"github.com/dustin/goexif/exif"
+	"github.com/rwcarlsen/goexif/exif"
 )
 
 var uploadWg = sync.WaitGroup{}
