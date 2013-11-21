@@ -20,9 +20,9 @@ import (
 
 var verifyWorkers = flag.Int("verifyWorkers", 4,
 	"Number of object verification workers.")
-var maxStartupObjects = flag.Int("maxStartObjs", 1000,
+var maxStartupObjects = flag.Int("maxStartObjs", 0,
 	"Maximum number of objects to pull on start")
-var maxStartupRepls = flag.Int("maxStartRepls", 3,
+var maxStartupRepls = flag.Int("maxStartRepls", 2,
 	"Blob replication limit for startup objects.")
 
 type PeriodicJob struct {
