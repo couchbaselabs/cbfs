@@ -28,7 +28,7 @@ mkdir -p /tmp/localdata
 ```
 
 The server will be empty at this point, you can install the monitor
-using cbfsclient (`go get github.com/couchbaselabs/cbfs/cbfsclient`)
+using cbfsclient (`go get github.com/couchbaselabs/cbfs/tools/cbfsclient`)
 
 ```
 cbfsclient http://localhost:8484/ upload \
