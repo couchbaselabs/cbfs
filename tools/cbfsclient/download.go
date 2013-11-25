@@ -65,6 +65,10 @@ func downloadCommand(u string, args []string) {
 		destbase = filepath.Base(src)
 	}
 
+	for len(src) > 0 && src[0] == '/' {
+		src = src[1:]
+	}
+
 	initHttpMagic()
 
 	client, err := cbfsclient.New(u)
