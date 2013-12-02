@@ -314,9 +314,12 @@ func doRestoreDocument(w http.ResponseWriter, req *http.Request, fn string) {
 			fm.OID, fn)
 	}
 
-	exp := getExpiration(fm.Headers)
-	if exp > 0 && exp < 60*60*24*30 {
-		exp = int(fm.Modified.Add(time.Second * time.Duration(exp)).Unix())
+	exp := getExpirationFrom(fm.Headers.Get("X-CBFS-ExpirationOverride"))
+	if exp == 0 {
+		exp = getExpiration(fm.Headers)
+		if exp > 0 && exp < 60*60*24*30 {
+			exp = int(fm.Modified.Add(time.Second * time.Duration(exp)).Unix())
+		}
 	}
 
 	if exp < 0 {

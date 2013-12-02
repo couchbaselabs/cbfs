@@ -805,15 +805,19 @@ func doExit(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(202)
 }
 
-func getExpiration(hdr http.Header) int {
+func getExpirationFrom(h string) int {
 	rv := 0
-	if h := hdr.Get("X-CBFS-Expiration"); h != "" {
+	if h != "" {
 		i, err := strconv.Atoi(h)
 		if err == nil {
 			rv = i
 		}
 	}
 	return rv
+}
+
+func getExpiration(hdr http.Header) int {
+	return getExpirationFrom(hdr.Get("X-CBFS-Expiration"))
 }
 
 func doLinkFile(w http.ResponseWriter, req *http.Request) {
