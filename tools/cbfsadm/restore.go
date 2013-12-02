@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/couchbaselabs/cbfs/tools"
+	"strconv"
 )
 
 var restoreFlags = flag.NewFlagSet("restore", flag.ExitOnError)
@@ -23,6 +24,8 @@ var restoreNoop = restoreFlags.Bool("n", false, "Noop")
 var restoreVerbose = restoreFlags.Bool("v", false, "Verbose restore")
 var restorePat = restoreFlags.String("match", ".*", "Regex for paths to match")
 var restoreWorkers = restoreFlags.Int("workers", 4, "Number of restore workers")
+var restoreExpire = restoreFlags.Int("expire", 0,
+	"Override expiration time (in seconds, or abs unix time)")
 
 type restoreWorkItem struct {
 	Path string
@@ -42,9 +45,19 @@ func restoreFile(base, path string, data interface{}) error {
 
 	u := cbfstool.ParseURL(base)
 	u.Path = fmt.Sprintf("/.cbfs/backup/restore/%v", path)
-	res, err := http.Post(u.String(),
-		"application/json",
+
+	req, err := http.NewRequest("POST", u.String(),
 		bytes.NewReader(fileMetaBytes))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	if *restoreExpire > 0 {
+		req.Header.Set("X-CBFS-Expiration", strconv.Itoa(*restoreExpire))
+	}
+
+	res, err := http.DefaultClient.Do(req)
 	cbfstool.MaybeFatal(err, "Error executing POST to %v - %v", u, err)
 
 	defer res.Body.Close()
