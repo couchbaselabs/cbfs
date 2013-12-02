@@ -314,7 +314,7 @@ func doRestoreDocument(w http.ResponseWriter, req *http.Request, fn string) {
 			fm.OID, fn)
 	}
 
-	exp := getExpirationFrom(fm.Headers.Get("X-CBFS-ExpirationOverride"))
+	exp := getExpiration(req.Header)
 	if exp == 0 {
 		exp = getExpiration(fm.Headers)
 		if exp > 0 && exp < 60*60*24*30 {
