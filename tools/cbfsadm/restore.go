@@ -24,7 +24,7 @@ var restoreNoop = restoreFlags.Bool("n", false, "Noop")
 var restoreVerbose = restoreFlags.Bool("v", false, "Verbose restore")
 var restorePat = restoreFlags.String("match", ".*", "Regex for paths to match")
 var restoreWorkers = restoreFlags.Int("workers", 4, "Number of restore workers")
-var restoreExpire = restoreFlags.Int("expire", 0,
+var restoreExpire = restoreFlags.Int("expire", -1,
 	"Override expiration time (in seconds, or abs unix time)")
 
 type restoreWorkItem struct {
@@ -53,9 +53,7 @@ func restoreFile(base, path string, data interface{}) error {
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	if *restoreExpire > 0 {
-		req.Header.Set("X-CBFS-Expiration", strconv.Itoa(*restoreExpire))
-	}
+	req.Header.Set("X-CBFS-Expiration", strconv.Itoa(*restoreExpire))
 
 	res, err := http.DefaultClient.Do(req)
 	cbfstool.MaybeFatal(err, "Error executing POST to %v - %v", u, err)
