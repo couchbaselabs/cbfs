@@ -2,6 +2,7 @@ package main
 
 import (
 	"compress/gzip"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,14 +13,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dustin/go-hashset"
 	"github.com/dustin/gomemcached"
 
-	"encoding/hex"
 	"github.com/couchbaselabs/cbfs/config"
-	"sync"
 )
 
 const backupKey = "/@backup"
