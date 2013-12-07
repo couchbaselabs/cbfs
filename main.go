@@ -176,6 +176,8 @@ func storeMeta(fn string, exp int, fm fileMeta, revs int, header http.Header) er
 func main() {
 	flag.Parse()
 
+	rand.Seed(time.Now().UnixNano())
+
 	initLogger(*useSyslog)
 	initNodeListKeys()
 
