@@ -43,6 +43,16 @@ func (c *Client) Nodes() (map[string]StorageNode, error) {
 	return c.nodes, err
 }
 
+const staleDuration = time.Minute
+
+func stale(s string) bool {
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return true
+	}
+	return d > staleDuration
+}
+
 func (c *Client) RandomNode() (string, StorageNode, error) {
 	nodeMap, err := c.Nodes()
 	if err != nil {
@@ -50,8 +60,10 @@ func (c *Client) RandomNode() (string, StorageNode, error) {
 	}
 
 	nodes := make([]string, 0, len(nodeMap))
-	for k := range nodeMap {
-		nodes = append(nodes, k)
+	for k, node := range nodeMap {
+		if !stale(node.HBAgeStr) {
+			nodes = append(nodes, k)
+		}
 	}
 
 	name := nodes[rand.Intn(len(nodes))]
