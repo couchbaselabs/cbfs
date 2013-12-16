@@ -98,25 +98,38 @@ func (b BlobOwnership) ResolveRemoteNodes() NodeList {
 	return b.ResolveNodes().minusLocal()
 }
 
+const keysPerBatch = 8192
+
 func getBlobs(oids []string) (map[string]BlobOwnership, error) {
-	keys := make([]string, len(oids))
+	keysets := make([][]string, len(oids)/keysPerBatch)
+	if len(oids)%keysPerBatch != 0 {
+		keysets = append(keysets, []string{})
+	}
+
+	n := 0
 	for _, b := range oids {
-		keys = append(keys, "/"+b)
+		keysets[n] = append(keysets[n], "/"+b)
+		if len(keysets[n]) >= keysPerBatch {
+			n++
+		}
 	}
 
 	res := map[string]BlobOwnership{}
-	bres, err := couchbase.GetBulk(keys)
-	if err != nil {
-		return nil, err
-	}
-	for k, v := range bres {
-		if v.Status == gomemcached.SUCCESS {
-			bo := BlobOwnership{}
-			err := json.Unmarshal(v.Body, &bo)
-			if err != nil {
-				return res, err
+
+	for _, keys := range keysets {
+		bres, err := couchbase.GetBulk(keys)
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range bres {
+			if v.Status == gomemcached.SUCCESS {
+				bo := BlobOwnership{}
+				err := json.Unmarshal(v.Body, &bo)
+				if err != nil {
+					return res, err
+				}
+				res[k[1:]] = bo
 			}
-			res[k[1:]] = bo
 		}
 	}
 
