@@ -6,8 +6,10 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
+	cb "github.com/couchbaselabs/go-couchbase"
 	"github.com/samuel/go-metrics/metrics"
 )
 
@@ -17,6 +19,11 @@ var (
 	taskDurations = map[string]metrics.Histogram{}
 	writeBytes    = metrics.NewBiasedHistogram()
 	readBytes     = metrics.NewBiasedHistogram()
+
+	cbHistos   = map[string]metrics.Histogram{}
+	cbHistosMu = sync.Mutex{}
+
+	expHistos *expvar.Map
 )
 
 func init() {
@@ -28,6 +35,31 @@ func init() {
 	m.Set("r_B", &metrics.HistogramExport{readBytes,
 		[]float64{0.1, 0.2, 0.80, 0.90, 0.99},
 		[]string{"p10", "p20", "p80", "p90", "p99"}})
+
+	expHistos = expvar.NewMap("cb")
+
+	cb.ConnPoolCallback = recordConnPoolStat
+}
+
+func connPoolHisto(name string) metrics.Histogram {
+	cbHistosMu.Lock()
+	defer cbHistosMu.Unlock()
+	rv, ok := cbHistos[name]
+	if !ok {
+		rv = metrics.NewBiasedHistogram()
+		cbHistos[name] = rv
+
+		expHistos.Set(name, &metrics.HistogramExport{rv,
+			[]float64{0.25, 0.5, 0.75, 0.90, 0.99},
+			[]string{"p25", "p50", "p75", "p90", "p99"}})
+	}
+	return rv
+}
+
+func recordConnPoolStat(host string, source string, start time.Time, err error) {
+	duration := time.Since(start)
+	histo := connPoolHisto(host)
+	histo.Update(int64(duration))
 }
 
 func initTaskMetrics() {
