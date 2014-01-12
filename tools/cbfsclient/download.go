@@ -23,14 +23,47 @@ var dlverbose = dlFlags.Bool("v", false, "verbose download")
 var totalConcurrency = dlFlags.Int("ct", 4, "Total number of concurrent downloads")
 var nodeConcurrency = dlFlags.Int("cn", 2, "Max concurrent downloads per node")
 var dlNoop = dlFlags.Bool("n", false, "Noop")
+var dlLink = dlFlags.Bool("L", false, "hard link identical content")
 
 var totalBytes int64
 
 func saveDownload(filenames []string, oid string, r io.Reader) (err error) {
 	var w io.Writer
-	if *dlNoop {
+	switch {
+	case *dlNoop:
 		w = ioutil.Discard
-	} else {
+	case *dlLink:
+		basefn := filenames[0]
+		f, er := os.Create(basefn)
+		if er != nil {
+			er = os.MkdirAll(filepath.Dir(basefn), 0777)
+			if er != nil {
+				return er
+			}
+			f, er = os.Create(basefn)
+		}
+		defer errutil.AppendCall(&err, f.Close)
+		w = f
+		for _, fn := range filenames[1:] {
+			er := os.Link(basefn, fn)
+			switch {
+			case os.IsExist(er):
+				// Don't care, we've already got it
+				er = nil
+			case er != nil:
+				er = os.MkdirAll(filepath.Dir(fn), 0777)
+				if er != nil {
+					return er
+				}
+				er = os.Link(basefn, fn)
+			default:
+			}
+			if er != nil {
+				return er
+			}
+			cbfstool.Verbose(*dlverbose, "Linked %s -> %v", fn, basefn)
+		}
+	default:
 		ws := []io.Writer{}
 		for _, fn := range filenames {
 			f, er := os.Create(fn)
