@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"sethwklein.net/go/errutil"
+
 	"github.com/couchbaselabs/cbfs/client"
 	"github.com/couchbaselabs/cbfs/tools"
 	"github.com/dustin/go-humanize"
@@ -24,22 +26,25 @@ var dlNoop = dlFlags.Bool("n", false, "Noop")
 
 var totalBytes int64
 
-func saveDownload(filenames []string, oid string, r io.Reader) error {
+func saveDownload(filenames []string, oid string, r io.Reader) (err error) {
 	var w io.Writer
 	if *dlNoop {
 		w = ioutil.Discard
 	} else {
 		ws := []io.Writer{}
 		for _, fn := range filenames {
-			f, err := os.Create(fn)
-			if err != nil {
-				os.MkdirAll(filepath.Dir(fn), 0777)
-				f, err = os.Create(fn)
+			f, er := os.Create(fn)
+			if er != nil {
+				er = os.MkdirAll(filepath.Dir(fn), 0777)
+				if er != nil {
+					return er
+				}
+				f, er = os.Create(fn)
 			}
-			if err != nil {
-				return err
+			if er != nil {
+				return er
 			}
-			defer f.Close()
+			defer errutil.AppendCall(&err, f.Close)
 			ws = append(ws, f)
 		}
 		w = io.MultiWriter(ws...)
