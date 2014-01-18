@@ -25,7 +25,7 @@ type ReadSeekCloser interface {
 	io.Closer
 }
 
-func openBlob(hstr string) (ReadSeekCloser, error) {
+func openLocalBlob(hstr string) (ReadSeekCloser, error) {
 	return os.Open(hashFilename(*root, hstr))
 }
 
@@ -45,7 +45,7 @@ func forceRemoveObject(h string) error {
 }
 
 func verifyObjectHash(h string) error {
-	f, err := openBlob(h)
+	f, err := openLocalBlob(h)
 	if err != nil {
 		return err
 	}

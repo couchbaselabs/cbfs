@@ -8,7 +8,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
 	"strconv"
@@ -397,7 +396,7 @@ func doHeadUserFile(w http.ResponseWriter, req *http.Request) {
 }
 
 func doHeadRawBlob(w http.ResponseWriter, req *http.Request, oid string) {
-	f, err := openBlob(oid)
+	f, err := openLocalBlob(oid)
 	if err != nil {
 		http.Error(w,
 			fmt.Sprintf("Error opening blob: %v", err), 404)
@@ -498,30 +497,16 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	f, err := openBlob(oid)
-	switch {
-	case err == nil:
+	f, err := openBlob(oid, req.Header.Get("X-CBFS-LocalOnly") != "")
+	if err == nil {
 		// normal path
-	case req.Header.Get("X-CBFS-LocalOnly") != "":
-		// Special case, just describe where things are.
-		bo, err := getBlobOwnership(oid)
-		if err != nil {
-			http.Error(w, err.Error(), 500)
-			return
-		}
-		urls := bo.ResolveNodes().BlobURLs(oid)
-		if len(urls) == 0 {
-			http.Error(w, "No alt URLs found", 500)
-			return
-		}
-		w.Header().Set("Location", urls[0])
+	} else if notloc, ok := err.(errNotLocal); ok {
+		w.Header().Set("Location", notloc.urls[0])
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(300)
-		e := json.NewEncoder(w)
-		e.Encode(urls)
-		return
-	default:
-		getBlobFromRemote(w, oid, respHeaders, *cachePercentage)
+		json.NewEncoder(w).Encode(notloc.urls)
+	} else {
+		http.Error(w, err.Error(), 500)
 		return
 	}
 	defer f.Close()
@@ -535,11 +520,16 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Etag", `"`+oid+`"`)
 
 	go recordBlobAccess(oid)
-	http.ServeContent(w, req, path, modified, f)
+	if r, ok := f.(io.ReadSeeker); ok {
+		http.ServeContent(w, req, path, modified, r)
+	} else {
+		w.WriteHeader(200)
+		io.Copy(w, r)
+	}
 }
 
 func doServeRawBlob(w http.ResponseWriter, req *http.Request, oid string) {
-	f, err := openBlob(oid)
+	f, err := openLocalBlob(oid)
 	if err != nil {
 		http.Error(w, "Error opening blob: "+err.Error(), 404)
 		removeBlobOwnershipRecord(oid, serverId)
@@ -557,9 +547,7 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 	respHeader http.Header, cachePerc int) error {
 
 	// Find the owners of this blob
-	ownership := BlobOwnership{}
-	oidkey := "/" + oid
-	err := couchbase.Get(oidkey, &ownership)
+	ownership, err := getBlobOwnership(oid)
 	if err != nil {
 		log.Printf("Missing ownership record for %v", oid)
 		// Not sure 404 is the right response here
@@ -567,68 +555,23 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 		return err
 	}
 
-	nl := ownership.ResolveRemoteNodes()
+	f, err := openRemote(oid, ownership.Length, cachePerc, ownership.ResolveNodes())
+	if err != nil {
+		return err
+	}
+	defer f.Close()
 
-	// Loop through the nodes that claim to own this blob
-	// If we encounter any errors along the way, try the next node
-	for _, sid := range nl {
-		resp, err := sid.ClientForTransfer(ownership.Length).Get(sid.BlobURL(oid))
-		if err != nil {
-			log.Printf("Error reading %s from node %v: %v",
-				oid, sid, err)
-			continue
+	for k, v := range respHeader {
+		if isResponseHeader(k) {
+			w.Header()[k] = v
 		}
-		defer resp.Body.Close()
+	}
+	w.WriteHeader(200)
+	_, err = io.Copy(w, f)
 
-		if resp.StatusCode != 200 {
-			log.Printf("Error response %v from node %v getting %v",
-				resp.Status, sid, oid)
-			continue
-		}
-
-		// Found one, set the headers and send it.  Keep a
-		// local copy for good luck.
-
-		for k, v := range respHeader {
-			if isResponseHeader(k) {
-				w.Header()[k] = v
-			}
-		}
-		w.WriteHeader(200)
-		writeTo := io.Writer(w)
-		var hw *hashRecord
-
-		if cachePerc == 100 || (cachePerc > rand.Intn(100) &&
-			availableSpace() > ownership.Length) {
-			hw, err = NewHashRecord(*root, oid)
-			if err == nil {
-				writeTo = io.MultiWriter(hw, w)
-			} else {
-				hw = nil
-			}
-		}
-
-		length, err := io.Copy(writeTo, resp.Body)
-
-		if err != nil {
-			log.Printf("Failed to write %v from remote stream %v",
-				oid, err)
-			return err
-		} else {
-			// A successful copy with a working hash
-			// record means we should link in and record
-			// our copy of this file.
-			if hw != nil {
-				_, err = hw.Finish()
-				if err == nil {
-					err = recordBlobOwnership(oid, length,
-						true)
-				}
-				log.Printf("Retrieved %v from %v: result=%v",
-					oid, sid, errorOrSuccess(err))
-			}
-		}
-
+	if err != nil {
+		log.Printf("Failed to write %v from remote stream %v",
+			oid, err)
 		return err
 	}
 

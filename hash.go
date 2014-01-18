@@ -157,3 +157,18 @@ func cleanTmpFiles() error {
 	}
 	return nil
 }
+
+type hwFinisher struct {
+	io.Reader
+	h   *hashRecord
+	oid string
+	l   int64
+}
+
+func (h *hwFinisher) Close() error {
+	_, err := h.h.Finish()
+	if err == nil {
+		err = recordBlobOwnership(h.oid, h.l, true)
+	}
+	return err
+}

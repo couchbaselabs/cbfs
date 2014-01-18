@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"sort"
@@ -150,7 +152,7 @@ func blobReader(oid string) io.ReadCloser {
 }
 
 func copyBlob(w io.Writer, oid string) error {
-	f, err := openBlob(oid)
+	f, err := openLocalBlob(oid)
 	if err == nil {
 		// Doing it locally
 		defer f.Close()
@@ -669,4 +671,65 @@ func maybeQueueBlobFetch(oid, prev string) bool {
 	default:
 		return false
 	}
+}
+
+type errNotLocal struct {
+	urls []string
+}
+
+func (e errNotLocal) Error() string {
+	return fmt.Sprintf("non-local, try one of these: %v", e.urls)
+}
+
+func openBlob(oid string, localOnly bool) (io.ReadCloser, error) {
+	f, err := openLocalBlob(oid)
+	if err == nil {
+		return f, err
+	}
+
+	// Special case, just describe where things are.
+	bo, err := getBlobOwnership(oid)
+	if err != nil {
+		return nil, err
+	}
+	nl := bo.ResolveNodes()
+	if len(nl) == 0 {
+		return nil, errors.New("no copies found")
+	}
+
+	if localOnly {
+		return nil, errNotLocal{nl.BlobURLs(oid)}
+	}
+
+	return openRemote(oid, bo.Length, *cachePercentage, nl)
+}
+
+func openRemote(oid string, l int64, cachePerc int, nl NodeList) (io.ReadCloser, error) {
+	for _, sid := range nl {
+		resp, err := sid.ClientForTransfer(l).Get(sid.BlobURL(oid))
+		if err != nil {
+			log.Printf("Error reading %s from node %v: %v",
+				oid, sid, err)
+			continue
+		}
+
+		if resp.StatusCode != 200 {
+			log.Printf("Error response %v from node %v getting %v",
+				resp.Status, sid, oid)
+			resp.Body.Close()
+			continue
+		}
+
+		shouldCache := cachePerc == 100 || (cachePerc > rand.Intn(100) &&
+			availableSpace() > l)
+
+		if !shouldCache {
+			return resp.Body, nil
+		}
+
+		hw, err := NewHashRecord(*root, oid)
+		r := io.TeeReader(resp.Body, hw)
+		return &hwFinisher{r, hw, oid, l}, nil
+	}
+	return nil, fmt.Errorf("couldn't get ob from any of %v", nl)
 }
