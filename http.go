@@ -524,7 +524,7 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 		http.ServeContent(w, req, path, modified, r)
 	} else {
 		w.WriteHeader(200)
-		io.Copy(w, r)
+		io.Copy(w, f)
 	}
 }
 
