@@ -16,6 +16,7 @@ import (
 	"github.com/couchbaselabs/cbfs/client"
 	"github.com/couchbaselabs/cbfs/tools"
 	"github.com/dustin/go-humanize"
+	"github.com/dustin/httputil"
 )
 
 var dlFlags = flag.NewFlagSet("download", flag.ExitOnError)
@@ -107,7 +108,7 @@ func downloadCommand(u string, args []string) {
 		src = src[1:]
 	}
 
-	initHttpMagic()
+	httputil.InitHTTPTracker(false)
 
 	client, err := cbfsclient.New(u)
 	cbfstool.MaybeFatal(err, "Can't build a client: %v", err)

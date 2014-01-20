@@ -21,6 +21,7 @@ import (
 	"github.com/couchbaselabs/cbfs/client"
 	"github.com/couchbaselabs/cbfs/tools"
 	"github.com/dustin/go-id3"
+	"github.com/dustin/httputil"
 	"github.com/rwcarlsen/goexif/exif"
 )
 
@@ -408,7 +409,7 @@ func syncUp(client *cbfsclient.Client, src, u string, ch chan<- uploadReq) {
 
 func uploadCommand(u string, args []string) {
 	initCrypto()
-	initHttpMagic()
+	httputil.InitHTTPTracker(false)
 
 	uploadFlags.Visit(func(f *flag.Flag) {
 		if f.Name == "revs" {
