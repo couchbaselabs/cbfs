@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"expvar"
 	"flag"
 	"fmt"
 	"log"
@@ -17,6 +18,7 @@ import (
 	"github.com/couchbaselabs/cbfs/config"
 	"github.com/dustin/go-humanize"
 	"github.com/dustin/gomemcached"
+	"github.com/dustin/httputil"
 )
 
 var bindAddr = flag.String("bind", ":8484", "Address to bind web thing to")
@@ -182,6 +184,7 @@ func main() {
 	initNodeListKeys()
 
 	http.DefaultTransport = TimeoutTransport(*internodeTimeout)
+	expvar.Publish("httpclients", httputil.InitHTTPTracker(false))
 
 	if getHash() == nil {
 		fmt.Fprintf(os.Stderr,
