@@ -726,6 +726,7 @@ func openRemote(oid string, l int64, cachePerc int, nl NodeList) (io.ReadCloser,
 		if !shouldCache {
 			return resp.Body, nil
 		}
+		defer resp.Body.Close()
 
 		hw, err := NewHashRecord(*root, oid)
 		r := io.TeeReader(resp.Body, hw)
