@@ -17,6 +17,7 @@ import (
 	cb "github.com/couchbaselabs/go-couchbase"
 	"github.com/dustin/gomemcached"
 	"github.com/dustin/gomemcached/client"
+	"sethwklein.net/go/errutil"
 )
 
 type BlobOwnership struct {
@@ -704,6 +705,22 @@ func openBlob(oid string, localOnly bool) (io.ReadCloser, error) {
 	return openRemote(oid, bo.Length, *cachePercentage, nl)
 }
 
+type readerClosers struct {
+	r       io.Reader
+	closers []io.Closer
+}
+
+func (r *readerClosers) Read(b []byte) (int, error) {
+	return r.r.Read(b)
+}
+
+func (r *readerClosers) Close() (err error) {
+	for _, c := range r.closers {
+		errutil.AppendCall(&err, c.Close)
+	}
+	return
+}
+
 func openRemote(oid string, l int64, cachePerc int, nl NodeList) (io.ReadCloser, error) {
 	for _, sid := range nl {
 		resp, err := sid.ClientForTransfer(l).Get(sid.BlobURL(oid))
@@ -726,11 +743,11 @@ func openRemote(oid string, l int64, cachePerc int, nl NodeList) (io.ReadCloser,
 		if !shouldCache {
 			return resp.Body, nil
 		}
-		defer resp.Body.Close()
 
 		hw, err := NewHashRecord(*root, oid)
 		r := io.TeeReader(resp.Body, hw)
-		return &hwFinisher{r, hw, oid, l}, nil
+		rv := &hwFinisher{r, hw, oid, l}
+		return &readerClosers{rv, []io.Closer{rv, resp.Body}}, nil
 	}
 	return nil, fmt.Errorf("couldn't get ob from any of %v", nl)
 }
