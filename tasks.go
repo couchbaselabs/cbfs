@@ -330,7 +330,8 @@ func cleanupNode(node string) {
 			Id  string
 			Doc struct {
 				Json struct {
-					Nodes map[string]string
+					Nodes   map[string]string
+					Garbage bool
 				}
 			}
 		}
@@ -355,7 +356,11 @@ func cleanupNode(node string) {
 	for _, r := range viewRes.Rows {
 		foundRows++
 
-		if len(r.Doc.Json.Nodes) < globalConfig.MinReplicas {
+		if r.Doc.Json.Garbage {
+			log.Printf("%v appears to be garbage during cleanup. Dropping",
+				r.Id[1:])
+			removeBlobOwnershipRecord(r.Id[1:], node)
+		} else if len(r.Doc.Json.Nodes) < globalConfig.MinReplicas {
 			if !salvageBlob(r.Id[1:], node, 1, nodes) {
 				log.Printf("Queue is full during cleanup")
 				break
