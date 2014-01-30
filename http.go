@@ -577,12 +577,7 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 			oid, err)
 		return err
 	}
-
-	//if we got to this point, no node in the list actually had it
-	log.Printf("Don't have hash file: %v and no remote nodes could help",
-		oid)
-	http.Error(w, "Cannot locate blob "+oid, 500)
-	return fmt.Errorf("Can't locate blob %v", oid)
+	return nil
 }
 
 func canGzip(req *http.Request) bool {
