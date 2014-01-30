@@ -575,9 +575,8 @@ func getBlobFromRemote(w http.ResponseWriter, oid string,
 	if err != nil {
 		log.Printf("Failed to write %v from remote stream %v",
 			oid, err)
-		return err
 	}
-	return nil
+	return err
 }
 
 func canGzip(req *http.Request) bool {
