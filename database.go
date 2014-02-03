@@ -88,7 +88,7 @@ const designDoc = `
 `
 
 func dbConnect() (*cb.Bucket, error) {
-	cb.HttpClient = &http.Client{
+	cb.HTTPClient = &http.Client{
 		Transport: TimeoutTransport(*viewTimeout),
 	}
 
