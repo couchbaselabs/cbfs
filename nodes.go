@@ -201,7 +201,7 @@ func (n StorageNode) iterateBlobs(ch chan<- string, cherr chan<- error,
 			"limit":  limit,
 		}
 		if startDocId != "" {
-			params["startkey_docid"] = cb.DocId(startDocId)
+			params["startkey_docid"] = cb.DocID(startDocId)
 		}
 		err := couchbase.ViewCustom("cbfs", "node_blobs", params,
 			&viewRes)
