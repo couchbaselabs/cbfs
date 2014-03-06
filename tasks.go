@@ -9,6 +9,7 @@ import (
 	"log"
 	"math/rand"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -116,6 +117,13 @@ func init() {
 				return time.Hour
 			},
 			cleanTmpFiles,
+			nil,
+		},
+		"checkTime": {
+			func() time.Duration {
+				return time.Minute * 15
+			},
+			checkTime,
 			nil,
 		},
 	}
@@ -736,6 +744,43 @@ func garbageCollectBlobs() error {
 
 	log.Printf("Scheduled %d blobs for deletion, skipped %d, in backup %d",
 		count, skipped, inBackup)
+	return nil
+}
+
+const maxDelta = 300 * time.Second
+
+func checkTime() error {
+	m := couchbase.GetStats("")
+	post := time.Now()
+
+	totalTimes := int64(0)
+	numTimes := int64(0)
+	for k, v := range m {
+		i, err := strconv.Atoi(v["time"])
+		if err == nil {
+			numTimes++
+			totalTimes += int64(i)
+		} else {
+			log.Printf("time error:  parsing %q from %v: %v",
+				v["time"], k, err)
+		}
+	}
+
+	if numTimes == 0 {
+		log.Printf("time error:  no times found")
+		return nil
+	}
+
+	avgTime := totalTimes / numTimes
+	myTime := post.Unix()
+	tDelta := time.Duration(myTime-avgTime) * time.Second
+	if tDelta < 0 {
+		tDelta = -tDelta
+	}
+
+	if tDelta > maxDelta {
+		log.Printf("time error:  clock is off by %v", tDelta)
+	}
 	return nil
 }
 
