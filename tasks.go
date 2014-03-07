@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"encoding/hex"
+
 	cb "github.com/couchbaselabs/go-couchbase"
 	"github.com/dustin/gomemcached"
 	"github.com/dustin/gomemcached/client"
@@ -747,8 +748,6 @@ func garbageCollectBlobs() error {
 	return nil
 }
 
-const maxDelta = 300 * time.Second
-
 func checkTime() error {
 	m := couchbase.GetStats("")
 	post := time.Now()
@@ -778,7 +777,7 @@ func checkTime() error {
 		tDelta = -tDelta
 	}
 
-	if tDelta > maxDelta {
+	if tDelta > globalConfig.DriftWarnThresh {
 		log.Printf("time error:  clock is off by %v", tDelta)
 	}
 	return nil

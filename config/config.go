@@ -59,6 +59,8 @@ type CBFSConfig struct {
 	TrimFullNodesCount int `json:"trimFullCount"`
 	// How much space to keep free on nodes.
 	TrimFullNodesSpace int64 `json:"trimFullSize"`
+	// How far time can drift from DB before warning
+	DriftWarnThresh time.Duration `json:"driftWarnThresh"`
 }
 
 // Get the default configuration
@@ -85,6 +87,7 @@ func DefaultConfig() CBFSConfig {
 		TrimFullNodesFreq:     time.Hour,
 		TrimFullNodesCount:    10000,
 		TrimFullNodesSpace:    1 * 1024 * 1024 * 1024,
+		DriftWarnThresh:       5 * time.Minute,
 	}
 }
 
@@ -125,6 +128,9 @@ func (conf *CBFSConfig) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
+
+	// Shove in all the defaults
+	*conf = DefaultConfig()
 
 	for k, v := range m {
 		err = conf.SetParameter(k, v)

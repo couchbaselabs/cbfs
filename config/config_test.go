@@ -84,3 +84,32 @@ func TestSetParamErrors(t *testing.T) {
 		}
 	}
 }
+
+func TestDefaultWhenUnmarshaling(t *testing.T) {
+	j := `{"gcfreq": "15m"}`
+	conf := CBFSConfig{}
+	err := json.Unmarshal([]byte(j), &conf)
+	if err != nil {
+		t.Fatalf("Error unmarshaling: %v", err)
+	}
+	if conf.GCFreq != 15*time.Minute {
+		t.Errorf("Expected 15m for gcfreq, got %v", err)
+	}
+	if conf.DriftWarnThresh != 5*time.Minute {
+		t.Errorf("Expected 5m for driftWarnThresh, got %v", err)
+	}
+
+	// Just to be safe, try it the other way around.
+	j = `{"driftWarnThresh": "15m"}`
+	conf = CBFSConfig{}
+	err = json.Unmarshal([]byte(j), &conf)
+	if err != nil {
+		t.Fatalf("Error unmarshaling: %v", err)
+	}
+	if conf.GCFreq != 8*time.Hour {
+		t.Errorf("Expected 8h for gcfreq, got %v", err)
+	}
+	if conf.DriftWarnThresh != 15*time.Minute {
+		t.Errorf("Expected 15m for driftWarnThresh, got %v", err)
+	}
+}
