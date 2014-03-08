@@ -1,5 +1,3 @@
-// +build openbsd
-
 package main
 
 import (

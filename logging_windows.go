@@ -1,5 +1,3 @@
-// +build windows !darwin !freebsd !linux !openbsd !netbsd
-
 package main
 
 import (
