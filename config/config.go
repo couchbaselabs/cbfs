@@ -2,7 +2,6 @@ package cbfsconfig
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -11,7 +10,11 @@ import (
 	"time"
 )
 
-var unhandledValue = errors.New("Unsupported parameter")
+type unhandledValue string
+
+func (u unhandledValue) Error() string {
+	return fmt.Sprintf("unhandled value: %q", string(u))
+}
 
 // Cluster-wide configuration
 type CBFSConfig struct {
@@ -203,7 +206,7 @@ func (conf *CBFSConfig) SetParameter(name string, inval interface{}) error {
 			return fmt.Errorf("Unhandled type in field %v", name)
 		}
 	}
-	return unhandledValue
+	return unhandledValue(name)
 }
 
 // Dump a text representation of this config to the given writer.
