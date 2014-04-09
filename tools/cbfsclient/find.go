@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/couchbaselabs/cbfs/client"
 	"github.com/couchbaselabs/cbfs/tools"
@@ -13,6 +14,7 @@ import (
 var findFlags = flag.NewFlagSet("find", flag.ExitOnError)
 var findTemplate = findFlags.String("t", "", "Display template")
 var findTemplateFile = findFlags.String("T", "", "Display template filename")
+var findDashName = findFlags.String("name", "*", "Glob name to match")
 
 const defaultFindTemplate = `{{.Name}}
 `
@@ -36,6 +38,13 @@ func findCommand(u string, args []string) {
 
 	for fn, inf := range things.Files {
 		fn = fn[len(src)+1:]
+		matched, err := filepath.Match(*findDashName, filepath.Base(fn))
+		if err != nil {
+			log.Fatalf("Error globbing: %v", err)
+		}
+		if !matched {
+			continue
+		}
 		if err := tmpl.Execute(os.Stdout, struct {
 			Name string
 			Meta cbfsclient.FileMeta
