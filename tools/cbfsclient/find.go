@@ -36,20 +36,44 @@ func findCommand(u string, args []string) {
 	things, err := client.ListDepth(src, 4096)
 	cbfstool.MaybeFatal(err, "Can't list things: %v", err)
 
+	matchedDirs := map[string]struct{}{}
 	for fn, inf := range things.Files {
 		fn = fn[len(src)+1:]
-		matched, err := filepath.Match(*findDashName, filepath.Base(fn))
-		if err != nil {
-			log.Fatalf("Error globbing: %v", err)
+		dir := filepath.Dir(fn)
+		matched := false
+		if _, seen := matchedDirs[dir]; !seen {
+			matched, err = filepath.Match(*findDashName,
+				filepath.Base(dir))
+			if err != nil {
+				log.Fatalf("Error globbing: %v", err)
+			}
+			matchedDirs[dir] = struct{}{}
+			if matched {
+				if err := tmpl.Execute(os.Stdout, struct {
+					Name  string
+					IsDir bool
+					Meta  cbfsclient.FileMeta
+				}{Name: dir, IsDir: true}); err != nil {
+					log.Fatalf("Error executing template: %v", err)
+				}
+				continue
+			}
 		}
 		if !matched {
-			continue
+			matched, err = filepath.Match(*findDashName,
+				filepath.Base(fn))
+			if err != nil {
+				log.Fatalf("Error globbing: %v", err)
+			}
 		}
-		if err := tmpl.Execute(os.Stdout, struct {
-			Name string
-			Meta cbfsclient.FileMeta
-		}{fn, inf}); err != nil {
-			log.Fatalf("Error executing template: %v", err)
+		if matched {
+			if err := tmpl.Execute(os.Stdout, struct {
+				Name  string
+				IsDir bool
+				Meta  cbfsclient.FileMeta
+			}{fn, false, inf}); err != nil {
+				log.Fatalf("Error executing template: %v", err)
+			}
 		}
 	}
 }
