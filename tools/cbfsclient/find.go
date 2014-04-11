@@ -14,10 +14,21 @@ import (
 var findFlags = flag.NewFlagSet("find", flag.ExitOnError)
 var findTemplate = findFlags.String("t", "", "Display template")
 var findTemplateFile = findFlags.String("T", "", "Display template filename")
-var findDashName = findFlags.String("name", "*", "Glob name to match")
+var findDashName = findFlags.String("name", "", "Glob name to match")
 
 const defaultFindTemplate = `{{.Name}}
 `
+
+func findNameMatches(name string) bool {
+	if *findDashName == "" {
+		return true
+	}
+	matched, err := filepath.Match(*findDashName, filepath.Base(name))
+	if err != nil {
+		log.Fatalf("Error globbing: %v", err)
+	}
+	return matched
+}
 
 func findCommand(u string, args []string) {
 	src := findFlags.Arg(0)
@@ -42,11 +53,7 @@ func findCommand(u string, args []string) {
 		dir := filepath.Dir(fn)
 		matched := false
 		if _, seen := matchedDirs[dir]; !seen {
-			matched, err = filepath.Match(*findDashName,
-				filepath.Base(dir))
-			if err != nil {
-				log.Fatalf("Error globbing: %v", err)
-			}
+			matched = findNameMatches(filepath.Base(dir))
 			matchedDirs[dir] = struct{}{}
 			if matched {
 				if err := tmpl.Execute(os.Stdout, struct {
@@ -60,11 +67,7 @@ func findCommand(u string, args []string) {
 			}
 		}
 		if !matched {
-			matched, err = filepath.Match(*findDashName,
-				filepath.Base(fn))
-			if err != nil {
-				log.Fatalf("Error globbing: %v", err)
-			}
+			matched = findNameMatches(filepath.Base(fn))
 		}
 		if matched {
 			if err := tmpl.Execute(os.Stdout, struct {
