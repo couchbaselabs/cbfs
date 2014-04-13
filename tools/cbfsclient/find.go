@@ -39,15 +39,18 @@ func (d dirAndFileMatcher) match(name string) []findMatch {
 	var matches []findMatch
 
 	dir := filepath.Dir(name)
-	if _, seen := d.m[dir]; !seen {
-		matched, err := filepath.Match(*findDashName, filepath.Base(dir))
-		if err != nil {
-			log.Fatalf("Error globbing: %v", err)
+	for dir != "." {
+		if _, seen := d.m[dir]; !seen {
+			matched, err := filepath.Match(*findDashName, filepath.Base(dir))
+			if err != nil {
+				log.Fatalf("Error globbing: %v", err)
+			}
+			d.m[dir] = struct{}{}
+			if matched {
+				matches = append(matches, findMatch{dir, true})
+			}
 		}
-		d.m[dir] = struct{}{}
-		if matched {
-			matches = append(matches, findMatch{dir, true})
-		}
+		dir = filepath.Dir(dir)
 	}
 
 	matched, err := filepath.Match(*findDashName, filepath.Base(name))

@@ -22,6 +22,7 @@ func TestFindMatching(t *testing.T) {
 		{[]string{"-name", "*"},
 			[]string{
 				"web/site",
+				"web",
 				"web/site/file.html",
 				"web/site/file2.html",
 				"web/site/x",
@@ -46,12 +47,10 @@ func TestFindMatching(t *testing.T) {
 				"web/site/x/x.html",
 			},
 		},
-		/* soooon
 		{
 			[]string{"-name", "web"},
 			[]string{"web"},
 		},
-		*/
 		{
 			[]string{"-name", "x"},
 			[]string{"web/site/x"},
