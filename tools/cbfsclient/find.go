@@ -19,15 +19,45 @@ var findDashName = findFlags.String("name", "", "Glob name to match")
 const defaultFindTemplate = `{{.Name}}
 `
 
-func findNameMatches(name string) bool {
+type dirAndFileMatcher struct {
+	m map[string]struct{}
+}
+
+func newDirAndFileMatcher() dirAndFileMatcher {
+	return dirAndFileMatcher{map[string]struct{}{}}
+}
+
+type findMatch struct {
+	path  string
+	isDir bool
+}
+
+func (d dirAndFileMatcher) match(name string) []findMatch {
 	if *findDashName == "" {
-		return true
+		return []findMatch{{name, false}}
 	}
+	var matches []findMatch
+
+	dir := filepath.Dir(name)
+	if _, seen := d.m[dir]; !seen {
+		matched, err := filepath.Match(*findDashName, filepath.Base(dir))
+		if err != nil {
+			log.Fatalf("Error globbing: %v", err)
+		}
+		d.m[dir] = struct{}{}
+		if matched {
+			matches = append(matches, findMatch{dir, true})
+		}
+	}
+
 	matched, err := filepath.Match(*findDashName, filepath.Base(name))
 	if err != nil {
 		log.Fatalf("Error globbing: %v", err)
 	}
-	return matched
+	if matched {
+		matches = append(matches, findMatch{name, false})
+	}
+	return matches
 }
 
 func findCommand(u string, args []string) {
@@ -47,34 +77,15 @@ func findCommand(u string, args []string) {
 	things, err := client.ListDepth(src, 4096)
 	cbfstool.MaybeFatal(err, "Can't list things: %v", err)
 
-	matchedDirs := map[string]struct{}{}
+	matcher := newDirAndFileMatcher()
 	for fn, inf := range things.Files {
 		fn = fn[len(src)+1:]
-		dir := filepath.Dir(fn)
-		matched := false
-		if _, seen := matchedDirs[dir]; !seen {
-			matched = findNameMatches(filepath.Base(dir))
-			matchedDirs[dir] = struct{}{}
-			if matched {
-				if err := tmpl.Execute(os.Stdout, struct {
-					Name  string
-					IsDir bool
-					Meta  cbfsclient.FileMeta
-				}{Name: dir, IsDir: true}); err != nil {
-					log.Fatalf("Error executing template: %v", err)
-				}
-				continue
-			}
-		}
-		if !matched {
-			matched = findNameMatches(filepath.Base(fn))
-		}
-		if matched {
+		for _, match := range matcher.match(fn) {
 			if err := tmpl.Execute(os.Stdout, struct {
 				Name  string
 				IsDir bool
 				Meta  cbfsclient.FileMeta
-			}{fn, false, inf}); err != nil {
+			}{match.path, match.isDir, inf}); err != nil {
 				log.Fatalf("Error executing template: %v", err)
 			}
 		}
