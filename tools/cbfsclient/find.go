@@ -52,6 +52,11 @@ func (d dirAndFileMatcher) match(name string) []findMatch {
 		}
 		dir = filepath.Dir(dir)
 	}
+	// Reverse these so the traversal order makes sense
+	for i := 0; i < len(matches)/2; i++ {
+		j := len(matches) - i - 1
+		matches[i], matches[j] = matches[j], matches[i]
+	}
 
 	matched, err := filepath.Match(*findDashName, filepath.Base(name))
 	if err != nil {

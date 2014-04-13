@@ -21,8 +21,8 @@ func TestFindMatching(t *testing.T) {
 		{nil, corpus},
 		{[]string{"-name", "*"},
 			[]string{
-				"web/site",
 				"web",
+				"web/site",
 				"web/site/file.html",
 				"web/site/file2.html",
 				"web/site/x",
