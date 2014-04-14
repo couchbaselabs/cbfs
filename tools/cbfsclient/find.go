@@ -101,9 +101,8 @@ func (d dirAndFileMatcher) matches(name string) []findMatch {
 	dir := filepath.Dir(name)
 	for dir != "." {
 		if _, seen := d.m[dir]; !seen {
-			matched := d.match(filepath.Base(dir), true)
 			d.m[dir] = struct{}{}
-			if matched {
+			if d.match(filepath.Base(dir), true) {
 				matches = append(matches, findMatch{dir, true})
 			}
 		}
