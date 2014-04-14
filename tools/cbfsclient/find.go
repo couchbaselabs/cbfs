@@ -32,7 +32,15 @@ type findMatch struct {
 	isDir bool
 }
 
-func (d dirAndFileMatcher) match(name string) []findMatch {
+func (d dirAndFileMatcher) match(name string) bool {
+	matched, err := filepath.Match(*findDashName, name)
+	if err != nil {
+		log.Fatalf("Error globbing: %v", err)
+	}
+	return matched
+}
+
+func (d dirAndFileMatcher) matches(name string) []findMatch {
 	if *findDashName == "" {
 		return []findMatch{{name, false}}
 	}
@@ -41,10 +49,7 @@ func (d dirAndFileMatcher) match(name string) []findMatch {
 	dir := filepath.Dir(name)
 	for dir != "." {
 		if _, seen := d.m[dir]; !seen {
-			matched, err := filepath.Match(*findDashName, filepath.Base(dir))
-			if err != nil {
-				log.Fatalf("Error globbing: %v", err)
-			}
+			matched := d.match(filepath.Base(dir))
 			d.m[dir] = struct{}{}
 			if matched {
 				matches = append(matches, findMatch{dir, true})
@@ -58,11 +63,7 @@ func (d dirAndFileMatcher) match(name string) []findMatch {
 		matches[i], matches[j] = matches[j], matches[i]
 	}
 
-	matched, err := filepath.Match(*findDashName, filepath.Base(name))
-	if err != nil {
-		log.Fatalf("Error globbing: %v", err)
-	}
-	if matched {
+	if d.match(filepath.Base(name)) {
 		matches = append(matches, findMatch{name, false})
 	}
 	return matches
@@ -88,7 +89,7 @@ func findCommand(u string, args []string) {
 	matcher := newDirAndFileMatcher()
 	for fn, inf := range things.Files {
 		fn = fn[len(src)+1:]
-		for _, match := range matcher.match(fn) {
+		for _, match := range matcher.matches(fn) {
 			if err := tmpl.Execute(os.Stdout, struct {
 				Name  string
 				IsDir bool

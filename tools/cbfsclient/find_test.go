@@ -62,7 +62,7 @@ func TestFindMatching(t *testing.T) {
 		matched := []string{}
 		matcher := newDirAndFileMatcher()
 		for _, fn := range corpus {
-			for _, match := range matcher.match(fn) {
+			for _, match := range matcher.matches(fn) {
 				matched = append(matched, match.path)
 			}
 		}
