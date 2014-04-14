@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -11,13 +12,53 @@ import (
 	"github.com/dustin/httputil"
 )
 
+type findType int
+
+const (
+	findTypeAny = findType(iota)
+	findTypeFile
+	findTypeDir
+)
+
 var findFlags = flag.NewFlagSet("find", flag.ExitOnError)
 var findTemplate = findFlags.String("t", "", "Display template")
 var findTemplateFile = findFlags.String("T", "", "Display template filename")
 var findDashName = findFlags.String("name", "", "Glob name to match")
 
+var findDashType findType
+
 const defaultFindTemplate = `{{.Name}}
 `
+
+func (t findType) String() string {
+	switch t {
+	case findTypeAny:
+		return ""
+	case findTypeFile:
+		return "f"
+	case findTypeDir:
+		return "d"
+	}
+	panic("unreachable")
+}
+
+func (t *findType) Set(s string) error {
+	switch s {
+	case "":
+		*t = findTypeAny
+	case "f":
+		*t = findTypeFile
+	case "d":
+		*t = findTypeDir
+	default:
+		return fmt.Errorf("must be 'f' or 'd'")
+	}
+	return nil
+}
+
+func init() {
+	findFlags.Var(&findDashType, "type", "Type to match (f or d)")
+}
 
 type dirAndFileMatcher struct {
 	m map[string]struct{}
@@ -32,7 +73,18 @@ type findMatch struct {
 	isDir bool
 }
 
-func (d dirAndFileMatcher) match(name string) bool {
+func (d dirAndFileMatcher) match(name string, isdir bool) bool {
+	switch findDashType {
+	case findTypeAny:
+	case findTypeFile:
+		if isdir {
+			return false
+		}
+	case findTypeDir:
+		if !isdir {
+			return false
+		}
+	}
 	matched, err := filepath.Match(*findDashName, name)
 	if err != nil {
 		log.Fatalf("Error globbing: %v", err)
@@ -49,7 +101,7 @@ func (d dirAndFileMatcher) matches(name string) []findMatch {
 	dir := filepath.Dir(name)
 	for dir != "." {
 		if _, seen := d.m[dir]; !seen {
-			matched := d.match(filepath.Base(dir))
+			matched := d.match(filepath.Base(dir), true)
 			d.m[dir] = struct{}{}
 			if matched {
 				matches = append(matches, findMatch{dir, true})
@@ -63,7 +115,7 @@ func (d dirAndFileMatcher) matches(name string) []findMatch {
 		matches[i], matches[j] = matches[j], matches[i]
 	}
 
-	if d.match(filepath.Base(name)) {
+	if d.match(filepath.Base(name), false) {
 		matches = append(matches, findMatch{name, false})
 	}
 	return matches

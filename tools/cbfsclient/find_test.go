@@ -31,6 +31,22 @@ func TestFindMatching(t *testing.T) {
 				"web/site/robots.txt",
 			},
 		},
+		{[]string{"-name", "*", "-type", "f"},
+			[]string{
+				"web/site/file.html",
+				"web/site/file2.html",
+				"web/site/x/x.html",
+				"web/site/thing.png",
+				"web/site/robots.txt",
+			},
+		},
+		{[]string{"-name", "*", "-type", "d"},
+			[]string{
+				"web",
+				"web/site",
+				"web/site/x",
+			},
+		},
 		{
 			[]string{"-name", "*.png"},
 			[]string{"web/site/thing.png"},
@@ -58,6 +74,11 @@ func TestFindMatching(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		*findTemplate = ""
+		*findTemplateFile = ""
+		*findDashName = ""
+		findDashType = findTypeAny
+
 		findFlags.Parse(test.params)
 		matched := []string{}
 		matcher := newDirAndFileMatcher()
