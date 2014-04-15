@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/couchbaselabs/cbfs/client"
 	"github.com/couchbaselabs/cbfs/tools"
@@ -24,6 +25,8 @@ var findFlags = flag.NewFlagSet("find", flag.ExitOnError)
 var findTemplate = findFlags.String("t", "", "Display template")
 var findTemplateFile = findFlags.String("T", "", "Display template filename")
 var findDashName = findFlags.String("name", "", "Glob name to match")
+var findDashIName = findFlags.String("iname", "",
+	"Case insensitive glob name to match")
 
 var findDashType findType
 
@@ -62,10 +65,18 @@ func init() {
 
 type dirAndFileMatcher struct {
 	m map[string]struct{}
+	p string
+	i bool // if true, case insensitive
 }
 
 func newDirAndFileMatcher() dirAndFileMatcher {
-	return dirAndFileMatcher{map[string]struct{}{}}
+	rv := dirAndFileMatcher{map[string]struct{}{}, *findDashName, false}
+	if *findDashIName != "" {
+		rv.i = true
+		rv.p = strings.ToLower(*findDashIName)
+	}
+
+	return rv
 }
 
 type findMatch struct {
@@ -85,7 +96,11 @@ func (d dirAndFileMatcher) match(name string, isdir bool) bool {
 			return false
 		}
 	}
-	matched, err := filepath.Match(*findDashName, name)
+	m := name
+	if d.i {
+		m = strings.ToLower(m)
+	}
+	matched, err := filepath.Match(d.p, m)
 	if err != nil {
 		log.Fatalf("Error globbing: %v", err)
 	}
@@ -93,7 +108,7 @@ func (d dirAndFileMatcher) match(name string, isdir bool) bool {
 }
 
 func (d dirAndFileMatcher) matches(name string) []findMatch {
-	if *findDashName == "" {
+	if d.p == "" {
 		return []findMatch{{name, false}}
 	}
 	var matches []findMatch
@@ -121,6 +136,9 @@ func (d dirAndFileMatcher) matches(name string) []findMatch {
 }
 
 func findCommand(u string, args []string) {
+	if *findDashName != "" && *findDashIName != "" {
+		log.Fatalf("Can't specify both -name and -iname")
+	}
 	src := findFlags.Arg(0)
 	for src[len(src)-1] == '/' {
 		src = src[:len(src)-1]

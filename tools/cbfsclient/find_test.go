@@ -10,7 +10,7 @@ func TestFindMatching(t *testing.T) {
 		"web/site/file.html",
 		"web/site/file2.html",
 		"web/site/x/x.html",
-		"web/site/thing.png",
+		"web/site/Thing.png",
 		"web/site/robots.txt",
 	}
 
@@ -27,7 +27,7 @@ func TestFindMatching(t *testing.T) {
 				"web/site/file2.html",
 				"web/site/x",
 				"web/site/x/x.html",
-				"web/site/thing.png",
+				"web/site/Thing.png",
 				"web/site/robots.txt",
 			},
 		},
@@ -36,7 +36,7 @@ func TestFindMatching(t *testing.T) {
 				"web/site/file.html",
 				"web/site/file2.html",
 				"web/site/x/x.html",
-				"web/site/thing.png",
+				"web/site/Thing.png",
 				"web/site/robots.txt",
 			},
 		},
@@ -49,11 +49,11 @@ func TestFindMatching(t *testing.T) {
 		},
 		{
 			[]string{"-name", "*.png"},
-			[]string{"web/site/thing.png"},
+			[]string{"web/site/Thing.png"},
 		},
 		{
-			[]string{"-name", "thing.png"},
-			[]string{"web/site/thing.png"},
+			[]string{"-name", "Thing.png"},
+			[]string{"web/site/Thing.png"},
 		},
 		{
 			[]string{"-name", "*.html"},
@@ -70,6 +70,14 @@ func TestFindMatching(t *testing.T) {
 		{
 			[]string{"-name", "x"},
 			[]string{"web/site/x"},
+		},
+		{
+			[]string{"-name", "thing*"},
+			[]string{},
+		},
+		{
+			[]string{"-iname", "thing*"},
+			[]string{"web/site/Thing.png"},
 		},
 	}
 
