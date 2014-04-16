@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/couchbaselabs/cbfs/client"
 	"github.com/couchbaselabs/cbfs/tools"
@@ -27,6 +28,7 @@ var findTemplateFile = findFlags.String("T", "", "Display template filename")
 var findDashName = findFlags.String("name", "", "Glob name to match")
 var findDashIName = findFlags.String("iname", "",
 	"Case insensitive glob name to match")
+var findDashMTime = findFlags.Duration("mtime", 0, "Find by mod time")
 
 var findDashType findType
 
@@ -135,6 +137,20 @@ func (d dirAndFileMatcher) matches(name string) []findMatch {
 	return matches
 }
 
+func findMetaMatch(ref func(time.Time) bool, c cbfsclient.FileMeta) bool {
+	return true
+}
+
+func findGetRefTimeMatch(now time.Time) func(time.Time) bool {
+	switch {
+	case *findDashMTime > 0:
+		return now.Add(-*findDashMTime).Before
+	case *findDashMTime < 0:
+		return now.Add(*findDashMTime).After
+	}
+	return func(time.Time) bool { return true }
+}
+
 func findCommand(u string, args []string) {
 	if *findDashName != "" && *findDashIName != "" {
 		log.Fatalf("Can't specify both -name and -iname")
@@ -155,8 +171,12 @@ func findCommand(u string, args []string) {
 	things, err := client.ListDepth(src, 4096)
 	cbfstool.MaybeFatal(err, "Can't list things: %v", err)
 
+	metaMatcher := findGetRefTimeMatch(time.Now())
 	matcher := newDirAndFileMatcher()
 	for fn, inf := range things.Files {
+		if !metaMatcher(inf.Modified) {
+			continue
+		}
 		fn = fn[len(src)+1:]
 		for _, match := range matcher.matches(fn) {
 			if err := tmpl.Execute(os.Stdout, struct {
