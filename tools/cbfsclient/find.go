@@ -29,6 +29,7 @@ var findDashName = findFlags.String("name", "", "Glob name to match")
 var findDashIName = findFlags.String("iname", "",
 	"Case insensitive glob name to match")
 var findDashMTime = findFlags.Duration("mtime", 0, "Find by mod time")
+var findDashDepth = findFlags.Int("depth", 4096, "Maximum search depth")
 
 var findDashType findType
 
@@ -168,7 +169,7 @@ func findCommand(u string, args []string) {
 	client, err := cbfsclient.New(u)
 	cbfstool.MaybeFatal(err, "Can't build a client: %v", err)
 
-	things, err := client.ListDepth(src, 4096)
+	things, err := client.ListDepth(src, *findDashDepth)
 	cbfstool.MaybeFatal(err, "Can't list things: %v", err)
 
 	metaMatcher := findGetRefTimeMatch(time.Now())
