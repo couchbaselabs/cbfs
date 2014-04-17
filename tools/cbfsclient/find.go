@@ -178,7 +178,9 @@ func findCommand(u string, args []string) {
 		if !metaMatcher(inf.Modified) {
 			continue
 		}
-		fn = fn[len(src)+1:]
+		if len(fn) > len(src)+1 {
+			fn = fn[len(src)+1:]
+		}
 		for _, match := range matcher.matches(fn) {
 			if err := tmpl.Execute(os.Stdout, struct {
 				Name  string
