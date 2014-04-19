@@ -243,7 +243,7 @@ func localHash(fn string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func uploadWorker(client *cbfsclient.Client, ch chan uploadReq) {
+func uploadWorker(client *cbfsclient.Client, ch chan uploadReq, ech chan error) {
 	defer uploadWg.Done()
 	for req := range ch {
 		retries := 0
@@ -279,7 +279,7 @@ func uploadWorker(client *cbfsclient.Client, ch chan uploadReq) {
 						req.op, err)
 					time.Sleep(time.Duration(retries) * time.Second)
 				} else {
-					log.Printf("Error in %v %v: %v",
+					ech <- fmt.Errorf("Failed to %v %q: %v",
 						req.op, req.src, err)
 					done = true
 				}
@@ -465,10 +465,11 @@ func uploadCommand(u string, args []string) {
 
 	if fi.IsDir() {
 		ch := make(chan uploadReq, 1000)
+		ech := make(chan error, *uploadWorkers)
 
 		for i := 0; i < *uploadWorkers; i++ {
 			uploadWg.Add(1)
-			go uploadWorker(client, ch)
+			go uploadWorker(client, ch, ech)
 		}
 
 		start := time.Now()
@@ -477,9 +478,32 @@ func uploadCommand(u string, args []string) {
 		close(ch)
 		cbfstool.Verbose(*uploadVerbose, "Finished traversal in %v",
 			time.Since(start))
-		uploadWg.Wait()
+		waitch := make(chan bool)
+
+		go func() {
+			uploadWg.Wait()
+			close(waitch)
+		}()
+
+		rc := 0
+	collect:
+		for {
+			select {
+			case <-waitch:
+				close(ech)
+				waitch = nil
+			case err, ok := <-ech:
+				if !ok {
+					break collect
+				}
+				log.Printf("Permanent upload error: %v", err)
+				rc = 1
+			}
+		}
+
 		cbfstool.Verbose(*uploadVerbose, "Finished sync in %v",
 			time.Since(start))
+		os.Exit(rc)
 	} else {
 		err = uploadFile(client, srcFn, dest, localHash(srcFn))
 		cbfstool.MaybeFatal(err, "Error uploading file: %v", err)
