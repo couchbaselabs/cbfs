@@ -16,9 +16,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/couchbase/gomemcached"
+	"github.com/couchbase/gomemcached/client"
 	"github.com/couchbaselabs/cbfs/config"
-	"github.com/dustin/gomemcached"
-	"github.com/dustin/gomemcached/client"
 )
 
 func doGetConfig(w http.ResponseWriter, req *http.Request) {

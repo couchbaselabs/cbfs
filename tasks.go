@@ -15,9 +15,9 @@ import (
 
 	"encoding/hex"
 
+	"github.com/couchbase/gomemcached"
+	"github.com/couchbase/gomemcached/client"
 	cb "github.com/couchbaselabs/go-couchbase"
-	"github.com/dustin/gomemcached"
-	"github.com/dustin/gomemcached/client"
 )
 
 var verifyWorkers = flag.Int("verifyWorkers", 4,

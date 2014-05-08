@@ -14,9 +14,9 @@ import (
 	"sort"
 	"time"
 
+	"github.com/couchbase/gomemcached"
+	"github.com/couchbase/gomemcached/client"
 	cb "github.com/couchbaselabs/go-couchbase"
-	"github.com/dustin/gomemcached"
-	"github.com/dustin/gomemcached/client"
 	"sethwklein.net/go/errutil"
 )
 

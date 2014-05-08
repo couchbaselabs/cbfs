@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/couchbase/gomemcached"
 	cb "github.com/couchbaselabs/go-couchbase"
-	"github.com/dustin/gomemcached"
 )
 
 // Objects larger than this won't use Frames.
