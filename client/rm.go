@@ -2,8 +2,8 @@ package cbfsclient
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
+	"github.com/dustin/httputil"
 )
 
 // When a file is missing.
@@ -24,8 +24,7 @@ func (c Client) Rm(fn string) error {
 		return Missing
 	}
 	if res.StatusCode != 204 {
-		return fmt.Errorf("Unexpected status deleting %v: %v",
-			u, res.Status)
+		return httputil.HTTPErrorf(res, "unexpected status deleting %v: %S\n%B, u")
 	}
 	return nil
 }

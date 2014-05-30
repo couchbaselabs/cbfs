@@ -14,8 +14,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/couchbaselabs/cbfs/tools"
 	"strconv"
+
+	"github.com/couchbaselabs/cbfs/tools"
+	"github.com/dustin/httputil"
 )
 
 var restoreFlags = flag.NewFlagSet("restore", flag.ExitOnError)
@@ -66,10 +68,7 @@ func restoreFile(base, path string, data interface{}) error {
 	case res.StatusCode == 409 && !*restoreForce:
 		// OK
 	default:
-		log.Printf("restore error on %v: %v", path, res.Status)
-		io.Copy(os.Stderr, res.Body)
-		fmt.Fprintln(os.Stderr)
-		return fmt.Errorf("HTTP Error restoring %v: %v", path, res.Status)
+		return httputil.HTTPErrorf(res, "restore error on %v - %Sv\n%B", path)
 	}
 
 	return nil

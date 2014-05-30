@@ -15,6 +15,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/dustin/httputil"
 )
 
 func init() {
@@ -101,7 +103,7 @@ func GetJsonData(u string, into interface{}) error {
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return fmt.Errorf("HTTP Error: %v", res.Status)
+		return httputil.HTTPError(res)
 	}
 
 	d := json.NewDecoder(res.Body)

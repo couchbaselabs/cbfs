@@ -6,10 +6,11 @@ package cbfsclient
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/dustin/httputil"
 )
 
 // A cbfs client.
@@ -44,7 +45,7 @@ func getJsonData(u string, into interface{}) error {
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return fmt.Errorf("HTTP Error: %v", res.Status)
+		return httputil.HTTPError(res)
 	}
 
 	d := json.NewDecoder(res.Body)

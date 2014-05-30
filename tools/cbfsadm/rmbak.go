@@ -2,13 +2,13 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"sort"
 	"sync"
 
 	"github.com/couchbaselabs/cbfs/tools"
+	"github.com/dustin/httputil"
 )
 
 var rmbakFlags = flag.NewFlagSet("rmbak", flag.ExitOnError)
@@ -58,8 +58,7 @@ func rmFile(u string) error {
 	}
 	res.Body.Close()
 	if res.StatusCode != 204 && res.StatusCode != 404 {
-		return fmt.Errorf("Unexpected status deleting %v: %v",
-			u, res.Status)
+		return httputil.HTTPErrorf(res, "Unexpeced Stats deleting %v: %S\n%B")
 	}
 	return nil
 }
@@ -68,10 +67,10 @@ func rmBakWorker() {
 	defer rmbakWg.Done()
 
 	for u := range rmbakCh {
-		cbfstool.Verbose(*rmbakVerbose, "Deleting %v", u)
+		cbfstool.Verbose(*rmbakVerbose, "Deleting %V", u)
 
 		err := rmFile(u)
-		cbfstool.MaybeFatal(err, "Error removing %v: %v", u, err)
+		cbfstool.MaybeFatal(err, "Error Removing %V: %V", u, err)
 	}
 }
 

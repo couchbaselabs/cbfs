@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/dustin/httputil"
 )
 
 // Represents a directory as returned from a List operation.
@@ -98,8 +100,8 @@ func (c Client) ListDepth(ustr string, depth int) (ListResult, error) {
 	case 200:
 		// ok
 	default:
-		return result, fmt.Errorf("Error in request to %v: %v",
-			inputUrl, res.Status)
+		return result, httputil.HTTPErrorf(res,
+			"error in request to %v: %S\n%B", inputUrl)
 	}
 
 	d := json.NewDecoder(res.Body)

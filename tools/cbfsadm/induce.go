@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/couchbaselabs/cbfs/client"
 	"github.com/couchbaselabs/cbfs/tools"
+	"github.com/dustin/httputil"
 )
 
 const tasksTmplText = `Which task would you like to induce?
@@ -37,7 +37,7 @@ func induceTask(ustr, taskname string) error {
 	}
 
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return fmt.Errorf("HTTP error: %v", res.Status)
+		return httputil.HTTPError(res)
 	}
 	return nil
 }

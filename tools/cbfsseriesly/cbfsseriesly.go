@@ -2,9 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -13,6 +10,7 @@ import (
 	"time"
 
 	"github.com/couchbaselabs/cbfs/client"
+	"github.com/dustin/httputil"
 )
 
 var cbfsUrlFlag = flag.String("cbfs", "http://cbfs:8484/", "URL to cbfs base")
@@ -84,7 +82,7 @@ func httpCopy(dest, src string) error {
 	}
 	defer sres.Body.Close()
 	if sres.StatusCode != 200 {
-		return fmt.Errorf("HTTP error getting src data from %v: %v", src, sres.Status)
+		return httputil.HTTPErrorf(sres, "error copying from %v: S\n%B", src)
 	}
 
 	dres, err := http.Post(dest, sres.Header.Get("Content-Type"), sres.Body)
@@ -94,9 +92,8 @@ func httpCopy(dest, src string) error {
 	defer dres.Body.Close()
 
 	if dres.StatusCode != 201 {
-		errmsg, _ := ioutil.ReadAll(io.LimitReader(dres.Body, 512))
-		return fmt.Errorf("HTTP Error posting result to %v: %v\n%s",
-			dest, dres.StatusCode, errmsg)
+		return httputil.HTTPErrorf(dres, "Error posting result to %v: %S\n%B",
+			dest)
 	}
 	return nil
 }

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-saturate"
+	"github.com/dustin/httputil"
 )
 
 type FetchCallback func(oid string, r io.Reader) error
@@ -34,9 +34,7 @@ func (c Client) GetBlobInfos(oids ...string) (map[string]BlobInfo, error) {
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		body, _ := ioutil.ReadAll(io.LimitReader(res.Body, 512))
-		return nil, fmt.Errorf("HTTP error fetching blob info: %v\n%s",
-			res.Status, body)
+		return nil, httputil.HTTPErrorf(res, "error fetching blob info: %S\n%B")
 	}
 
 	d := json.NewDecoder(res.Body)
@@ -69,7 +67,7 @@ func (fw fetchWorker) Work(i interface{}) error {
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return fmt.Errorf("HTTP error: %v", res.Status)
+		return httputil.HTTPError(res)
 	}
 	return fw.cb(oid, res.Body)
 }
@@ -148,7 +146,7 @@ func (c Client) Get(path string) (io.ReadCloser, error) {
 		return res.Body, nil
 	default:
 		defer res.Body.Close()
-		return nil, fmt.Errorf("HTTP Error: %v", res.Status)
+		return nil, httputil.HTTPError(res)
 	}
 }
 
@@ -223,7 +221,7 @@ func (f *FileHandle) WriteTo(w io.Writer) (int64, error) {
 
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return 0, fmt.Errorf("Unexpected http response: %v", res.Status)
+		return 0, httputil.HTTPErrorf(res, "Unexpected http response: %S\n%B")
 	}
 
 	n, err := io.Copy(w, res.Body)
@@ -258,7 +256,7 @@ func (f *FileHandle) ReadAt(p []byte, off int64) (n int, err error) {
 		exp = 200
 	}
 	if res.StatusCode != exp {
-		return 0, fmt.Errorf("Unexpected http response: %v", res.Status)
+		return 0, httputil.HTTPErrorf(res, "Unexpected http response: %S\n%B")
 	}
 
 	n, err = io.ReadFull(res.Body, p)
@@ -333,7 +331,7 @@ func (c Client) OpenFile(path string) (*FileHandle, error) {
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return nil, fmt.Errorf("HTTP error: %v", res.Status)
+		return nil, httputil.HTTPError(res)
 	}
 	j := struct {
 		Meta FileMeta

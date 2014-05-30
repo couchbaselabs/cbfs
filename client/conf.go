@@ -3,10 +3,10 @@ package cbfsclient
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/couchbaselabs/cbfs/config"
+	"github.com/dustin/httputil"
 )
 
 func (c Client) confURL() string {
@@ -50,9 +50,7 @@ func (c Client) SetConfigParam(key, val string) error {
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 204 {
-		bod := make([]byte, 512)
-		l, _ := res.Body.Read(bod)
-		return fmt.Errorf("HTTP Error: %v / %v", res.Status, bod[:l])
+		return httputil.HTTPError(res)
 	}
 	return nil
 }

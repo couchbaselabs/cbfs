@@ -11,6 +11,7 @@ import (
 
 	"github.com/dustin/frames"
 	"github.com/dustin/frames/http"
+	"github.com/dustin/httputil"
 )
 
 const (
@@ -98,7 +99,7 @@ func checkFrameClient(addr string) {
 			if err == nil {
 				res.Body.Close()
 				if res.StatusCode != 204 {
-					err = errors.New(res.Status)
+					err = httputil.HTTPError(res)
 				}
 			}
 			ch <- err
