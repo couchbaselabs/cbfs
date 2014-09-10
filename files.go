@@ -17,7 +17,8 @@ var maxStorageString = flag.String("maxSize", "",
 var maxStorage int64
 
 func hashFilename(base, hstr string) string {
-	return base + "/" + hstr[:2] + "/" + hstr
+	pathBelowBase := filepath.Clean("/" + hstr[:2] + "/" + hstr)
+	return base + pathBelowBase
 }
 
 type ReadSeekCloser interface {

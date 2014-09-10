@@ -216,3 +216,31 @@ func TestHashWriterWithBadHash(t *testing.T) {
 		}
 	})
 }
+
+func TestValidHash(t *testing.T) {
+	tests := []struct {
+		hash  string
+		valid bool
+	}{
+		{
+			"a7592f6920e3bda2e4ab080b2d7f24b4e5c320be",
+			true,
+		},
+		{
+			"../../../etc/passwd",
+			false,
+		},
+		{
+			"",
+			false,
+		},
+	}
+
+	for _, test := range tests {
+		valid := validHash(test.hash)
+		if valid != test.valid {
+			t.Errorf("expected hash validity %t, got %t for hash '%s'", test.valid, valid, test.hash)
+		}
+	}
+
+}

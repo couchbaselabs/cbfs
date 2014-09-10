@@ -289,6 +289,11 @@ func putRawHash(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if !validHash(inputhash) {
+		http.Error(w, "Error invalid hash: "+inputhash, 400)
+		return
+	}
+
 	f, err := NewHashRecord(*root, inputhash)
 	if err != nil {
 		log.Printf("Error writing tmp file: %v", err)
@@ -396,6 +401,10 @@ func doHeadUserFile(w http.ResponseWriter, req *http.Request) {
 }
 
 func doHeadRawBlob(w http.ResponseWriter, req *http.Request, oid string) {
+	if !validHash(oid) {
+		http.Error(w, "Error invalid hash: "+oid, 400)
+		return
+	}
 	f, err := openLocalBlob(oid)
 	if err != nil {
 		http.Error(w,
@@ -532,6 +541,10 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 }
 
 func doServeRawBlob(w http.ResponseWriter, req *http.Request, oid string) {
+	if !validHash(oid) {
+		http.Error(w, "Error invalid hash: "+oid, 400)
+		return
+	}
 	f, err := openLocalBlob(oid)
 	if err != nil {
 		http.Error(w, "Error opening blob: "+err.Error(), 404)
@@ -695,6 +708,10 @@ func minusPrefix(s, prefix string) string {
 
 func doDeleteOID(w http.ResponseWriter, req *http.Request) {
 	oid := minusPrefix(req.URL.Path, blobPrefix)
+	if !validHash(oid) {
+		http.Error(w, "Error invalid hash: "+oid, 400)
+		return
+	}
 
 	err := removeObject(oid)
 	if err == nil {

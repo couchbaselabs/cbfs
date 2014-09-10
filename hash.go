@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -171,4 +172,10 @@ func (h *hwFinisher) Close() error {
 		err = recordBlobOwnership(h.oid, h.l, true)
 	}
 	return err
+}
+
+var validHashRegexp = regexp.MustCompile(`^[a-f0-9]+$`)
+
+func validHash(hash string) bool {
+	return validHashRegexp.MatchString(hash)
 }
