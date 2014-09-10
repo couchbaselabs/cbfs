@@ -30,12 +30,14 @@ var (
 func init() {
 	m := expvar.NewMap("io")
 
-	m.Set("w_B", &metrics.HistogramExport{writeBytes,
-		[]float64{0.1, 0.2, 0.80, 0.90, 0.99},
-		[]string{"p10", "p20", "p80", "p90", "p99"}})
-	m.Set("r_B", &metrics.HistogramExport{readBytes,
-		[]float64{0.1, 0.2, 0.80, 0.90, 0.99},
-		[]string{"p10", "p20", "p80", "p90", "p99"}})
+	m.Set("w_B", &metrics.HistogramExport{
+		Histogram:       writeBytes,
+		Percentiles:     []float64{0.1, 0.2, 0.80, 0.90, 0.99},
+		PercentileNames: []string{"p10", "p20", "p80", "p90", "p99"}})
+	m.Set("r_B", &metrics.HistogramExport{
+		Histogram:       readBytes,
+		Percentiles:     []float64{0.1, 0.2, 0.80, 0.90, 0.99},
+		PercentileNames: []string{"p10", "p20", "p80", "p90", "p99"}})
 
 	expHistos = expvar.NewMap("cb")
 
@@ -50,9 +52,10 @@ func connPoolHisto(name string) metrics.Histogram {
 		rv = metrics.NewBiasedHistogram()
 		cbHistos[name] = rv
 
-		expHistos.Set(name, &metrics.HistogramExport{rv,
-			[]float64{0.25, 0.5, 0.75, 0.90, 0.99},
-			[]string{"p25", "p50", "p75", "p90", "p99"}})
+		expHistos.Set(name, &metrics.HistogramExport{
+			Histogram:       rv,
+			Percentiles:     []float64{0.25, 0.5, 0.75, 0.90, 0.99},
+			PercentileNames: []string{"p25", "p50", "p75", "p90", "p99"}})
 	}
 	return rv
 }
@@ -74,9 +77,10 @@ func initTaskMetrics() {
 	}
 
 	for k, v := range taskDurations {
-		m.Set(k+"_ms", &metrics.HistogramExport{v,
-			[]float64{0.5, 0.9, 0.99, 0.999},
-			[]string{"p50", "p90", "p99", "p999"}})
+		m.Set(k+"_ms", &metrics.HistogramExport{
+			Histogram:       v,
+			Percentiles:     []float64{0.5, 0.9, 0.99, 0.999},
+			PercentileNames: []string{"p50", "p90", "p99", "p999"}})
 	}
 }
 
