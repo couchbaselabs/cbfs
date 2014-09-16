@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/dustin/go-hashset"
-	"github.com/dustin/gomemcached"
+	"github.com/couchbase/gomemcached"
 
 	"github.com/couchbaselabs/cbfs/config"
 )
