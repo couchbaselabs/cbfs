@@ -17,7 +17,7 @@ import (
 
 	"github.com/couchbaselabs/cbfs/config"
 	"github.com/dustin/go-humanize"
-	"github.com/dustin/gomemcached"
+	"github.com/couchbase/gomemcached"
 	"github.com/dustin/httputil"
 )
 

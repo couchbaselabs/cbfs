@@ -10,7 +10,7 @@ import (
 	"time"
 
 	cb "github.com/couchbaselabs/go-couchbase"
-	_ "github.com/dustin/gomemcached/debug"
+	_ "github.com/couchbase/gomemcached/debug"
 	"github.com/samuel/go-metrics/metrics"
 )
 
