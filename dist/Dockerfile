@@ -8,7 +8,8 @@ ENV PATH $GOPATH/bin:$PATH
 # Get dependencies
 RUN apt-get update && apt-get install -y \
   git \
-  golang 
+  golang \
+  mercurial
 
 # Install cbfs
 RUN go get -u -v -t github.com/couchbaselabs/cbfs
