@@ -14,3 +14,5 @@ RUN apt-get update && apt-get install -y \
 # Install cbfs
 RUN go get -u -v -t github.com/couchbaselabs/cbfs
 
+# Install cbfs client
+RUN go get -u -v -t github.com/couchbaselabs/cbfs/tools/cbfsclient
