@@ -1,3 +1,7 @@
+Quick Start
+===========
+See [Traun Leyden](https://github.com/tleyden)'s blog post on [Running CBFS](http://tleyden.github.io/blog/2014/11/14/running-cbfs/).
+
 How do I get the stuff
 ======================
 
