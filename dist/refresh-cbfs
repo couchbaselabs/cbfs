@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+go get -u -v -t github.com/couchbaselabs/cbfs
+go get -u -v -t github.com/couchbaselabs/cbfs/tools/cbfsclient
