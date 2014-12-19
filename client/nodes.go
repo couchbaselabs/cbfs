@@ -66,6 +66,10 @@ func (c *Client) RandomNode() (string, StorageNode, error) {
 		}
 	}
 
+	if len(nodes) == 0 {
+		return "", StorageNode{}, fmt.Errorf("No nodes available")
+	}
+
 	name := nodes[rand.Intn(len(nodes))]
 
 	return name, nodeMap[name], nil
