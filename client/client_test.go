@@ -2,8 +2,11 @@ package cbfsclient
 
 import (
 	"io"
+	"log"
 	"os"
 	"testing"
+
+	"github.com/tleyden/fakehttp"
 )
 
 func TestPathGen(t *testing.T) {
@@ -26,6 +29,31 @@ func TestPathGen(t *testing.T) {
 				exp, i, p)
 		}
 	}
+}
+
+func TestRandomNode(t *testing.T) {
+
+	testServer := fakehttp.NewHTTPServerWithPort(8484)
+	testServer.Start()
+
+	jsonContentType := map[string]string{"Content-Type": "application/json"}
+
+	// when cbfs tries to query list of nodes, return empty value
+	testServer.Response(200, jsonContentType, `{}`)
+
+	c, err := New("http://localhost:8484/")
+	if err != nil {
+		t.Fatalf("Error parsing thing: %v", err)
+	}
+
+	_, _, err = c.RandomNode()
+	log.Printf("err: %v", err)
+	if err == nil {
+		// since we don't have any nodes, RandomNode() should
+		// return an error
+		t.Fatalf("Expected error calling randomnode: %v", err)
+	}
+
 }
 
 // Some assertions around filehandle's applicability
