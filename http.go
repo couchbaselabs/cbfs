@@ -509,6 +509,7 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 	f, err := openBlob(oid, req.Header.Get("X-CBFS-LocalOnly") != "")
 	if err == nil {
 		// normal path
+		defer f.Close()
 	} else if notloc, ok := err.(errNotLocal); ok {
 		w.Header().Set("Location", notloc.urls[0])
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -518,7 +519,6 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	defer f.Close()
 
 	for k, v := range respHeaders {
 		if isResponseHeader(k) {
