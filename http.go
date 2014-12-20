@@ -515,6 +515,7 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(300)
 		json.NewEncoder(w).Encode(notloc.urls)
+		return
 	} else {
 		http.Error(w, err.Error(), 500)
 		return
