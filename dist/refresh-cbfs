@@ -2,3 +2,14 @@
 
 go get -u -v -t github.com/couchbaselabs/cbfs
 go get -u -v -t github.com/couchbaselabs/cbfs/tools/cbfsclient
+
+# did they pass in a branch name?
+if [ -n "$1" ]; then
+    echo "Switching to branch: $1"
+    cd $GOPATH/src/github.com/couchbaselabs/cbfs/
+    git fetch && git checkout "$1"
+    go install
+    cd tools/cbfsclient
+    go build
+    cp cbfsclient $GOPATH/bin
+fi
