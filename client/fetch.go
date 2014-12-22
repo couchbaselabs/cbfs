@@ -139,11 +139,23 @@ func (c Client) Get(path string) (io.ReadCloser, error) {
 		return res.Body, nil
 	case 300:
 		defer res.Body.Close()
-		res, err = http.Get(res.Header.Get("Location"))
+		redirectTarget := res.Header.Get("Location")
+		res, err = http.Get(redirectTarget)
 		if err != nil {
 			return nil, err
 		}
-		return res.Body, nil
+		// if we follow the redirect, make sure response code == 200
+		switch res.StatusCode {
+		case 200:
+			return res.Body, nil
+		default:
+			return nil, fmt.Errorf(
+				"Got %v following redirect to %v",
+				res.StatusCode,
+				redirectTarget,
+			)
+		}
+
 	default:
 		defer res.Body.Close()
 		return nil, httputil.HTTPError(res)
