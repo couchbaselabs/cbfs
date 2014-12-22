@@ -511,6 +511,10 @@ func doGetUserDoc(w http.ResponseWriter, req *http.Request) {
 		// normal path
 		defer f.Close()
 	} else if notloc, ok := err.(errNotLocal); ok {
+		log.Printf("did not find oid %v locally", oid)
+		for _, notLocUrl := range notloc.urls {
+			log.Printf("notLocUrl: %v", notLocUrl)
+		}
 		w.Header().Set("Location", notloc.urls[0])
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(300)

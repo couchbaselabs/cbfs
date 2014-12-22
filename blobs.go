@@ -693,7 +693,11 @@ func openBlob(oid string, localOnly bool) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("blobOwnership: %+v", bo)
 	nl := bo.ResolveNodes()
+	for _, storageNode := range nl {
+		log.Printf("storageNode: %+v", storageNode)
+	}
 	if len(nl) == 0 {
 		return nil, errors.New("no copies found")
 	}
