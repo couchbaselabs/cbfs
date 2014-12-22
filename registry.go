@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -131,11 +132,13 @@ func initServerId() error {
 		serverId = strings.TrimSpace(string(bytes))
 	} else {
 		if serverId == "" {
+			log.Printf("NodeID was not given, generating one")
 			h := getHash()
 			t := time.Now().UTC().Format(time.RFC3339Nano)
 			h.Write([]byte(t))
 			serverId = hex.EncodeToString(h.Sum(nil))[:8]
 		}
 	}
+	log.Printf("serverID: %v", serverId)
 	return err
 }
