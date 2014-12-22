@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -140,18 +141,19 @@ func (c Client) Get(path string) (io.ReadCloser, error) {
 	case 300:
 		defer res.Body.Close()
 		redirectTarget := res.Header.Get("Location")
-		res, err = http.Get(redirectTarget)
+		log.Printf("Redirecting to %v", redirectTarget)
+		resRedirect, err := http.Get(redirectTarget)
 		if err != nil {
 			return nil, err
 		}
 		// if we follow the redirect, make sure response code == 200
-		switch res.StatusCode {
+		switch resRedirect.StatusCode {
 		case 200:
-			return res.Body, nil
+			return resRedirect.Body, nil
 		default:
 			return nil, fmt.Errorf(
-				"Got %v following redirect to %v",
-				res.StatusCode,
+				"Got %v response following redirect to %v",
+				resRedirect.StatusCode,
 				redirectTarget,
 			)
 		}
