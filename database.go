@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	// Alias this because we call our connection couchbase
-	cb "github.com/couchbaselabs/go-couchbase"
-	"github.com/couchbaselabs/go-couchbase/util"
+	cb "github.com/couchbase/go-couchbase"
+	"github.com/couchbase/go-couchbase/util"
 )
 
 var couchbase *cb.Bucket
