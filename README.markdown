@@ -1,4 +1,4 @@
-
+[![GoDoc](https://godoc.org/github.com/couchbaselabs/cbfs?status.png)](https://godoc.org/github.com/couchbaselabs/cbfs)
 
 How do I get the stuff
 ======================
