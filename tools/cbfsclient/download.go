@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"sethwklein.net/go/errutil"
+	"github.com/sethwklein/errutil"
 
 	"github.com/couchbaselabs/cbfs/client"
 	"github.com/couchbaselabs/cbfs/tools"
