@@ -17,7 +17,7 @@ import (
 	"github.com/couchbase/gomemcached"
 	"github.com/couchbase/gomemcached/client"
 	cb "github.com/couchbaselabs/go-couchbase"
-	"sethwklein.net/go/errutil"
+	"github.com/sethwklein/errutil"
 )
 
 type BlobOwnership struct {
