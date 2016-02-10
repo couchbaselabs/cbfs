@@ -15,7 +15,7 @@ import (
 	_ "crypto/sha256"
 	_ "crypto/sha512"
 
-	"code.google.com/p/go.crypto/openpgp"
+	"golang.org/x/crypto/openpgp"
 )
 
 var encryptKeys openpgp.EntityList
