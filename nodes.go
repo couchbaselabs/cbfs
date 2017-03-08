@@ -241,7 +241,7 @@ func findAllNodes() (NodeList, error) {
 
 	rv := make(NodeList, 0, len(nodeSizes))
 
-	bres, err := couchbase.GetBulk(nodeKeys)
+	bres, _, err := couchbase.GetBulk(nodeKeys)
 	if err != nil {
 		return nil, err
 	}

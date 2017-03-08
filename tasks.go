@@ -189,7 +189,7 @@ func listRunningTasks() (map[string]TaskList, error) {
 		keys = append(keys, "/@"+n.name+"/tasks")
 	}
 
-	responses, err := couchbase.GetBulk(keys)
+	responses, _, err := couchbase.GetBulk(keys)
 	if err != nil {
 		return nil, err
 	}

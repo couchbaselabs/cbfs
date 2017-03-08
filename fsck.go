@@ -87,7 +87,7 @@ func dofsck(w http.ResponseWriter, req *http.Request,
 			fnmap[nf.meta.OID] = a
 		}
 
-		bres, err := couchbase.GetBulk(keys)
+		bres, _, err := couchbase.GetBulk(keys)
 		if err != nil {
 			log.Printf("Error getting bulk keys: %v", err)
 			return

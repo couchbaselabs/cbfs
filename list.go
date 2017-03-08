@@ -61,7 +61,7 @@ func listFiles(path string, includeMeta bool,
 	}
 
 	// do a multi-get on the all the keys returned
-	bulkResult, err := couchbase.GetBulk(keys)
+	bulkResult, _, err := couchbase.GetBulk(keys)
 	if err != nil {
 		return fileListing{}, err
 	}
