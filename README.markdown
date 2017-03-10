@@ -1,5 +1,7 @@
 [![GoDoc](https://godoc.org/github.com/couchbaselabs/cbfs?status.png)](https://godoc.org/github.com/couchbaselabs/cbfs)
 
+cbfs is a distributed file server built on top of Couchbase
+
 How do I get the stuff
 ======================
 
