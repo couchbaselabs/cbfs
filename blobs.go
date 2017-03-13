@@ -52,7 +52,7 @@ func (b BlobOwnership) ResolveNodes() NodeList {
 	for k := range b.Nodes {
 		keys = append(keys, "/"+k)
 	}
-	resps, err := couchbase.GetBulk(keys)
+	resps, _, err := couchbase.GetBulk(keys)
 	if err != nil {
 		log.Panicf("Error getting nodelist: %v", err)
 	}
@@ -120,7 +120,7 @@ func getBlobs(oids []string) (map[string]BlobOwnership, error) {
 	res := map[string]BlobOwnership{}
 
 	for _, keys := range keysets {
-		bres, err := couchbase.GetBulk(keys)
+		bres, _, err := couchbase.GetBulk(keys)
 		if err != nil {
 			return nil, err
 		}
